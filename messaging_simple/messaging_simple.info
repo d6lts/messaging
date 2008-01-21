@@ -1,0 +1,5 @@
+; $Id$
+name = Simple messaging
+description = Sending Method: Pull messages into user's page
+package = "Messaging"
+dependencies = messaging

@@ -1,0 +1,82 @@
+<?php
+/**
+ * @file
+ * Simple messaging using html page. Messaging method plug-in
+ * 
+ * This is a really simple message viewer and also an illustration of pulling messaging methods
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function messaging_simple_menu($may_cache) {
+  global $user;  // we need the user to to build some urls
+  $items = array();
+  if (!$may_cache) {
+    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && (arg(1) == $user->uid)) {
+      $items[] = array(
+          'path' => 'user/'. $user->uid .'/messages',
+          'type' => MENU_LOCAL_TASK,
+          'title' => t('Messages'),
+          'callback' => 'messaging_simple_user_page',
+          'callback arguments' => array($user)
+      );
+    }
+  }
+  return $items;
+}
+
+/**
+ * Menu callback. Display pending messages to the user
+ * 
+ * Sample Implementation of messaging pull methods
+ */
+function messaging_simple_user_page($account) {
+  drupal_set_title(t('Pending messages for %name', array('%name' => $account->name)));
+  // Fetch all pending messages.
+  // @ TODO: Add some paging here
+  $rows = array();
+
+  foreach (messaging_method_info() as $method => $info) {
+    $messages = messaging_pull_pending($method, array($account->uid), 0, FALSE);
+    foreach ($messages as $msg) {
+      $subject = messaging_message_render($msg['subject'], '');
+      $body = messaging_message_render($msg['body']);
+      $rows[] = array($info['name'], $subject, $body);
+    }
+  }
+  if ($rows) {
+    $header = array(t('Method'), t('Subject'), t('Body'));
+    return theme('table', $header, $rows);
+  } else {
+    return t('No pending messages');
+  }
+}
+
+/**
+ * Implementation of hook_messaging
+ */
+function messaging_simple_messaging($op = 'info') {
+  switch($op) {
+    case 'send methods':
+      $info['simple'] = array(
+        'name' => t('Simple'),
+        'send' => 'messaging_simple_send',
+        'type' => MESSAGING_TYPE_PULL,     
+      );
+      return $info;  
+  }
+}
+
+/**
+ * Just show message title to the user. 
+ * 
+ * This is a pull method though, so this is mainly intended for testing options
+ */
+function messaging_simple_send($account, $message) {
+  // Render only message subject
+  $subject = messaging_message_render($message['subject'], '');
+  drupal_set_message(t('New message: %title', array('%title' => $subject)));
+  return TRUE;
+}
+ 

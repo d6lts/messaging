@@ -1,0 +1,5 @@
+; $Id$
+name = Privatemsg
+description = Sending Method: Integration with Privatemsg
+package = "Messaging"
+dependencies = messaging privatemsg

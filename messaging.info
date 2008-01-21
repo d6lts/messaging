@@ -1,0 +1,4 @@
+; $Id$
+name = Messaging Framework
+description = Drupal Messaging Monitoring Management
+package = "Messaging"

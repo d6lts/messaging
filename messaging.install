@@ -1,0 +1,27 @@
+<?php
+// $Id$
+
+function messaging_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {messaging_message_parts} (
+          type varchar(100) NOT NULL,
+          method varchar(50) NOT NULL,
+          msgkey varchar(100) NOT NULL,
+          module varchar(255) NOT NULL,
+          message TEXT,
+          INDEX (type),
+          INDEX (method),
+          INDEX (msgkey)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+      break;
+    case 'pgsql':
+      drupal_set_message('Sorry, no install script for pgsql yet.', 'error');
+      break;
+  }
+}
+
+function messaging_uninstall() {
+  db_query("DROP TABLE {messaging_message_parts}");
+}
