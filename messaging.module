@@ -14,6 +14,17 @@ define('MESSAGING_TYPE_PUSH', 1);
 define('MESSAGING_TYPE_PULL', 2);
 
 /**
+ * Implementation of hook_help().
+ */
+function messaging_help($section) {
+  if (arg(0) == 'admin' && arg(1) == 'settings' && arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
+    if ($help = messaging_message_group($group, 'help')) {
+      return $help;
+    }
+  }
+}
+
+/**
  * Implementation of hook_menu()
  */
 function messaging_menu($may_cache) {
@@ -112,7 +123,7 @@ function messaging_admin_message_form($group, $group_info) {
     }
   }
   // Tokens for text replacement
-  if ($tokens = messaging_tokens_get_list($group_info['tokens'])) {
+  if ($tokens = messaging_tokens_get_list($group)) {
     $form['tokens'] = array(
       '#title' => t('Available tokens'),
       '#type' => 'fieldset',
@@ -133,18 +144,29 @@ function messaging_admin_message_form($group, $group_info) {
 
 /**
  * Get list of tokens for text replacement
+ * 
+ * @param $group
+ *   Message group to get tokens for
+ * @param $tokens
+ *   
  */
-function messaging_tokens_get_list($types) {
-  $list = $output = array();
-  foreach ($types as $name) {
-    $list += token_get_list($name);
-  }
-  foreach ($list as $category => $tokens) {
-    foreach ($tokens as $token => $description) {
-      $output[] = "<em>[$token]</em> $description";
+function messaging_tokens_get_list($group) {
+  // First compile token types for this message group
+  $type_list = module_invoke_all('messaging', 'tokens', $group);
+  
+  // Now get token list from token module for each type
+  $return = array();
+  foreach ($type_list as $type) {
+    if ($list = token_get_list($type)) {
+      foreach ($list as $category => $tokens) {
+        foreach ($tokens as $token => $description) {
+          $return[$token] = "<em>[$token]</em> $description";
+        }
+      }      
     }
   }
-  return $output;
+
+  return $return;
 }
 /**
  * Process and save message parts
@@ -394,16 +416,40 @@ function messaging_text_vars($text, $variables) {
  * Returns parts of messages, that may be formatted for each sending method
  * 
  * @param $group
+ *   Message group.
+ * @param $key
+ *   Optional message key inside the group. Returns all keys if null.
+ * @return array()
+ *   Depending on parameters, may be all message groups and keys or only a specific one.
+ */
+function messaging_message_info($group, $key = NULL) {
+  static $info;
+  if (!isset($info[$group])) {
+    $info[$group] = module_invoke_all('messaging', 'messages', $group);
+  }
+  if ($key) {
+    return isset($info[$group][$key]) ? $info[$group][$key] : NULL;
+  } elseif ($group) {
+    return isset($info[$group]) ? $info[$group] : array();
+  } else {
+    return $info;
+  }
+}
+
+/**
+ * Returns information about message groups
+ * 
+ * @param $group
  *   Optional message group. Returns all groups if null.
  * @param $key
  *   Optional message key inside the group. Returns all keys if null.
  * @return array()
  *   Depending on parameters, may be all message groups and keys or only a specific one.
  */
-function messaging_message_info($group = NULL, $key = NULL) {
+function messaging_message_group($group = NULL, $key = NULL) {
   static $info;
-  if (!isset($info[$group])) {
-    $info[$group] = module_invoke_all('messaging', 'messages', $group);
+  if (!isset($info)) {
+    $info = module_invoke_all('messaging', 'message groups');
   }
   if ($key) {
     return isset($info[$group][$key]) ? $info[$group][$key] : NULL;
