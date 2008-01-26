@@ -504,15 +504,22 @@ function messaging_method_info($property = NULL, $method = NULL, $default = NULL
 
 /**
  * Composes message from different parts, recursively
+ * 
+ * @param $text
+ *   Simple string or array of message parts
+ *   It may have named elements like #prefix and #text
+ *   or it may be single strings to render straight forward
  */
 function messaging_message_render($text, $glue = "\n") {
   $output = '';
   if (is_array($text)) {
     if (isset($text['#prefix'])) {
-      $text = array_merge(array($text['#prefix']), $text);
+      $output .= $text['#prefix'].$glue;
+      unset($text['#prefix']);
     }
     if (isset($text['#text'])) {
-      $text[] = $text['#text'];
+      $output .= $text['#text'];
+      return $output;
     }
     foreach (element_children($text) as $key) {
       $text[$key] = messaging_message_render($text[$key], $glue);
@@ -531,6 +538,10 @@ function messaging_message_filter($text, $format = FILTER_FORMAT_DEFAULT) {
   if (is_array($text)) {
     foreach (element_children($text) as $key) {
       $text[$key] = messaging_message_filter($text[$key], $format);
+    }
+    // Don't forget #text element
+    if (!empty($text['#text'])) {
+      $text['#text'] = messaging_message_filter($text['#text'], $format);
     }
   } else {
     $text = check_markup($text, $format, FALSE);
