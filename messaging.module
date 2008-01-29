@@ -73,7 +73,7 @@ function messaging_admin_page($group = NULL, $msgkey = NULL) {
 function messaging_admin_page_overview() {
   $output = '';
   // List sending methods
-  $methods = messaging_method_info('name');
+  $methods = messaging_method_list();
   $output .= theme('box', t('Sending methods'), theme('item_list', $methods));
   // List message groups
   $groups = module_invoke_all('messaging', 'message groups');
@@ -105,7 +105,7 @@ function messaging_admin_message_form($group, $group_info) {
   $form['group'] = array('#type' => 'value', '#value' => $group);
   $keylist = module_invoke_all('messaging', 'message keys', $group);
   $send_methods = array('default' => t('Default'));
-  $send_methods += messaging_method_info('name');
+  $send_methods += messaging_method_list();
   $form['messages'] = array('#tree' => TRUE);
   foreach ($keylist as $key => $keyname) {
     $form['messages'][$key] = array(
@@ -192,7 +192,7 @@ function messaging_admin_settings() {
   $form['messaging_default_method'] = array(
     '#title' => t('Default send method'),
     '#type' => 'radios',
-    '#options' => messaging_method_info('name'),
+    '#options' => messaging_method_list(),
     '#default_value' => variable_get('messaging_default_method', ''),
   );
   $form['messaging_debug'] = array(
@@ -209,18 +209,23 @@ function messaging_admin_settings() {
     $format_options[$format->format] = $format->name;
   }
   foreach ($info as $method => $options) {
-    $form['messaging_methods'][$method] = array(
-      '#type' => 'fieldset',
-      '#title' => t('!name settings', array('!name' => $options['name'])),
-      '#collapsible' => TRUE,
-    );
-    // Output filter
-    $form['messaging_methods'][$method]['filter'] = array(
-      '#type' => 'radios',
-      '#title' => t('Message filter'),
-      '#default_value' => $options['filter'],
-      '#options' => $format_options,
-    );     
+    // This will preserve settings for disabled modules
+    if (empty($options['name'])) {
+      $form['messaging_methods'][$method]['filter'] = array('#type' => 'value', '#value' => $options['filter']);
+    } else {
+      $form['messaging_methods'][$method] = array(
+        '#type' => 'fieldset',
+        '#title' => t('!name settings', array('!name' => $options['name'])),
+        '#collapsible' => TRUE,
+      );
+      // Output filter
+      $form['messaging_methods'][$method]['filter'] = array(
+        '#type' => 'radios',
+        '#title' => t('Message filter'),
+        '#default_value' => $options['filter'],
+        '#options' => $format_options,
+      );
+    }     
 
   }
   return system_settings_form($form);
@@ -249,14 +254,18 @@ function messaging_admin_settings() {
 function messaging_message_send_user($account, $message, $method = NULL, $debug = FALSE) {
   $method = $method ? $method : messaging_method_default($account);
   
-  // Apply filters to subject and body
-  $filter = messaging_method_info('filter', $method, FILTER_FORMAT_DEFAULT);
-  $message['subject'] = messaging_message_filter($message['subject'], $filter);
-  $message['body'] = messaging_message_filter($message['body'], $filter);
+  // Renders subject and body applying filters in the process
+  $info = messaging_method_info($method);
+  if (!empty($info['render'])) {
+    $message = call_user_func($info['render'], $message, $info);
+  } else {
+    $message['subject'] = messaging_message_render($message['subject'], $info);
+    $message['body'] = messaging_message_render($message['body'], $info);
+  }
 
   if (variable_get('messaging_debug', 0)) {
     messaging_debug('send', $account, $message);
-  } elseif (($function = messaging_method_info('send', $method)) && function_exists($function)) {
+  } elseif (($function = messaging_method_info($method, 'send')) && function_exists($function)) {
     return $function($account, $message);
   } else {
     watchdog('messaging', t('Message could not be delivered for method %method', array('%method' => $method)), WATCHDOG_ERROR);
@@ -321,7 +330,7 @@ function messaging_method_type($type) {
  * List sending methods
  */
 function messaging_method_list() {
-  return messaging_method_info('name');
+  return messaging_method_info(NULL, 'name');
 }
 
 /**
@@ -465,14 +474,14 @@ function messaging_message_group($group = NULL, $key = NULL) {
 /**
  * Returns messaging methods properties
  * 
- * @param $property
- *   Optional, Property to get, none or NULL for all properties
  * @param $method
  *   Optional, Method to get properties for, none or NULL for all methods
+ * @param $property
+ *   Optional, Property to get, none or NULL for all properties
  * @param $default
  *   Optional default value to return when there's not that property for the method
  */
-function messaging_method_info($property = NULL, $method = NULL, $default = NULL) {
+function messaging_method_info($method = NULL, $property = NULL,$default = NULL) {
   static $info, $properties;
   if (!$info) {
     $info = module_invoke_all('messaging', 'send methods');
@@ -509,9 +518,17 @@ function messaging_method_info($property = NULL, $method = NULL, $default = NULL
  *   Simple string or array of message parts
  *   It may have named elements like #prefix and #text
  *   or it may be single strings to render straight forward
+ * @param $info
+ *   Messaging method info. It passes information about glue characters, filters to be used, etc...
  */
-function messaging_message_render($text, $glue = "\n") {
+function messaging_message_render($text, $info) {
   $output = '';
+  $glue = !empty($info['glue']) ? $info['glue'] : '';
+  if (!empty($info['filter'])) {
+    $text = messaging_message_filter($text, $info['filter']);
+    // Unset filter so it's not applied again
+    unset($info['filter']);
+  }
   if (is_array($text)) {
     if (isset($text['#prefix'])) {
       $output .= $text['#prefix'].$glue;
@@ -522,7 +539,7 @@ function messaging_message_render($text, $glue = "\n") {
       return $output;
     }
     foreach (element_children($text) as $key) {
-      $text[$key] = messaging_message_render($text[$key], $glue);
+      $text[$key] = messaging_message_render($text[$key], $info);
     }
     $output .= implode($glue, $text);
   } else {
@@ -587,3 +604,40 @@ function messaging_footer() {
   }
 }
 
+/**
+ * Implementation of hook_filter(). Contains a basic set of essential filters.
+ * - Plain text:
+ *     Strips out all html
+ *     Replaces html entities
+ */
+function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
+  switch ($op) {
+    case 'list':
+      return array(0 => t('Plain text filter'));
+
+    case 'no cache':
+      return TRUE; // No caching at all
+
+    case 'description':
+      switch ($delta) {
+        case 0:
+          return t('Filters out all html tags and replaces html entities by characters.');
+      }
+
+    case 'process':
+      switch ($delta) {
+        case 0:
+          $text = filter_xss($text, array());
+          $text = htmlspecialchars_decode($text, ENT_QUOTES);
+          return $text;
+        default:
+          return $text;
+      }
+
+    case 'settings':
+      return;
+
+    default:
+      return $text;
+  }
+}

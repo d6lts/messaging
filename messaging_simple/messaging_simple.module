@@ -36,12 +36,13 @@ function messaging_simple_user_page($account) {
   // Fetch all pending messages.
   // @ TODO: Add some paging here
   $rows = array();
-
+  // Use this method's info for all the messages
+  $simple_info = messaging_method_info('simple');
   foreach (messaging_method_info() as $method => $info) {
     $messages = messaging_pull_pending($method, array($account->uid), 0, FALSE);
     foreach ($messages as $msg) {
-      $subject = messaging_message_render($msg['subject'], '');
-      $body = messaging_message_render($msg['body']);
+      $subject = messaging_message_render($msg['subject'], $simple_info);
+      $body = messaging_message_render($msg['body'], $simple_info);
       $rows[] = array($info['name'], $subject, $body);
     }
   }
@@ -62,7 +63,8 @@ function messaging_simple_messaging($op = 'info') {
       $info['simple'] = array(
         'name' => t('Simple'),
         'send' => 'messaging_simple_send',
-        'type' => MESSAGING_TYPE_PULL,     
+        'type' => MESSAGING_TYPE_PULL,
+        'glue' => '<br />',   
       );
       return $info;  
   }
