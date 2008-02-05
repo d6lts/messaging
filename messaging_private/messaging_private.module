@@ -16,7 +16,8 @@ function messaging_private_messaging($op) {
         'name' => t('Privatemsg'),
         'send' => 'messaging_private_send',
         'type' => MESSAGING_TYPE_PUSH,
-        'render' => 'messaging_private_render', 
+        'render' => 'messaging_private_render',
+        'access' => 'access private messages',
       );
       return $info;  
   }

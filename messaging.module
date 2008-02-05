@@ -60,6 +60,34 @@ function messaging_menu($may_cache) {
 }
 
 /**
+ * Implementation of hook_user().
+ * 
+ * Adds fieldset and default sending method setting.
+ */
+function messaging_user($type, $edit, &$user, $category = NULL) {
+  switch ($type) {
+    case 'form':
+      if ($category == 'account' && ($list = messaging_method_list($user))) {
+        $form['messaging'] = array(
+          '#type'        => 'fieldset',
+          '#title'       => t('Messaging settings'),
+          '#weight'      => 5,
+          '#collapsible' => TRUE,
+        );
+        $form['messaging']['messaging_default'] = array(
+          '#type'          => 'radios',
+          '#title'         => t('Default messaging'),
+          '#default_value' => messaging_method_default($user),
+          '#options' => $list,
+          '#description'   => t('Default sending method for getting messages from this system.'),
+        );
+        return $form;
+      }
+      break;
+  }
+}
+
+/**
  * Menu callback. Admin overview page.
  */
 function messaging_admin_page($group = NULL, $msgkey = NULL) {
@@ -328,16 +356,44 @@ function messaging_method_type($type) {
 
 /**
  * List sending methods
+ * 
+ * @param $account
+ *   Optional user account, for checking permissions against this account
  */
-function messaging_method_list() {
-  return messaging_method_info(NULL, 'name');
+function messaging_method_list($account = NULL) {
+  $info = messaging_method_info(NULL, 'name');
+  if ($account) {
+    foreach (array_keys($info) as $method) {
+      // Check access for each method
+      if (!messaging_method_permission($method, $account)) {
+        unset($info[$method]);
+      }
+    }
+  }
+  return $info;
+}
+
+/**
+ * Check permission for method and account
+ * 
+ * @param $method
+ *   Sending method id
+ * @param $account
+ *   User account to check permission
+ */
+function messaging_method_permission($method, $account = NULL) {
+  if ($access = messaging_method_info($method, 'access')) {
+    return user_access($access, $account);
+  } else {
+    return TRUE;
+  }
 }
 
 /**
  * Returns default messaging method
  */
 function messaging_method_default($account = NULL) {
-  if ($account && $account->messaging_default) {
+  if ($account && $account->messaging_default && messaging_check_permission($account->messaging_default, $account)) {
     return $account->messaging_default;
   }
   elseif ($method = variable_get('messaging_default_method', '')) {
@@ -501,9 +557,9 @@ function messaging_method_info($method = NULL, $property = NULL,$default = NULL)
         if (isset($values[$property])) {
           $properties[$property][$method] = $values[$property];
         }
-      }
-      return $properties[$property];
-    } 
+      }      
+    }
+    return $properties[$property];
   } else {
     return $info;
   }
