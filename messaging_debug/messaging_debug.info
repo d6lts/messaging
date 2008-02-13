@@ -1,0 +1,5 @@
+; $Id$
+name = Debug tool
+description = Debugging utilities for messaging.
+package = "Messaging"
+dependencies = messaging

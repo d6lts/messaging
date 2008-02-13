@@ -34,7 +34,7 @@ function messaging_menu($may_cache) {
       'title' => t('Messaging'),
       'path' => 'admin/settings/messaging',
       'callback' => 'messaging_admin_page',
-      'access' => user_access('administer site configuration'),
+      'access' => user_access('administer messaging'),
       'description' => t('Administration of messages and sending methods'),
     );
     $items[] = array(
@@ -57,6 +57,13 @@ function messaging_menu($may_cache) {
     );
   }
   return $items;
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function messaging_perm() {
+  return array('administer messaging');
 }
 
 /**
@@ -217,19 +224,17 @@ function messaging_admin_message_form_submit($form_id, $form_values) {
  * Admin settings form
  */
 function messaging_admin_settings() {
-  $form['messaging_default_method'] = array(
+  $form['general'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('General settings'),
+  );
+  $form['general']['messaging_default_method'] = array(
     '#title' => t('Default send method'),
     '#type' => 'radios',
     '#options' => messaging_method_list(),
     '#default_value' => variable_get('messaging_default_method', ''),
   );
-  $form['messaging_debug'] = array(
-    '#title' => t('Debug mode'),
-    '#type' => 'radios',
-    '#options' => array(t('Disabled'), t('Enabled')),
-    '#default_value' => variable_get('messaging_debug', 0),
-    '#description' => t('If enabled, messages wont be sent out but logged to watchdog, and displayed in the page footer.')
-  );
+
   // Sending methods settings
   $info = messaging_method_info();
   $form['messaging_methods'] = array('#tree' => TRUE);
@@ -279,7 +284,7 @@ function messaging_admin_settings() {
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
  */
-function messaging_message_send_user($account, $message, $method = NULL, $debug = FALSE) {
+function messaging_message_send_user($account, $message, $method = NULL) {
   $method = $method ? $method : messaging_method_default($account);
   
   // Renders subject and body applying filters in the process
@@ -291,9 +296,11 @@ function messaging_message_send_user($account, $message, $method = NULL, $debug 
     $message['body'] = messaging_message_render($message['body'], $info);
   }
 
-  if (variable_get('messaging_debug', 0)) {
-    messaging_debug('send', $account, $message);
+  // Check for debug option enabled
+  if (variable_get('messaging_debug', 0) && function_exists('messaging_debug_send')) {
+    return messaging_debug_send($account, $message);
   } elseif (($function = messaging_method_info($method, 'send')) && function_exists($function)) {
+    messaging_log("Message for user: $account->uid, method: $method, subject: ".$message['subject']);
     return $function($account, $message);
   } else {
     watchdog('messaging', t('Message could not be delivered for method %method', array('%method' => $method)), WATCHDOG_ERROR);
@@ -453,6 +460,8 @@ function messaging_message_part($group, $key, $method = 'default', $getdefault =
 
 /**
  * Replaces variables in text
+ * 
+ * Obsoleted.
  */
 function messaging_text_vars($text, $variables) {
   // Transform arguments before inserting them
@@ -623,44 +632,6 @@ function messaging_message_filter($text, $format = FILTER_FORMAT_DEFAULT) {
 }
 
 /**
- * Log for debugging
- */
-function messaging_debug($op = NULL, $account = NULL, $message = NULL) {
-  static $logs;
-  switch ($op) {
-    case 'send':
-      // Store message
-      $text = $logs[] = t('Message %key for %name: %subject', array('%name' => $account->name, '%key' => $message['type'], '%subject' => messaging_message_render($message['subject'])));
-      $text .= '<pre>'.messaging_message_render($message['body']).'</pre>';
-      $logs[] = $message;
-      watchdog('messaging', $text);
-      break;
-    default:
-      return $logs;
-  }
-}
-
-/**
- * Implementation of hook_footer()
- * 
- * Only debugging functionality
- */
-function messaging_footer() {
-  if ($logs = messaging_debug()) {
-    $output .= '<div class="messaging-debug">';
-    foreach ($logs as $log) {
-      if (is_string($log)) {
-        $output .= $log;
-      } else {
-        $output .= '<pre>'.print_r($log, TRUE).'</pre>';
-      }
-    }
-    $output .= '</div>';
-    return $output;
-  }
-}
-
-/**
  * Implementation of hook_filter(). Contains a basic set of essential filters.
  * - Plain text:
  *     Strips out all html
@@ -695,5 +666,17 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
 
     default:
       return $text;
+  }
+}
+
+/**
+ * Log facility for debugging
+ */
+function messaging_log($txt = NULL) {
+  static $logs;
+  if ($txt) {
+    $logs[] = $txt;
+  } else {
+    return $logs;
   }
 }

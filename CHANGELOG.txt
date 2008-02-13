@@ -1,0 +1,11 @@
+TO DO
+------
+- Improve filtering mechanism
+- Support for localized message templates
+
+
+06/02/07 - 
+-----------
+- Added 'administer messaging' permission.
+- Split the debug functionality out of messaging and messaging_simple: messaging_debug module
+- Fixed issues with messaging simple: http://drupal.org/node/218394

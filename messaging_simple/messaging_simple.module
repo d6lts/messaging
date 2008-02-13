@@ -4,6 +4,8 @@
  * Simple messaging using html page. Messaging method plug-in
  * 
  * This is a really simple message viewer and also an illustration of pulling messaging methods
+ * 
+ * @ TODO: Add ability to delete queued messages
  */
 
 /**
@@ -32,23 +34,20 @@ function messaging_simple_menu($may_cache) {
  * Sample Implementation of messaging pull methods
  */
 function messaging_simple_user_page($account) {
-  drupal_set_title(t('Pending messages for %name', array('%name' => $account->name)));
+  drupal_set_title(t('Messages for %name', array('%name' => $account->name)));
   // Fetch all pending messages.
   // @ TODO: Add some paging here
   $rows = array();
   // Use this method's info for all the messages
   $simple_info = messaging_method_info('simple');
-  foreach (messaging_method_info() as $method => $info) {
-    $messages = messaging_pull_pending($method, array($account->uid), 0, FALSE);
+  if ($messages = messaging_pull_pending('simple', array($account->uid), 0, FALSE)) {
     foreach ($messages as $msg) {
       $subject = messaging_message_render($msg['subject'], $simple_info);
       $body = messaging_message_render($msg['body'], $simple_info);
-      $rows[] = array($info['name'], $subject, $body);
+      $rows[] = array($subject, $body);
     }
-  }
-  if ($rows) {
-    $header = array(t('Method'), t('Subject'), t('Body'));
-    return theme('table', $header, $rows);
+    $header = array(t('Subject'), t('Body'));
+    return theme('table', $header, $rows);    
   } else {
     return t('No pending messages');
   }
@@ -74,11 +73,10 @@ function messaging_simple_messaging($op = 'info') {
  * Just show message title to the user. 
  * 
  * This is a pull method though, so this is mainly intended for testing options
+ * 
+ * Do nothing, the message will be retrieved from the queue
  */
 function messaging_simple_send($account, $message) {
-  // Render only message subject
-  $subject = messaging_message_render($message['subject'], '');
-  drupal_set_message(t('New message: %title', array('%title' => $subject)));
   return TRUE;
 }
  
