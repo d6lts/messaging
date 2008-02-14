@@ -1,0 +1,5 @@
+; $Id$
+name = Messaging PHPMailer
+description = Mail Sending Method: Integration with Drupal mail API for HMTL Mail
+package = "Messaging"
+dependencies = messaging
