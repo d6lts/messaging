@@ -17,7 +17,16 @@ function messaging_install() {
         ) /*!40100 DEFAULT CHARACTER SET utf8 */");
       break;
     case 'pgsql':
-      drupal_set_message('Sorry, no install script for pgsql yet.', 'error');
+      db_query("CREATE TABLE {messaging_message_parts} (
+          type varchar(100) NOT NULL,
+          method varchar(50) NOT NULL,
+          msgkey varchar(100) NOT NULL,
+          module varchar(255) NOT NULL,
+          message TEXT
+        )");
+      db_query("CREATE INDEX {messaging_message_parts}_type_idx ON {messaging_message_parts} (type)");
+      db_query("CREATE INDEX {messaging_message_parts}_method_idx ON {messaging_message_parts} (method)");
+      db_query("CREATE INDEX {messaging_message_parts}_msgkey_idx ON {messaging_message_parts} (msgkey)");
       break;
   }
 }

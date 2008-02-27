@@ -6,6 +6,7 @@ TO DO
 
 06/02/07 - 
 -----------
+- Added pgsql support (untested), by jaydub, http://drupal.org/node/223670
 - Added 'administer messaging' permission.
 - Split the debug functionality out of messaging and messaging_simple: messaging_debug module
 - Fixed issues with messaging simple: http://drupal.org/node/218394
