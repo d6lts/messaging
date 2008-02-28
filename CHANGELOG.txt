@@ -4,8 +4,27 @@ TO DO
 - Support for localized message templates
 
 
-06/02/07 - 
------------
+06/02/08 - 28/02/08
+--------------------
+Important sending API Improvements:
+- Added messaging_message_send() to be able to send to non users and also for multiple sending.
+- Now messaging_message_send_user() is just a wrapper for the previous one. It does $account to $destination translation.
+- Reworked message rendering, so most plug-ins don't need to implement the render callback. Added more options.
+- New method info properties: 
+  'destination', field for getting destination from user account.
+  'subject_glue', to glue multipart message subjects, [Optional]
+  'send_user', callback for sending to users [Optional]
+- The send callback should accept now a $destination array for bulk sending
+Filtering improvements:
+- Added a different filter for the subject
+- Added support for drupal_html_to_text filtering. See http://drupal.org/project/html_to_text
+- Performance: Filtering is done now only once for the whole text
+Others:
+- Some improvements for the settings page.
+- Updated all contributed plug-ins accordingly.
+- Improved logging by messaging_debug module.
+- Fixed some other minor issues, added comments, etc..
+
 - Added pgsql support (untested), by jaydub, http://drupal.org/node/223670
 - Added 'administer messaging' permission.
 - Split the debug functionality out of messaging and messaging_simple: messaging_debug module

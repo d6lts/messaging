@@ -34,3 +34,18 @@ function messaging_install() {
 function messaging_uninstall() {
   db_query("DROP TABLE {messaging_message_parts}");
 }
+
+/**
+ * Update method settings
+ */
+function messaging_update_1() {
+  $ret = array();
+  if ($settings = variable_get('messaging_methods', array())) {
+    foreach ($settings as $key => $info){
+      $info['subject_filter'] = $info['filter'];
+      variable_set('messaging_method_'.$key, $info);
+    }
+    drupal_set_message('Your messaging settings have been updated. Please review them.');
+  }
+  return $ret;
+}

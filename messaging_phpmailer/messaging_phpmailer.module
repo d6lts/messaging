@@ -13,34 +13,29 @@ function messaging_phpmailer_messaging($op = 'info') {
     case 'send methods':
       $info['html_mail'] = array(
         'name' => t('HTML Mail'),
+        'destination' => 'mail',
         'send' => 'messaging_phpmailer_send',
         'type' => MESSAGING_TYPE_PUSH,
-        'render' => 'messaging_phpmailer_render',
         'glue' => "<br/>",
+        'footer' => "<br/><br/>--",
       );
       return $info;
   }
 }
 
 /**
- * Message Render callback
+ * Send mail message to user account. Supports bulk sending
+ * 
+ * @param $destination
+ *   Array of emails
+ * @param $message
+ *   Message array
  */
-function messaging_phpmailer_render($message, $info) {
-  if (isset($message['body']['footer'])) {
-    $message['body']['footer'] = array('#prefix' => "<br/><br/>--", '#text' => $message['body']['footer']);
-  }
-  $message['subject'] = messaging_message_render($message['subject'], $info);
-  $message['body'] = messaging_message_render($message['body'], $info);
-  return $message;
-}
-
-/**
- * Send mail message to user account
- */
-function messaging_phpmailer_send($account, $message) {
+function messaging_phpmailer_send($destination, $message) {
   $mailkey = 'message-'.$message['type'];
-  $to = $account->mail;
-  return messaging_phpmailer_drupal_mail($mailkey, $to, $message['subject'], $message['body']);
+  foreach ($destination as $to) {
+    return messaging_phpmailer_drupal_mail($mailkey, $to, $message['subject'], $message['body']);
+  }
 }
 
 /**

@@ -5,7 +5,9 @@
  * This is a messaging framework to allow message sending in a channel independent way
  * It will provide a common API for sending while allowing plugins for multiple channels
  * 
- * This module 
+ * If enabled the html_to_text module, a new filter will be available
+ * 
+ * By Development Seed, http://wwww.developmentseed.org
  */
 
 // Method with push delivery. Messages will be pushed to the user using messaging sending methods.
@@ -17,10 +19,23 @@ define('MESSAGING_TYPE_PULL', 2);
  * Implementation of hook_help().
  */
 function messaging_help($section) {
-  if (arg(0) == 'admin' && arg(1) == 'settings' && arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
-    if ($help = messaging_message_group($group, 'help')) {
-      return $help;
-    }
+  switch($section) {
+    case 'admin/help#messaging':
+      $output = '<p>'.t('The messaging module will allow sending messages using different methods, depending on the plug-ins you have enabled.').'</p>';
+      return $output;
+    case 'admin/help#filters':
+      return $output;
+    default:
+      if (arg(0) == 'admin' && arg(1) == 'settings') {
+        if (arg(2) == 'filters') {
+          return '<p>'.t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.').'</p>';
+        }
+        if (arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
+          if ($help = messaging_message_group($group, 'help')) {
+            return $help;
+          }
+        }
+      }
   }
 }
 
@@ -236,30 +251,43 @@ function messaging_admin_settings() {
   );
 
   // Sending methods settings
-  $info = messaging_method_info();
-  $form['messaging_methods'] = array('#tree' => TRUE);
-  foreach (filter_formats() as $format) {
-    $format_options[$format->format] = $format->name;
-  }
-  foreach ($info as $method => $options) {
-    // This will preserve settings for disabled modules
-    if (empty($options['name'])) {
-      $form['messaging_methods'][$method]['filter'] = array('#type' => 'value', '#value' => $options['filter']);
-    } else {
-      $form['messaging_methods'][$method] = array(
+  $form['messaging_methods'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Settings for messaging methods'),
+    '#collapsible' => TRUE,
+    '#description' => t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for both message subject and body.').' '.
+      t('Set up the filters you need using the !input_formats page', array('!input_formats' => l('Input Formats', 'admin/settings/filters'))),
+  );
+  if ($info = messaging_method_info()) {
+    foreach (filter_formats() as $format) {
+      $format_options[$format->format] = $format->name;
+    }
+    // We add this last for it not bo be default
+    $format_options[0] = t('None (Insecure)');
+    foreach ($info as $method => $options) {
+      $key = 'messaging_method_'.$method;
+      // This will preserve settings for disabled modules
+      $form['messaging_methods'][$key] = array(
         '#type' => 'fieldset',
         '#title' => t('!name settings', array('!name' => $options['name'])),
-        '#collapsible' => TRUE,
+        '#tree' => TRUE,
       );
       // Output filter
-      $form['messaging_methods'][$method]['filter'] = array(
-        '#type' => 'radios',
+      $form['messaging_methods'][$key]['subject_filter'] = array(
+        '#type' => 'select',
+        '#title' => t('Subject filter'),
+        '#default_value' => $options['subject_filter'],
+        '#options' => $format_options,
+      );     
+      $form['messaging_methods'][$key]['filter'] = array(
+        '#type' => 'select',
         '#title' => t('Message filter'),
         '#default_value' => $options['filter'],
         '#options' => $format_options,
       );
-    }     
-
+    }
+  } else {
+    $form['messaging_methods']['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
   }
   return system_settings_form($form);
 }
@@ -285,27 +313,57 @@ function messaging_admin_settings() {
  *   Optional send method. Defaults to the user account predefined method
  */
 function messaging_message_send_user($account, $message, $method = NULL) {
+  // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default($account);
   
+  // Check for debug option enabled
+  if (variable_get('messaging_debug', 0) && function_exists('messaging_debug_send_user')) {
+    return messaging_debug_send_user($account, $message, $method);
+  } 
+    
+  // The sending method may override this function
+  if (($function = messaging_method_info($method, 'send_user')) && function_exists($function)) {
+    return $function($account, $message, $method);
+  }
+
+  // Get destination property from user account, or pass the account itself  
+  if ($property = messaging_method_info($method, 'destination')) {
+    $destination[] = $account->$property;
+  } else {
+    $destination[] = $account;
+  }
+  return messaging_message_send($destination, $message, $method);
+}
+
+/**
+ * Send message to array of destinations. The message is rendered just once.
+ * 
+ * @param $destination
+ *   Array of destinations for sending
+ * @param $message
+ *   Message array, not rendered
+ */
+function messaging_message_send($destination, $message, $method = NULL) {
+  // Get default sending method, or default for this user account
+  $method = $method ? $method : messaging_method_default(NULL);
+
   // Renders subject and body applying filters in the process
   $info = messaging_method_info($method);
   if (!empty($info['render'])) {
     $message = call_user_func($info['render'], $message, $info);
   } else {
-    $message['subject'] = messaging_message_render($message['subject'], $info);
-    $message['body'] = messaging_message_render($message['body'], $info);
+    $message = messaging_message_render($message, $info);
   }
-
   // Check for debug option enabled
   if (variable_get('messaging_debug', 0) && function_exists('messaging_debug_send')) {
-    return messaging_debug_send($account, $message);
+    return messaging_debug_send($destination, $message);
   } elseif (($function = messaging_method_info($method, 'send')) && function_exists($function)) {
     messaging_log("Message for user: $account->uid, method: $method, subject: ".$message['subject']);
-    return $function($account, $message);
+    return $function($destination, $message);
   } else {
     watchdog('messaging', t('Message could not be delivered for method %method', array('%method' => $method)), WATCHDOG_ERROR);
     return FALSE;
-  }
+  }  
 }
 
 /**
@@ -534,8 +592,6 @@ function messaging_message_group($group = NULL, $key = NULL) {
   }
 }
 
-/** Plug-in management **/
-
 /**
  * Returns messaging methods properties
  * 
@@ -550,10 +606,15 @@ function messaging_method_info($method = NULL, $property = NULL,$default = NULL)
   static $info, $properties;
   if (!$info) {
     $info = module_invoke_all('messaging', 'send methods');
-    // Merge settings
+    // Merge settings for each enabled method
+    foreach (array_keys($info) as $name) {
+      $info[$name] = array_merge($info[$name], variable_get('messaging_method_'.$name, array()));
+    }
+    /*
     if ($settings = variable_get('messaging_methods', array())) {
       $info = array_merge_recursive($info, $settings);
     }
+    */
   }
   if ($method && $property) {
     return isset($info[$method][$property]) ? $info[$method][$property] : $default;
@@ -577,23 +638,37 @@ function messaging_method_info($method = NULL, $property = NULL,$default = NULL)
 /** Message composition and rendering **/
 
 /**
- * Composes message from different parts, recursively
+ * Renders full message with header and body
+ */
+function messaging_message_render($message, $info) {
+  // Apply footer prefix if provided
+  if (!empty($info['footer']) && isset($message['body']['footer'])) {
+    $message['body']['footer'] = array('#prefix' => $info['footer'], '#text' => $message['body']['footer']);
+  }
+  // Render separately subject and body info, adding default parameters
+  $info += array('glue' => '', 'subject_glue' => '');
+  $message['subject'] = messaging_text_render($message['subject'], $info['subject_glue'], $info['subject_filter']);
+  $message['body'] = messaging_text_render($message['body'], $info['glue'], $info['filter']); 
+  return $message;
+}
+
+/**
+ * Composes message from different parts, recursively and applies filter
+ * 
+ * Filter is applied now only once
  * 
  * @param $text
  *   Simple string or array of message parts
  *   It may have named elements like #prefix and #text
  *   or it may be single strings to render straight forward
- * @param $info
- *   Messaging method info. It passes information about glue characters, filters to be used, etc...
+ * @param $glue
+ *   Text to glue all lines together
+ * @param $filter
+ *   Input format to apply to the results
  */
-function messaging_message_render($text, $info) {
+function messaging_text_render($text, $glue = '', $filter = NULL) {
   $output = '';
-  $glue = !empty($info['glue']) ? $info['glue'] : '';
-  if (!empty($info['filter'])) {
-    $text = messaging_message_filter($text, $info['filter']);
-    // Unset filter so it's not applied again
-    unset($info['filter']);
-  }
+
   if (is_array($text)) {
     if (isset($text['#prefix'])) {
       $output .= $text['#prefix'].$glue;
@@ -604,11 +679,16 @@ function messaging_message_render($text, $info) {
       return $output;
     }
     foreach (element_children($text) as $key) {
-      $text[$key] = messaging_message_render($text[$key], $info);
+      // The filter is not passed along
+      $text[$key] = messaging_text_render($text[$key], $glue);
     }
     $output .= implode($glue, $text);
   } else {
     $output .= $text;
+  }
+  // The filter is applied now only once
+  if ($filter) {
+    $output = check_markup($output, $filter, FALSE);
   }
   return $output;
 }
@@ -636,19 +716,28 @@ function messaging_message_filter($text, $format = FILTER_FORMAT_DEFAULT) {
  * - Plain text:
  *     Strips out all html
  *     Replaces html entities
+ * - HTML to text
+ *     Same with some text formatting
+ *     Relies on html_to_text module
  */
 function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
   switch ($op) {
     case 'list':
-      return array(0 => t('Plain text filter'));
+      $info[0] = t('Plain text filter');
+      if (function_exists('drupal_html_to_text')) {
+        $info[1] = t('HTML to text');
+      }
+      return $info;
 
     case 'no cache':
-      return TRUE; // No caching at all
+      return TRUE; // No caching at all, at least for development
 
     case 'description':
       switch ($delta) {
         case 0:
-          return t('Filters out all html tags and replaces html entities by characters.');
+          return t('Filters out all HTML tags and replaces HTML entities by characters.');
+        case 1:
+          return t('Replaces HTML tags and entities with plain text formatting, moving links at the end.');
       }
 
     case 'process':
@@ -657,6 +746,13 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
           $text = filter_xss($text, array());
           $text = htmlspecialchars_decode($text, ENT_QUOTES);
           return $text;
+        case 1:
+          if (function_exists('drupal_html_to_text')) {
+            return drupal_html_to_text($text);
+          } 
+          // Intentional no break, just returns text but as a security measure
+          // just in case the module is disabled by mistake
+          $text = filter_xss($text, array());
         default:
           return $text;
       }
@@ -680,3 +776,4 @@ function messaging_log($txt = NULL) {
     return $logs;
   }
 }
+

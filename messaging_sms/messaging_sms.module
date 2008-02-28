@@ -15,7 +15,7 @@ function messaging_sms_messaging($op = 'info') {
         'send' => 'messaging_sms_send',
         'type' => MESSAGING_TYPE_PUSH,
         'render' => 'messaging_sms_render',
-        'glue' => "--",
+        'glue' => '',
       );
       return $info;  
   }
@@ -25,13 +25,14 @@ function messaging_sms_messaging($op = 'info') {
  * Message Render callback
  */
 function messaging_sms_render($message, $info) {
-	// We can assume that we'll get max 110 characters for subject + body
+	// We need to apply filtering first or run through the render function
+    $message = messaging_message_render($message, $info);
+    // We can assume that we'll get max 110 characters for subject + body
 	// Because from and data take up about 50 characters and total character limit
 	// subject + from + date + body < 160
-	$text = messaging_sms_truncate($message['subject'],40);
-	$message['body'] = $text . $info['glue'] . messaging_sms_truncate("Learn More: " . $GLOBALS['base_url'],(110 - strlen($text)));
-	return $message['body'];
-
+	$message['subject'] = messaging_sms_truncate($message['subject'], 40);
+	$message['body'] = '--' . messaging_sms_truncate("Learn More: " . $GLOBALS['base_url'],(110 - strlen($message['subject'])));
+	return $message;
 }
 
 /**
@@ -39,13 +40,13 @@ function messaging_sms_render($message, $info) {
  */
 function messaging_sms_send($account, $message) {
   if ($account->sms_user['status'] == 2) {
-		$destination->number = $account->sms_user['number'];
-		foreach ($account->sms_user['gateway'] as $key => $field) {
-			$destination->$key = $field;
-		}
-		$destinations[] = $destination;
+	$destination->number = $account->sms_user['number'];
+	foreach ($account->sms_user['gateway'] as $key => $field) {
+		$destination->$key = $field;
+	}
+	$destinations[] = $destination;
   }
-	return sms_send($destinations, $message); 
+  return sms_send($destinations, $message['subject'].$message['body']); 
 }
  
  

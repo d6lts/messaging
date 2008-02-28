@@ -42,9 +42,8 @@ function messaging_simple_user_page($account) {
   $simple_info = messaging_method_info('simple');
   if ($messages = messaging_pull_pending('simple', array($account->uid), 0, FALSE)) {
     foreach ($messages as $msg) {
-      $subject = messaging_message_render($msg['subject'], $simple_info);
-      $body = messaging_message_render($msg['body'], $simple_info);
-      $rows[] = array($subject, $body);
+      $message = messaging_message_render($msg, $simple_info);
+      $rows[] = array($message['subject'], $message['body']);
     }
     $header = array(t('Subject'), t('Body'));
     return theme('table', $header, $rows);    
@@ -76,7 +75,7 @@ function messaging_simple_messaging($op = 'info') {
  * 
  * Do nothing, the message will be retrieved from the queue
  */
-function messaging_simple_send($account, $message) {
+function messaging_simple_send($destination, $message) {
   return TRUE;
 }
  

@@ -11,35 +11,31 @@ function messaging_mail_messaging($op = 'info') {
   switch($op) {
     case 'send methods':
       $info['mail'] = array(
-        'name' => t('Mail'),
-        'send' => 'messaging_mail_send',
-        'type' => MESSAGING_TYPE_PUSH,
-        'render' => 'messaging_mail_render',
-        'glue' => "\n",
+        'name' => t('Mail'), // Name for display
+        'destination' => 'mail', // Account property to use as destination
+        'send' => 'messaging_mail_send', // Sending callback
+        'type' => MESSAGING_TYPE_PUSH,  // Method type: push || pull
+        'glue' => "\n", // Glue for message body lines
+        'footer' => "\n--",  // Separator for message footer
       );
       return $info;  
   }
 }
 
 /**
- * Message Render callback
- */
-function messaging_mail_render($message, $info) {
-  if (isset($message['body']['footer'])) {
-    $message['body']['footer'] = array('#prefix' => "\n--", '#text' => $message['body']['footer']);
-  }
-  $message['subject'] = messaging_message_render($message['subject'], $info);
-  $info['glue'] = "\n";
-  $message['body'] = messaging_message_render($message['body'], $info);
-  return $message;  
-}
-
-/**
  * Send mail message to user account
+ * 
+ * @param $destination
+ *   Array of e-mails
+ * @param $message
+ *   Message array
  */
-function messaging_mail_send($account, $message) {
+function messaging_mail_send($destination, $message) {
   $mailkey = 'message-'.$message['type'];
-  $to = $account->mail;
-  return drupal_mail($mailkey, $to, $message['subject'], $message['body']);
+  $count = 0;
+  foreach ($destination as $to) {
+    $count += drupal_mail($mailkey, $to, $message['subject'], $message['body']) ? 1 : 0;
+  }
+  return $count;
 }
  
