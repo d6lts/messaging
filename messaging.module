@@ -123,8 +123,15 @@ function messaging_admin_page($group = NULL, $msgkey = NULL) {
 function messaging_admin_page_overview() {
   $output = '';
   // List sending methods
-  $methods = messaging_method_list();
-  $output .= theme('box', t('Sending methods'), theme('item_list', $methods));
+  $rows = array();
+  messaging_method_list();
+  foreach (messaging_method_info() as $method => $info) {
+    $rows[] = array(
+      '<strong>'.$info['name'].'</strong>',
+      !empty($info['description']) ? $info['description'] : ''
+    );
+  }
+  $output .= theme('box', t('Sending methods'), theme('table', NULL, $rows));
   // List message groups
   $groups = module_invoke_all('messaging', 'message groups');
   foreach ($groups as $group => $group_info) {
@@ -228,7 +235,7 @@ function messaging_admin_message_form_submit($form_id, $form_values) {
       if ($text = trim($text)) {
         // Save
         db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
-        db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, message) VALUES('%s', '%s', '%s', '%s')", $group, $key, $method, $text);
+        db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, module, message) VALUES('%s', '%s', '%s', '', '%s')", $group, $key, $method, $text);
       }
     }
   }
@@ -255,7 +262,7 @@ function messaging_admin_settings() {
     '#type' => 'fieldset',
     '#title' => t('Settings for messaging methods'),
     '#collapsible' => TRUE,
-    '#description' => t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for both message subject and body.').' '.
+    '#description' => t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body.').' '.
       t('Set up the filters you need using the !input_formats page', array('!input_formats' => l('Input Formats', 'admin/settings/filters'))),
   );
   if ($info = messaging_method_info()) {
@@ -272,16 +279,10 @@ function messaging_admin_settings() {
         '#title' => t('!name settings', array('!name' => $options['name'])),
         '#tree' => TRUE,
       );
-      // Output filter
-      $form['messaging_methods'][$key]['subject_filter'] = array(
-        '#type' => 'select',
-        '#title' => t('Subject filter'),
-        '#default_value' => $options['subject_filter'],
-        '#options' => $format_options,
-      );     
+      // Output filter applied to message body
       $form['messaging_methods'][$key]['filter'] = array(
         '#type' => 'select',
-        '#title' => t('Message filter'),
+        '#title' => t('Message body filter'),
         '#default_value' => $options['filter'],
         '#options' => $format_options,
       );
@@ -647,7 +648,7 @@ function messaging_message_render($message, $info) {
   }
   // Render separately subject and body info, adding default parameters
   $info += array('glue' => '', 'subject_glue' => '');
-  $message['subject'] = messaging_text_render($message['subject'], $info['subject_glue'], $info['subject_filter']);
+  $message['subject'] = messaging_check_subject(messaging_text_render($message['subject'], $info['subject_glue']));
   $message['body'] = messaging_text_render($message['body'], $info['glue'], $info['filter']); 
   return $message;
 }
@@ -743,16 +744,9 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     case 'process':
       switch ($delta) {
         case 0:
-          $text = filter_xss($text, array());
-          $text = htmlspecialchars_decode($text, ENT_QUOTES);
-          return $text;
+          return messaging_html_to_text($text);
         case 1:
-          if (function_exists('drupal_html_to_text')) {
-            return drupal_html_to_text($text);
-          } 
-          // Intentional no break, just returns text but as a security measure
-          // just in case the module is disabled by mistake
-          $text = filter_xss($text, array());
+          return messaging_check_plain($text);
         default:
           return $text;
       }
@@ -763,6 +757,44 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     default:
       return $text;
   }
+}
+
+/**
+ * HTML to text conversion
+ * 
+ * Uses html_to_text facility if available or simple filtering otherwise
+ */
+function messaging_html_to_text($text) {
+  if (function_exists('drupal_html_to_text')) {
+    return drupal_html_to_text($text);
+  } else {
+    return messaging_check_plain($text);
+  } 
+}
+
+/**
+ * HTML to text simple filtering.
+ * 
+ * Just strip out all HTML tags and decode entities
+ */
+function messaging_check_plain($text) {
+  // This have to be done before the filtering because tag markers may have been previously parsed with check_plain
+  $text = str_replace(array('&lt;', '&gt;'), array('<', '>'), $text);
+  // Filters out all HTML tags
+  $text = filter_xss($text, array());  
+  // HTML entities to plain text conversion.
+  $text = decode_entities($text);  
+  return $text;
+}
+
+/**
+ * Converts strings to plain utf-8 single line
+ */
+function messaging_check_subject($text) {
+  $text = messaging_check_plain($text);
+  // taken from _sanitizeHeaders() in PEAR mail() : http://pear.php.net/package/Mail
+  $text = preg_replace('=((0x0A/%0A|0x0D/%0D|\\n|\\r)\S).*=i', NULL, $text);
+  return $text;
 }
 
 /**

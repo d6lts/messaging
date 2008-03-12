@@ -18,6 +18,7 @@ function messaging_phpmailer_messaging($op = 'info') {
         'type' => MESSAGING_TYPE_PUSH,
         'glue' => "<br/>",
         'footer' => "<br/><br/>--",
+        'description' => t('Send HTML e-mails using PHPMailer'),
       );
       return $info;
   }
@@ -80,7 +81,7 @@ function messaging_phpmailer_drupal_mail($mailkey, $to, $subject, $body, $from =
   }
   $headers = array_merge($defaults, $headers);
   // Custom hook traversal to allow pass by reference
-  foreach (module_implements('mail_alter') AS $module) {
+  foreach (module_implements('mail_alter') as $module) {
     $function = $module .'_mail_alter';
     $function($mailkey, $to, $subject, $body, $from, $headers);
   }
@@ -91,17 +92,10 @@ function messaging_phpmailer_drupal_mail($mailkey, $to, $subject, $body, $from =
   $mail->AddAddress($to);
 
   // Strip HTML out of $body for plaintext equivalent of HTML email.
-  if (function_exists('drupal_html_to_text')) {
-    $alt_body = drupal_html_to_text($body);
-  }
-  else {
-    $alt_body = filter_xss($body, array());
-    $alt_body = htmlspecialchars_decode($alt_body, ENT_QUOTES);
-  }
-  $mail->AltBody = $alt_body;
+  $mail->AltBody = messaging_html_to_text($body);
 
-  // taken from _sanitizeHeaders() in PEAR mail() : http://pear.php.net/package/Mail
-  $mail->Subject = preg_replace('=((<CR>|<LF>|0x0A/%0A|0x0D/%0D|\\n|\\r)\S).*=i', null, $subject);
+  // The subject has been already filtered by messaging module
+  $mail->Subject = $subject;
   $mail->Body = str_replace("\r", '', $body);
   return $mail->Send();
 }

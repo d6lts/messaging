@@ -3,6 +3,11 @@ TO DO
 - Improve filtering mechanism
 - Support for localized message templates
 
+5.x-1.0-alpha1 to ...
+---------------------
+- Fixed missing value on db insert, by jaydub, http://drupal.org/node/227881
+- Simplified filtering and added some API functions. Used in phpmailer module
+- Fixed user_send and send methods for the SMS gateway
 
 06/02/08 - 28/02/08
 --------------------

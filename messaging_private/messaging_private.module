@@ -18,6 +18,7 @@ function messaging_private_messaging($op) {
         'type' => MESSAGING_TYPE_PUSH,
         'access' => 'access private messages',
         'glue' => "\n",
+        'description' => t('Send messages through Privatemsg'),
       );
       return $info;  
   }
