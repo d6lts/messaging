@@ -1,13 +1,18 @@
 TO DO
 ------
-- Improve filtering mechanism
-- Support for localized message templates
+* Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
+* Sending messages to potential users, with a reserved user id. It seems we are already good for that with latest hooks introduced in notifications module.
+* Keeping a log of sent messages, facebook like. This could be mixed with adding some basic queueing into the messaging module.
+* Simplify admin settings ui, get rid of configurable filtering for subjects which is not really needed, and implement some good text filtering for them that can anyway be overridden programatically.
+
 
 5.x-1.0-alpha1 to ...
 ---------------------
+- Fix display of tokens and some clean up by andremolnar, http://drupal.org/node/233467
+- New mime mail plug-in that has been there for a while, by Tim Cullen
+
 - Added hook_message_alter($message, $info, $method)
 - Fixed issue with message rendering for sms
-
 - Fixed missing value on db insert, by jaydub, http://drupal.org/node/227881
 - Simplified filtering and added some API functions. Used in phpmailer module
 - Fixed user_send and send methods for the SMS gateway

@@ -1,7 +1,7 @@
 <?php
 /**
  * Drupal Messaging Framework
- * 
+ *
  * This is a messaging framework to allow message sending in a channel independent way
  * It will provide a common API for sending while allowing plugins for multiple channels
  * 
@@ -62,7 +62,7 @@ function messaging_menu($may_cache) {
       'path' => 'admin/settings/messaging/edit',
       'callback' => 'messaging_admin_message_edit',
       'type' => MENU_CALLBACK,
-    );    
+    );
     $items[] = array(
       'title' => t('Settings'),
       'path' => 'admin/settings/messaging/settings',
@@ -83,7 +83,7 @@ function messaging_perm() {
 
 /**
  * Implementation of hook_user().
- * 
+ *
  * Adds fieldset and default sending method setting.
  */
 function messaging_user($type, $edit, &$user, $category = NULL) {
@@ -138,7 +138,7 @@ function messaging_admin_page_overview() {
     $list[] = l($group_info['name'], 'admin/settings/messaging/edit/'.$group);
   }
   $output .= theme('box', t('Message groups'), theme('item_list', $list));
-  return $output;  
+  return $output;
 }
 
 /**
@@ -148,9 +148,10 @@ function messaging_admin_message_edit($group) {
   $output = '';
   $groups = module_invoke_all('messaging', 'message groups');
   if (isset($groups[$group])) {
-    drupal_set_title($groups[$group]['name']);    
-    
+    drupal_set_title($groups[$group]['name']);
+
     $output .= drupal_get_form('messaging_admin_message_form', $group, $groups[$group]);
+
   }
   return $output;
 }
@@ -181,6 +182,14 @@ function messaging_admin_message_form($group, $group_info) {
   }
   // Tokens for text replacement
   if ($tokens = messaging_tokens_get_list($group)) {
+    $headers = array(t('Token'), t('Replacement value'));
+    $rows = array();
+    foreach ($tokens as $token => $token_description) {
+        $row = array();
+        $row[] = '[' . $token . ']';
+        $row[] = $token_description;
+        $rows[] = $row;
+    }
     $form['tokens'] = array(
       '#title' => t('Available tokens'),
       '#type' => 'fieldset',
@@ -189,7 +198,7 @@ function messaging_admin_message_form($group, $group_info) {
       '#collapsed' => TRUE,
     );
     $form['tokens']['list'] = array(
-      '#value' => theme('item_list', $tokens),    
+      '#value' => theme('table', $headers, $rows, array('class' => 'description'))
     );
   }
   $form['submit'] = array(
@@ -201,25 +210,25 @@ function messaging_admin_message_form($group, $group_info) {
 
 /**
  * Get list of tokens for text replacement
- * 
+ *
  * @param $group
  *   Message group to get tokens for
  * @param $tokens
- *   
+ *
  */
 function messaging_tokens_get_list($group) {
   // First compile token types for this message group
   $type_list = module_invoke_all('messaging', 'tokens', $group);
-  
+
   // Now get token list from token module for each type
   $return = array();
   foreach ($type_list as $type) {
     if ($list = token_get_list($type)) {
       foreach ($list as $category => $tokens) {
         foreach ($tokens as $token => $description) {
-          $return[$token] = "<em>[$token]</em> $description";
+          $return[$token] = $description;
         }
-      }      
+      }
     }
   }
 
@@ -297,14 +306,14 @@ function messaging_admin_settings() {
 
 /**
  * Send message to user represented by account
- * 
+ *
  * We are applying same output filter for everybody, depending on send method
- * 
+ *
  * The final rendering of the message depends on send method too. I.e. a mail messaging
  * method may want to insert '--' before the body footer.
- * 
+ *
  * @ TODO Consider whether it makes sense to allow users decide on formatting
- * 
+ *
  * @param $message
  *   Array of message parts that will be compiled depending on send method.
  *   Mandatory message parts, which may have nexted parts are:
@@ -376,7 +385,7 @@ function messaging_message_send($destination, $message, $method = NULL) {
 
 /**
  * Pull pending messages for given methods and user accounts
- * 
+ *
  * Each returned message will be an array with the following elements
  * - 'to', destination uid
  * - 'from', originating uid
@@ -391,7 +400,7 @@ function messaging_message_send($destination, $message, $method = NULL) {
  * @param $delete
  *   Optional whether to delete messages when fetching
  * @return array()
- *   Array of pending messages.   
+ *   Array of pending messages.
  */
 function messaging_pull_pending($method, $users, $limit = 0, $delete = TRUE) {
   // Collect messages checking limit after each module
@@ -414,7 +423,7 @@ function messaging_pull_pending($method, $users, $limit = 0, $delete = TRUE) {
 
 /**
  * Returns list of messaging methods for a type
- * 
+ *
  * I.e. all messaging methods of pull type
  */
 function messaging_method_type($type) {
@@ -429,7 +438,7 @@ function messaging_method_type($type) {
 
 /**
  * List sending methods
- * 
+ *
  * @param $account
  *   Optional user account, for checking permissions against this account
  */
@@ -448,7 +457,7 @@ function messaging_method_list($account = NULL) {
 
 /**
  * Check permission for method and account
- * 
+ *
  * @param $method
  *   Sending method id
  * @param $account
@@ -474,15 +483,15 @@ function messaging_method_default($account = NULL) {
   }
   else {
     return key(messaging_method_info());
-  }  
+  }
 }
 
 /**
  * Returns parts of messages, that may be formatted for each sending method
- * 
+ *
  * @ TODO Review logic, optimizations, text pre-fetching
  * @ TODO Glue text in a method-dependent way
- * 
+ *
  * First checks for message, key, method
  * Then checks for message, key for method 'default'
  * Finally checks default values from modules and hook_messaging()
@@ -497,7 +506,7 @@ function messaging_method_default($account = NULL) {
  *   Boolean, whether to use the default if a specific message isn't available for the used method. OPTIONAL, Defaults to true.
  *
  * @return
- *   Assembled text of a message part.  
+ *   Assembled text of a message part.
  */
 function messaging_message_part($group, $key, $method = 'default', $getdefault = TRUE) {
   static $cache;
@@ -518,7 +527,7 @@ function messaging_message_part($group, $key, $method = 'default', $getdefault =
     if ($text_part && is_array($text_part)) {
       $text_part = implode("\n", $text_part);
     }
-    $cache[$group][$key][$method] = $text_part;  
+    $cache[$group][$key][$method] = $text_part;
   }
 
   return $text_part ? $text_part : '';
@@ -526,7 +535,7 @@ function messaging_message_part($group, $key, $method = 'default', $getdefault =
 
 /**
  * Replaces variables in text
- * 
+ *
  * Obsoleted.
  */
 function messaging_text_vars($text, $variables) {
@@ -548,13 +557,13 @@ function messaging_text_vars($text, $variables) {
   }
   foreach ($text as $key => $line) {
     $text[$key] = strtr($line, $args);
-  }  
-  return $text;  
+  }
+  return $text;
 }
 
 /**
  * Returns parts of messages, that may be formatted for each sending method
- * 
+ *
  * @param $group
  *   Message group.
  * @param $key
@@ -578,7 +587,7 @@ function messaging_message_info($group, $key = NULL) {
 
 /**
  * Returns information about message groups
- * 
+ *
  * @param $group
  *   Optional message group. Returns all groups if null.
  * @param $key
@@ -602,7 +611,7 @@ function messaging_message_group($group = NULL, $key = NULL) {
 
 /**
  * Returns messaging methods properties
- * 
+ *
  * @param $method
  *   Optional, Method to get properties for, none or NULL for all methods
  * @param $property
@@ -635,7 +644,7 @@ function messaging_method_info($method = NULL, $property = NULL,$default = NULL)
         if (isset($values[$property])) {
           $properties[$property][$method] = $values[$property];
         }
-      }      
+      }
     }
     return $properties[$property];
   } else {
