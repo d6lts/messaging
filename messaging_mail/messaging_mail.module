@@ -34,8 +34,13 @@ function messaging_mail_messaging($op = 'info') {
 function messaging_mail_send($destination, $message) {
   $mailkey = 'message-'.$message['type'];
   $count = 0;
+  
+  // Check for specific mail parameters
+  $params = (!empty($message['params']['mail'])) ? $message['params']['mail'] : array();
+  $params += array('from' => NULL, 'headers' => array());
+  
   foreach ($destination as $to) {
-    $count += drupal_mail($mailkey, $to, $message['subject'], $message['body']) ? 1 : 0;
+    $count += drupal_mail($mailkey, $to, $message['subject'], $message['body'], $params['from'], $params['headers']) ? 1 : 0;
   }
   return $count;
 }

@@ -347,14 +347,21 @@ function messaging_message_send_user($account, $message, $method = NULL) {
 function messaging_message_send($destination, $message, $method = NULL) {
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default(NULL);
+  $info = messaging_method_info($method);
+
+  // Provides a hook for other modules to modify the message before sending  
+  foreach (module_implements('message_alter') as $module) {
+    $function = $module.'_message_alter';
+    $function($message, $info, $method);
+  }
 
   // Renders subject and body applying filters in the process
-  $info = messaging_method_info($method);
   if (!empty($info['render'])) {
     $message = call_user_func($info['render'], $message, $info);
   } else {
     $message = messaging_message_render($message, $info);
   }
+
   // Check for debug option enabled
   if (variable_get('messaging_debug', 0) && function_exists('messaging_debug_send')) {
     return messaging_debug_send($destination, $message);

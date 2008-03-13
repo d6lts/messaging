@@ -47,7 +47,7 @@ function messaging_sms_send_user($account, $message) {
 	  $destination->$key = $field;
 	}
     $destinations[] = $destination;
-    return messaging_sms_send($destinations, $message);
+    return messaging_message_send($destinations, $message, 'sms');
   }   
 }
 
