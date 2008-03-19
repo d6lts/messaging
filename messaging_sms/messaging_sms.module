@@ -48,7 +48,7 @@ function messaging_sms_send_user($account, $message) {
 	}
     $destinations[] = $destination;
     return messaging_message_send($destinations, $message, 'sms');
-  }   
+  }
 }
 
 /**
@@ -101,4 +101,3 @@ function messaging_sms_truncate($message,$length = 160) {
   return ($position == 0) ? $teaser : substr($teaser, 0, $position);
 }
 
- 
