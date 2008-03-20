@@ -352,9 +352,12 @@ function messaging_admin_settings() {
  *
  * @ TODO Consider whether it makes sense to allow users decide on formatting
  *
+ * @param $account
+ *   User object to recieve message.
  * @param $message
  *   Array of message parts that will be compiled depending on send method.
  *   Mandatory message parts, which may have nexted parts are:
+ *   - 'type'
  *   - 'subject'
  *   - 'body'. The message body may have 'header', 'content', 'footer', 'etc'
  * @param $method
