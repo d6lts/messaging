@@ -44,7 +44,7 @@ function messaging_store_queue_process() {
 function messaging_store_queue_process_step($limit, $timeout = 0) {
   $count = 0;
   $sent = $unsent = array();
-  $result = db_query_range("SELECT * FROM {messaging_store} WHERE queue = 1 AND cron = 1 ORDER BY mqid)", 0, $limit);
+  $result = db_query_range("SELECT * FROM {messaging_store} WHERE queue = 1 AND cron = 1 ORDER BY mqid", 0, $limit);
   while ($message = db_fetch_array($result)) {
     messaging_store_unpack($message, TRUE);
     // Actual send function
@@ -71,7 +71,7 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
  * - @ TODO Remove expired queued messages
  */
 function messaging_store_queue_cleanup() {
-  if ($expire = variable_get('messaging_log_expire')) {
+  if ($expire = variable_get('messaging_log_expire', 0)) {
     db_query('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d', time() - $expire);
   }
 }
