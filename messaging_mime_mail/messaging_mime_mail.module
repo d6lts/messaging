@@ -12,6 +12,7 @@ function messaging_mime_mail_messaging($op = 'info') {
     case 'send methods':
       $info['mail'] = array(
         'name' => t('Mime Mail'), // Name for display
+        'group' => 'mail', // Class of send method
         'destination' => 'mail', // Account property to use as destination
         'send' => 'messaging_mime_mail_send', // Sending callback
         'type' => MESSAGING_TYPE_PUSH,  // Method type: push || pull
@@ -30,12 +31,9 @@ function messaging_mime_mail_messaging($op = 'info') {
  * @param $message
  *   Message array
  */
-function messaging_mime_mail_send($destination, $message) {
-  $mailkey = 'message-'.$message['type'];
-  $count = 0;
-  foreach ($destination as $to) {
-    $count += mimemail(variable_get('site_mail', ini_get('sendmail_from')), $to, $message['subject'], $message['body'], NULL,array(),NULL,array(),$mailkey) ? 1 : 0;
-  }
-  return $count;
+function messaging_mime_mail_send($destination, $message, $params = array()) {
+  
+  $params = messaging_mail_params($message, $params);
+  
+  return mimemail($params['from'], $destination, $message['subject'], $message['body'], NULL, $message['headers'], NULL, array(), $params['mailkey']);
 }
- 

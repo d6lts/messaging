@@ -40,6 +40,13 @@ function messaging_store_queue_process() {
 
 /**
  * Retrieve and send queued messages
+ * 
+ * @param $limit
+ *   Maximum number of queued messages to process for this step
+ * @param $timeout
+ *   Optional time limit for processing, will return when if reached during processing
+ * @return
+ *   Number of messages processed in this step
  */
 function messaging_store_queue_process_step($limit, $timeout = 0) {
   $count = 0;
@@ -158,16 +165,23 @@ function messaging_store_unpack(&$message, $full = FALSE) {
   // Preprocessing stored parameters
   if ($message['params']) {
     $params = unserialize($message['params']);
-    if (!empty($params['destination'])) {
-      $message['destination'] = $params['destination'];
-      unset($params['destination']);
+    // Some optional fields that may be into params, may be extended
+    foreach (array('destination', 'sender_name') as $field) {
+      if (!empty($params[$field])) {
+        $message[$field] = $params[$field];
+        unset($params[$field]);
+      }
     }
-    // We only saved params for current sending method
-    $message['params'][$message['method']] = $params;
+    // We only saved params for current sending method group
+    $group = messaging_method_info($message['method'], 'group');
+    $message['params'][$group] = $params;
   }
   if ($message['uid'] && $full) {
     $message['account'] = messaging_load_user($message['uid']);       
-  }  
+  }
+  if ($message['sender'] && $full) {
+    $message['sender_account'] = messaging_load_user($message['sender']);
+  }
 }
 
 /**
@@ -219,12 +233,20 @@ function messaging_store_del($params) {
  *   Should be 1 when this entry is to be processed on cron (queueing for push methods)
  */
 function messaging_store_save($method, $destinations, $message, $sent = 0, $queue = 0, $log = 0, $cron = 1) {
-  //dsm("method=$method sent=$sent queue=$queue log=$log cron=$cron");
+  // Add some defaults so fields are populated
   $message += array('account' => NULL, 'sender' => 0);
+  // If sender is a user account, save sender field
+  if (!empty($message['sender_account'])) {
+    $message['sender'] = $message['sender_account']->uid;
+  }
+  // We just save the params for current sending method group
+  $group = messaging_method_info($method, 'group');
+  $params = !empty($params[$group]) ? $params[$group] : array();
+  // And there's one more optional param that is sender_name
+  if (!empty($message['sender_name'])) {
+    $params['sender_name'] = $message['sender_name'];
+  }
   foreach ($destinations as $destination) {
-    // We just save the params for current sending method
-    $params = !empty($params[$method]) ? $params[$method] : array();
-
     // Mark for a user if there's an account parameter, produced by messaging_send_user()
     if ($message['account']) {
       $uid =  $message['account']->uid;

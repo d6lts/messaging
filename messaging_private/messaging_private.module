@@ -14,6 +14,7 @@ function messaging_private_messaging($op) {
     case 'send methods':
       $info['privatemsg'] = array(
         'name' => t('Privatemsg'),
+        'group' => 'web',
         'send' => 'messaging_private_send',
         'type' => MESSAGING_TYPE_PUSH,
         'access' => 'access private messages',
@@ -28,14 +29,11 @@ function messaging_private_messaging($op) {
  * Send mail message to user accounts
  * 
  * @param $destination
- *   Array of user accounts
+ *   User account
  */
 function messaging_private_send($destination, $message) {
   // Hand over to privatemsg  
-  foreach ($destination as $account) {
-    privatemsg_send_privatemsg($account, $message['subject'], $message['body']);
-  }
+  privatemsg_send_privatemsg($destination, $message['subject'], $message['body']);
   // @ TO DO How to check for success?
-  return count($destination);
+  return 1;
 }
- 

@@ -108,16 +108,12 @@ function messaging_debug_send($destination, $message) {
   $text = '';
   $count = 0;
   $watchdog = array();
-  foreach ($destination as $name) {
-    $text  = t('Message %key for %name: %subject', array('%name' => $name, '%key' => $message['type'], '%subject' => $message['subject']));
-    messaging_log($text);
-    $watchdog[] = $text;
-    $count++;
-  }
+  $text  = t('Message %key for %name: %subject', array('%name' => $destination->name, '%key' => $message['type'], '%subject' => $message['subject']));
+  messaging_log($text);
   $watchdog[] = t('Message body:').'<br /><pre>'.$message['body'].'</pre>';
   // Just log message body at the end
   watchdog('messaging', implode('<br />', $watchdog));
-  return $count;
+  return TRUE;
 }
 
 /**

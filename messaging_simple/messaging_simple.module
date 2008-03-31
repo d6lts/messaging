@@ -60,6 +60,7 @@ function messaging_simple_messaging($op = 'info') {
     case 'send methods':
       $info['simple'] = array(
         'name' => t('Simple'),
+        'group' => 'web',
         'send' => 'messaging_simple_send',
         'type' => MESSAGING_TYPE_PULL,
         'glue' => '<br />',
@@ -79,4 +80,3 @@ function messaging_simple_messaging($op = 'info') {
 function messaging_simple_send($destination, $message) {
   return TRUE;
 }
- 

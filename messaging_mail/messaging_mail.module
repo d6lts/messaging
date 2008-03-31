@@ -2,16 +2,27 @@
 /**
  * @file
  * Simple mail using Drupal API. Messaging method plug-in
+ * 
+ * This is also the reference implementation of sending method plug-ins
  */
 
 /**
- * Implementation of hook_messaging
+ * Implementation of hook_messaging()
+ * 
+ * Currently the only operation supported is 'send methods' that will retrieve and array
+ * with information fo the sending methods provided by this module.
+ * 
+ * @param $op
+ *   Type of information to retrieve.
+ * @return mixed
+ *   Depending on $op   
  */
-function messaging_mail_messaging($op = 'info') {
+function messaging_mail_messaging($op) {
   switch($op) {
     case 'send methods':
       $info['mail'] = array(
         'name' => t('Mail'), // Name for display
+        'group' => 'mail', // Class of sending method
         'destination' => 'mail', // Account property to use as destination
         'send' => 'messaging_mail_send', // Sending callback
         'type' => MESSAGING_TYPE_PUSH,  // Method type: push || pull
@@ -26,22 +37,22 @@ function messaging_mail_messaging($op = 'info') {
 /**
  * Send mail message to user account
  * 
+ * This is a callback function that will be invoked from messaging delivery methods
+ * 
+ * @see messaging_message_send()
+ * @see drupal_mail()
+ * 
  * @param $destination
- *   Array of e-mails
+ *   Single email address
  * @param $message
  *   Message array
+ * @param $params
+ *   Optional parameters for this method type
  */
-function messaging_mail_send($destination, $message) {
-  $mailkey = 'message-'.$message['type'];
-  $count = 0;
+function messaging_mail_send($destination, $message, $params = array()) {
   
-  // Check for specific mail parameters
-  $params = (!empty($message['params']['mail'])) ? $message['params']['mail'] : array();
-  $params += array('from' => NULL, 'headers' => array());
+  $params = messaging_mail_params($message, $params);
   
-  foreach ($destination as $to) {
-    $count += drupal_mail($mailkey, $to, $message['subject'], $message['body'], $params['from'], $params['headers']) ? 1 : 0;
-  }
-  return $count;
+  return drupal_mail($params['mailkey'], $destination, $message['subject'], $message['body'], $params['from'], $params['headers']);
+
 }
- 

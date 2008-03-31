@@ -390,14 +390,28 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
 /**
  * Send message to array of destinations. The message is rendered just once.
  * 
- * @param $destination
- *   Array of destinations for sending
+ * The $message array may have the following elements
+ *   'subject' => Message subject, may be already rendered or not
+ *   'body' => Message content, may be already rendered or not
+ *   'params' => Optional message params, indexed by sending method group
+ *      I.e. params for mail methods will be in $message['params']['mail']
+ *   'render' => Optional flag to mark the message subject and body as rendered
+ *   'sender' => Optional int to identify message sender, may be $user->uid
+ *   'sender_account' => Optional user account to use as message sender
+ * @param $destinations
+ *   Array of destinations for sending.
+ *   The element type depends on sending method so it can be a list of e-mail addresses, user accounts, etc
  * @param $message
  *   Message array, not rendered
+ * @param $method
+ *   Sending method. Unlike for messaging_message_send_user() for which the sending method may be user's default
+ *   it is not an optional parameter for this function.
  * @param $queue
- *   Optional flag, 0 for normal queueing, 1 to force queueing
+ *   Optional flag, 0 for normal queueing, 1 to force queueing.
+ *   We may want to force queueing for bulk messaging. Otherwise it will depend on the sending method
+ *   wether to queue the messages (for pull methods) or not (push methods)
  */
-function messaging_message_send($destination, $message, $method = NULL, $queue = 0) {
+function messaging_message_send($destinations, $message, $method, $queue = 0) {
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default(NULL);
   $info = messaging_method_info($method);
@@ -432,13 +446,17 @@ function messaging_message_send($destination, $message, $method = NULL, $queue =
 
   // Send if not for queueing or not debugging enabled  
   if (!$queue && !variable_get('messaging_debug', 0)) {
-    $success = messaging_message_send_out($destination, $message, $method);
+    $success = TRUE;
+    foreach ($destinations as $to) {
+      // Be careful with the order of function && value, so they both are evaluated
+      $success = messaging_message_send_out($to, $message, $method) && $success;
+    }
     // If sent, set time. If failed force logging.
     $success ? ($sent = time()) : ($log = 1);
   }
   // Depending on parameters and what's happened so far we make the final queue/log decision
   if ($queue || $log) {
-    messaging_store('save', $method, $destination, $message, $sent, $queue, $log, $cron);
+    messaging_store('save', $method, $destinations, $message, $sent, $queue, $log, $cron);
     $sent = TRUE;
   }
   // This will return true if the message was sent or queued for delivery
@@ -447,10 +465,26 @@ function messaging_message_send($destination, $message, $method = NULL, $queue =
 
 /**
  * Send for real, finally invoking method's callback function
+ * 
+ * This sends messages one by one, so the callback function only need to support a single destination
+ * Specific parameters for this message group are processed here too
+ * 
+ * @param $destination
+ *   Single destination, may be email, user account, etc...
+ * @param $message
+ *   Message array
+ * @param $method
+ *   Sending method
+ * 
+ * @return boolean
+ *   Message successfully sent
  */
 function messaging_message_send_out($destination, $message, $method) {
   if (($function = messaging_method_info($method, 'send')) && function_exists($function)) {
-    return $function($destination, $message);
+    // Check for specific parameters for this sending method
+    $group = messaging_method_info($method, 'group');
+    $params = (!empty($message['params'][$group])) ? $message['params'][$group] : array();    
+    return $function($destination, $message, $params);
   } else {
     watchdog('messaging', t('Message could not be delivered for method %method', array('%method' => $method)), WATCHDOG_ERROR);
     return FALSE;
@@ -936,4 +970,24 @@ function messaging_simpletest() {
   require_once($dir . DIRECTORY_SEPARATOR . 'messaging_testcase.inc');
   $tests = file_scan_directory($dir, '\.test');
   return array_keys($tests);
+}
+
+/**
+ * Helper function for mail methods
+ * 
+ * This is the only non method agnostic functionality in this module. As there are several plug-ins
+ * for mail sending, we add this helper function here so its available for all them
+ */
+function messaging_mail_params($message, $params) {
+  // The message 'from' will depend on message sender if present
+  if (empty($params['from'])) {
+    if (!empty($message['sender_account']) && !empty($message['sender_account']->mail)) {
+      $params['from'] = check_plain($message['sender_account']->name) . ' <'.$message['sender_account']->mail.'>';
+    } elseif(!empty($message['sender_name']) && ($default_from = variable_get('site_mail', ini_get('sendmail_from')))) {
+      $params['from'] = check_plain($message['sender_name']) . ' <'.$default_from.'>';
+    }
+  }
+  // Fill in params with default values if not present
+  $params += array('from' => NULL, 'headers' => array(), 'mailkey' => 'message-'.$message['type']);
+  return $params;
 }
