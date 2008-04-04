@@ -58,7 +58,7 @@ function messaging_phpmailer_drupal_mail($mailkey, $to, $subject, $body, $from =
     $mail->ContentType = 'text/html';
     // Uncomment the following line to get debug information printed out during mail sends
     //$mail->SMTPDebug = TRUE;
-    $host = ini_get('SMTP');
+    $host = variable_get('messaging_phpmailer_smtp_server', ini_get('SMTP'));
     if ($host) {
       $mail->Host = $host; // SMTP server
     }
