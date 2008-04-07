@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * @file
  * SMS Messsaging using SMS Framework. Messaging method plug-in
@@ -27,14 +27,14 @@ function messaging_sms_messaging($op = 'info') {
  * Message Render callback
  */
 function messaging_sms_render($message, $info) {
-	// We need to apply filtering first or run through the render function
+  // We need to apply filtering first or run through the render function
     $message = messaging_message_render($message, $info);
     // We can assume that we'll get max 110 characters for subject + body
-	// Because from and data take up about 50 characters and total character limit
-	// subject + from + date + body < 160
-	$message['subject'] = messaging_sms_truncate($message['subject'], 40);
-	$message['body'] = '--' . messaging_sms_truncate("Learn More: " . $GLOBALS['base_url'],(110 - strlen($message['subject'])));
-	return $message;
+  // Because from and data take up about 50 characters and total character limit
+  // subject + from + date + body < 160
+  $message['subject'] = messaging_sms_truncate($message['subject'], 40);
+  $message['body'] = '--' . messaging_sms_truncate("Learn More: " . $GLOBALS['base_url'],(110 - strlen($message['subject'])));
+  return $message;
 }
 
 /**
@@ -42,10 +42,10 @@ function messaging_sms_render($message, $info) {
  */
 function messaging_sms_send_user($account, $message) {
   if ($account->sms_user['status'] == 2) {
-	$destination->number = $account->sms_user['number'];
-	foreach ($account->sms_user['gateway'] as $key => $field) {
-	  $destination->$key = $field;
-	}
+  $destination->number = $account->sms_user['number'];
+  foreach ($account->sms_user['gateway'] as $key => $field) {
+    $destination->$key = $field;
+  }
     $destinations[] = $destination;
     return messaging_message_send($destinations, $message, 'sms');
   }
@@ -101,4 +101,3 @@ function messaging_sms_truncate($message,$length = 160) {
   }
   return ($position == 0) ? $teaser : substr($teaser, 0, $position);
 }
-

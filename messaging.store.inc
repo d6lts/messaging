@@ -108,23 +108,25 @@ function messaging_store_pull_pending($method, $users, $limit = 0, $delete = TRU
  *   Optional maximum number of rows to retrieve
  * @param $pager
  *   Optional pager element for pager queries
+ * @param $unpack
+ *   Optional fully load stored data
  */
-function messaging_store_get($params, $order = NULL, $limit = NULL, $pager = NULL) {
+function messaging_store_get($params, $order = NULL, $limit = NULL, $pager = NULL, $unpack = FALSE) {
   $messages = $where = $args = array();
-  list($where, $args) = messaging_store_query($params);
+  list ($where, $args) = messaging_store_query($params);
   $sql = 'SELECT * FROM {messaging_store}';
   $sql .= $where ? ' WHERE '.implode(' AND ', $where) : '';
   $sql .= $order ? ' ORDER BY '.implode(', ', $order) : '';
 
   if (!is_null($pager)) {
-    $result = pager_query($sql, $limit, $pager, $args);
-  } elseif($limit) {
+    $result = pager_query($sql, $limit, $pager, NULL, $args);
+  } elseif ($limit) {
     $result = db_query_range($sql, $args, 0, $limit);
   } else {
     $result = db_query($sql, $args);
   }
   while ($msg = db_fetch_array($result)) {
-    messaging_store_unpack($msg);
+    messaging_store_unpack($msg, $unpack);
     $messages[$msg['mqid']] = $msg;
   }
   return $messages;

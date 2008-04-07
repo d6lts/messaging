@@ -7,6 +7,9 @@ TO DO
 
 5.x-1.0-alpha2 to .....
 --------------------------------
+- Added formatting, pager and delete option for messaging_simple module
+- Added formatting and pager for messaging_debug(), fixed some strings
+- Fixed annoying hidden char issue for messaging_sms module, http://drupal.org/node/243246
 - Added helper function messaging_mail_params()
 - API change for consistency with queue processing: The send callback now takes a single destination
 - Added $message['sender_account'] parameter

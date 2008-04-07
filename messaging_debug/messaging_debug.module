@@ -6,6 +6,9 @@
  * This is a really simple message viewer and also an illustration of pulling messaging methods
  */
 
+// Number of messages to display per page
+define('MESSAGING_DEBUG_PAGER', 10);
+
 /**
  * Implementation of hook_menu().
  */
@@ -13,14 +16,17 @@ function messaging_debug_menu($may_cache) {
   global $user;  // we need the user to to build some urls
   $items = array();
   if (!$may_cache) {
-    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && (arg(1) == $user->uid)) {
-      $items[] = array(
-          'path' => 'user/'. $user->uid .'/messagequeue',
+    if (arg(0) == 'user' && is_numeric(arg(1)) && arg(1) > 0) {
+      $account = user_load(array('uid' => arg(1)));
+      if ($account->uid == $user->uid || user_access('administer messaging')) {
+        $items[] = array(
+          'path' => 'user/'. $account->uid .'/messagelog',
           'type' => MENU_LOCAL_TASK,
-          'title' => t('Pending messages'),
+          'title' => t('Message log'),
           'callback' => 'messaging_debug_user_page',
-          'callback arguments' => array($user)
-      );
+          'callback arguments' => array($account)
+        );
+      }
     }
   }
   return $items;
@@ -47,25 +53,24 @@ function messaging_debug_form_alter($form_id, &$form) {
  * Sample Implementation of messaging pull methods
  */
 function messaging_debug_user_page($account) {
-  drupal_set_title(t('Pending messages for %name', array('%name' => $account->name)));
+  drupal_set_title(t('Messages for %name', array('%name' => $account->name)));
   // Fetch all pending messages.
-  // @ TODO: Add some paging here
-  $rows = array();
+  $output = '';
+  
   // Use this method's info for all the messages
-  $simple_info = messaging_method_info('debug');
-  foreach (messaging_method_info() as $method => $info) {
-    $messages = messaging_pull_pending($method, array($account->uid), 0, FALSE);
-    foreach ($messages as $message) {
-      $message = messaging_message_render($message, $simple_info);
-      $rows[] = array($info['name'], $message['subject'], $message['body']);
-    }
-  }
-  if ($rows) {
+  $messages = messaging_store('get', array('uid' => $account->uid), array('mqid DESC'), MESSAGING_DEBUG_PAGER, 0);
+  if ($messages) {
     $header = array(t('Method'), t('Subject'), t('Body'));
-    return theme('table', $header, $rows);
+    foreach ($messages as $message) {
+      // Check plain everything so we can actually see the mark up if any
+      $rows[] = array($message['method'], check_plain($message['subject']), check_plain($message['body']));
+    }
+    $output .= theme('table', $header, $rows);
+    $output .= theme('pager', array(), MESSAGING_DEBUG_PAGER); 
   } else {
-    return t('No pending messages');
+    $output .=  t('No logged messages');
   }
+  return $output;
 }
 
 /**
