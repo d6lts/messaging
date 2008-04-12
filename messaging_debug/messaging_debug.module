@@ -12,30 +12,30 @@ define('MESSAGING_DEBUG_PAGER', 10);
 /**
  * Implementation of hook_menu().
  */
-function messaging_debug_menu($may_cache) {
-  global $user;  // we need the user to to build some urls
-  $items = array();
-  if (!$may_cache) {
-    if (arg(0) == 'user' && is_numeric(arg(1)) && arg(1) > 0) {
-      $account = user_load(array('uid' => arg(1)));
-      if ($account->uid == $user->uid || user_access('administer messaging')) {
-        $items[] = array(
-          'path' => 'user/'. $account->uid .'/messagelog',
-          'type' => MENU_LOCAL_TASK,
-          'title' => t('Message log'),
-          'callback' => 'messaging_debug_user_page',
-          'callback arguments' => array($account)
-        );
-      }
-    }
-  }
+function messaging_debug_menu() {
+  $items['user/%user/messagelog'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Message log',
+    'page callback' => 'messaging_debug_user_page',
+    'page arguments' => array(1),
+    'access callback' => 'messaging_debug_access',
+    'access arguments' => array(1),
+  );
   return $items;
+}
+
+/**
+ * Access calback
+ */
+function messaging_debug_access($account) {
+  global $user;
+  return $account->uid && (($account->uid == $user->uid) || user_access('administer messaging'));
 }
 
 /**
  * Implementation of hook_form_alter()
  */
-function messaging_debug_form_alter($form_id, &$form) {
+function messaging_debug_form_alter(&$form, $form_state, $form_id) {
   if ($form_id == 'messaging_admin_settings') {
     $form['general']['messaging_debug'] = array(
       '#title' => t('Debug mode'),
@@ -115,9 +115,8 @@ function messaging_debug_send($destination, $message) {
   $watchdog = array();
   $text  = t('Message %key for %name: %subject', array('%name' => $destination->name, '%key' => $message['type'], '%subject' => $message['subject']));
   messaging_log($text);
-  $watchdog[] = t('Message body:').'<br /><pre>'.$message['body'].'</pre>';
   // Just log message body at the end
-  watchdog('messaging', implode('<br />', $watchdog));
+  watchdog('messaging', 'Message %key for %name: %subject <br /> Message body: <br /><pre>!body</pre>', array('%name' => $destination->name, '%key' => $message['type'], '%subject' => $message['subject'], '!body' => $message['body']));
   return TRUE;
 }
 

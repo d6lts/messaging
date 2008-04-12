@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * Drupal Messaging Framework
  *
@@ -18,20 +19,18 @@ define('MESSAGING_TYPE_PULL', 2);
 /**
  * Implementation of hook_help().
  */
-function messaging_help($section) {
-  switch($section) {
+function messaging_help($path, $arg) {
+  switch ($path) {
     case 'admin/help#messaging':
-      $output = '<p>'.t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.').'</p>';
-      $output .= '<p>'.t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.').'</p>';
-      return $output;
-    case 'admin/help#filters':
+      $output = '<p>'. t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') .'</p>';
+      $output .= '<p>'. t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') .'</p>';
       return $output;
     default:
-      if (arg(0) == 'admin' && arg(1) == 'settings') {
-        if (arg(2) == 'filters') {
-          return '<p>'.t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.').'</p>';
+      if ($arg[0] == 'admin' && $arg[1] == 'settings') {
+        if ($arg[2] == 'filters') {
+          return '<p>'. t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.') .'</p>';
         }
-        if (arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
+        if ($arg[2] == 'messaging' && $arg[3] == 'edit' && ($group = $arg[4])) {
           if ($help = messaging_message_group($group, 'help')) {
             return $help;
           }
@@ -43,35 +42,31 @@ function messaging_help($section) {
 /**
  * Implementation of hook_menu()
  */
-function messaging_menu($may_cache) {
-  $items = array();
-  if ($may_cache) {
-    $items[] = array(
-      'title' => t('Messaging'),
-      'path' => 'admin/settings/messaging',
-      'callback' => 'messaging_admin_page',
-      'access' => user_access('administer messaging'),
-      'description' => t('Administration of messages and sending methods'),
-    );
-    $items[] = array(
-      'title' => t('Messages'),
-      'path' => 'admin/settings/messaging/manage',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    );
-    $items[] = array(
-      'title' => t('Messages'),
-      'path' => 'admin/settings/messaging/edit',
-      'callback' => 'messaging_admin_message_edit',
-      'type' => MENU_CALLBACK,
-    );
-    $items[] = array(
-      'title' => t('Settings'),
-      'path' => 'admin/settings/messaging/settings',
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('messaging_admin_settings'),
-      'type' => MENU_LOCAL_TASK,
-    );
-  }
+function messaging_menu() {
+  $items['admin/settings/messaging'] = array(
+    'title' => 'Messaging',
+    'page callback' => 'messaging_admin_page',
+    'access arguments' => array('administer messaging'),
+    'description' => 'Administration of messages and sending methods',
+  );
+  $items['admin/settings/messaging/manage'] = array(
+    'title' => 'Messages',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  $items['admin/settings/messaging/edit'] = array(
+    'title' => 'Messages',
+    'page callback' => 'messaging_admin_message_edit',
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('administer messaging'),
+  );
+  $items['admin/settings/messaging/settings'] = array(
+    'title' => 'Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('messaging_admin_settings'),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer messaging'),
+  );
+
   return $items;
 }
 
@@ -128,7 +123,7 @@ function messaging_admin_page_overview() {
   messaging_method_list();
   foreach (messaging_method_info() as $method => $info) {
     $rows[] = array(
-      '<strong>'.$info['name'].'</strong>',
+      '<strong>'. $info['name'] .'</strong>',
       !empty($info['description']) ? $info['description'] : ''
     );
   }
@@ -238,9 +233,9 @@ function messaging_tokens_get_list($group) {
 /**
  * Process and save message parts
  */
-function messaging_admin_message_form_submit($form_id, $form_values) {
-  $group = $form_values['group'];
-  foreach ($form_values['messages'] as $key => $messages) {
+function messaging_admin_message_form_submit($form, &$form_state) {
+  $group = $form_state['values']['group'];
+  foreach ($form_state['values']['messages'] as $key => $messages) {
     foreach ($messages as $method => $text) {
       if ($text = trim($text)) {
         // Save
@@ -486,7 +481,7 @@ function messaging_message_send_out($destination, $message, $method) {
     $params = (!empty($message['params'][$group])) ? $message['params'][$group] : array();    
     return $function($destination, $message, $params);
   } else {
-    watchdog('messaging', t('Message could not be delivered for method %method', array('%method' => $method)), WATCHDOG_ERROR);
+    watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $method), WATCHDOG_ERROR);
     return FALSE;
   }  
 }
@@ -852,10 +847,8 @@ function messaging_message_filter($text, $format = FILTER_FORMAT_DEFAULT) {
 function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
   switch ($op) {
     case 'list':
-      $info[0] = t('Plain text filter');
-      if (function_exists('drupal_html_to_text')) {
-        $info[1] = t('HTML to text');
-      }
+      $info[0] = t('Plain text');
+      $info[1] = t('HTML to text');
       return $info;
 
     case 'no cache':
@@ -872,7 +865,7 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     case 'process':
       switch ($delta) {
         case 0:
-          return messaging_html_to_text($text);
+          return drupal_html_to_text($text);
         case 1:
           return messaging_check_plain($text);
         default:
@@ -885,19 +878,6 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     default:
       return $text;
   }
-}
-
-/**
- * HTML to text conversion
- * 
- * Uses html_to_text facility if available or simple filtering otherwise
- */
-function messaging_html_to_text($text) {
-  if (function_exists('drupal_html_to_text')) {
-    return drupal_html_to_text($text);
-  } else {
-    return messaging_check_plain($text);
-  } 
 }
 
 /**
@@ -965,13 +945,14 @@ function messaging_load_user($uid) {
 /**
  * Implementation of hook_simpletest().
  */
+/*
 function messaging_simpletest() {
   $dir = drupal_get_path('module', 'messaging'). DIRECTORY_SEPARATOR . 'tests';
   require_once($dir . DIRECTORY_SEPARATOR . 'messaging_testcase.inc');
   $tests = file_scan_directory($dir, '\.test');
   return array_keys($tests);
 }
-
+*/
 /**
  * Helper function for mail methods
  * 

@@ -2,4 +2,5 @@
 name = Simple messaging
 description = Sending Method: Show messages on user's page
 package = "Messaging"
-dependencies = messaging
+dependencies[] = messaging
+core = 6.x

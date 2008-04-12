@@ -1,4 +1,5 @@
 ; $Id$
-name = Messaging Framework
-description = Drupal Messaging Monitoring Management
+name = Messaging
+description = Messaging system. This is the base module for the Messaging Framework
 package = "Messaging"
+core = 6.x
