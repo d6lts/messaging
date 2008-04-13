@@ -7,7 +7,7 @@
 function messaging_schema() {
   $schema['messaging_store'] = array(
     'fields' => array(
-      'mqid'    => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'mqid'    => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
       'uid'    => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'sender' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'method' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
@@ -47,8 +47,7 @@ function messaging_schema() {
 */
 function messaging_install() {
   // Create tables.
-  drupal_install_schema('messaging_store');
-  drupal_install_schema('messaging_message_parts');
+  drupal_install_schema('messaging');
 }
 
 /**
@@ -56,8 +55,7 @@ function messaging_install() {
 */
 function messaging_uninstall() {
   // Remove tables.
-  drupal_uninstall_schema('messaging_store');
-  drupal_uninstall_schema('messaging_message_parts');
+  drupal_uninstall_schema('messaging');
 }
 
 /**
