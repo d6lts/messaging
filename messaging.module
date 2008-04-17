@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * Drupal Messaging Framework
  *
@@ -14,6 +15,8 @@
 define('MESSAGING_TYPE_PUSH', 1);
 // Method type with pull delivery. Messages will be pulled using messaging pull methods
 define('MESSAGING_TYPE_PULL', 2);
+// Special string for empty text part
+define('MESSAGING_EMPTY', '<none>');
 
 /**
  * Implementation of hook_help().
@@ -32,9 +35,11 @@ function messaging_help($section) {
           return '<p>'.t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.').'</p>';
         }
         if (arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
+          $output = '<p>'. t('These are the message parts for %group. Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%group' => messaging_message_group($group, 'name'), '%empty' => MESSAGING_EMPTY)) .'</p>';
           if ($help = messaging_message_group($group, 'help')) {
-            return $help;
+            $output .= '<p>'. $help .'</p>';
           }
+          return $output;
         }
       }
   }
@@ -632,7 +637,6 @@ function messaging_message_part($group, $key, $method = 'default', $getdefault =
     }
     $cache[$group][$key][$method] = $text_part;
   }
-
   return $text_part ? $text_part : '';
 }
 
@@ -820,24 +824,6 @@ function messaging_text_render($text, $glue = '', $filter = NULL) {
     $output = check_markup($output, $filter, FALSE);
   }
   return $output;
-}
-
-/**
- * Filters message parts before final formatting
- */
-function messaging_message_filter($text, $format = FILTER_FORMAT_DEFAULT) {
-  if (is_array($text)) {
-    foreach (element_children($text) as $key) {
-      $text[$key] = messaging_message_filter($text[$key], $format);
-    }
-    // Don't forget #text element
-    if (!empty($text['#text'])) {
-      $text['#text'] = messaging_message_filter($text['#text'], $format);
-    }
-  } else {
-    $text = check_markup($text, $format, FALSE);
-  }
-  return $text;
 }
 
 /**

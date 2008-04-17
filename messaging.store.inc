@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file
  *   Database storage for the messaging framework

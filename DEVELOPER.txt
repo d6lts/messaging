@@ -1,3 +1,5 @@
+// $Id$
+
 API.txt - Drupal Module - Messaging
 ======================================
 
@@ -54,7 +56,6 @@ For formatting and security issues, the Input Filters are applied to the message
 message composition. The messaging framework allows to configure a different filter for each method.
 
 @see messaging_message_send_user()
-@see messaging_message_filter()
 
 Developing plug-in modules
 ---------------------------
