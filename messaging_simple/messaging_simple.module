@@ -80,7 +80,7 @@ function messaging_simple_user_overview($account) {
 /**
  * Display single message
  */
-function messaging_simple_user_message($account, $id) {
+function messaging_simple_user_message($form_state, $account, $id) {
   $form = array();
   if ($messages = messaging_store('get', array('mqid' => $id, 'method' => 'simple', 'uid' => $account->uid))) {
     $message = array_shift($messages);

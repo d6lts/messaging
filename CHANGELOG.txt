@@ -8,6 +8,8 @@ TO DO
 5.x-1.0-beta1 to 6.x-1.0-dev
 -----------------------------
 - Quick Drupal 6 upgrade and some code clean up
+- Ported latest patches from 5.x branch (MESSAGE_TYPE_NONE and help text)
+- Split admin UI on its own file messaging.admin.inc
 
 5.x-1.0-alpha2 to 5.x-1.0-beta1
 --------------------------------
