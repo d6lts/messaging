@@ -9,6 +9,9 @@ TO DO
 
 5.x-1.0-beta1 to ....
 --------------------------------
+- User settings improvements. Disabled when only one send methods.
+- Strenghten permissions when changed, ignoring previous user settings.
+- Removed obsoleted messaging_text_vars()
 - Removed unused function messaging_message_filter()
 - Support for empty message parts and improvements with help texts for message parts settings.
 
