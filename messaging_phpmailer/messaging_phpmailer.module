@@ -17,8 +17,8 @@ function messaging_phpmailer_messaging($op = 'info') {
         'destination' => 'mail',
         'send' => 'messaging_phpmailer_send',
         'type' => MESSAGING_TYPE_PUSH,
-        'glue' => "<br/>",
-        'footer' => "<br/><br/>--",
+        'glue' => "<br>",
+        'footer' => "<br><br>--",
         'description' => t('Send HTML e-mails using PHPMailer'),
       );
       return $info;
