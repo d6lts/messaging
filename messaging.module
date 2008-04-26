@@ -100,11 +100,12 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
           '#collapsible' => TRUE,
         );
         $form['messaging']['messaging_default'] = array(
-          '#type'          => 'radios',
-          '#title'         => t('Default messaging'),
+          '#type'          => 'select',
+          '#title'         => t('Default send method'),
           '#default_value' => messaging_method_default($user),
           '#options' => $list,
           '#description'   => t('Default sending method for getting messages from this system.'),
+          '#disabled' => count($list) == 1,
         );
         return $form;
       }
@@ -339,8 +340,12 @@ function messaging_method_list($account = NULL) {
  *   User account to check permission
  */
 function messaging_method_permission($method, $account = NULL) {
-  if ($access = messaging_method_info($method, 'access')) {
-    return user_access($access, $account);
+  $info = messaging_method_info($method);
+  // This sending method may be disabled
+  if (!$info) {
+    return FALSE;
+  } elseif (!empty($info['access'])) {
+    return user_access($info['access'], $account);
   } else {
     return TRUE;
   }

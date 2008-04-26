@@ -5,8 +5,14 @@ TO DO
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
 * Sending messages to potential users, with a reserved user id. It seems we are already good for that with latest hooks introduced in notifications module.
 
+6.x-1.0-dev to .........
+----------------------------
+- Porting latest minor features from Drupal 5. Send method settings, etc..
+- Fixing template form not showing, by BTMash, #251372
+
 5.x-1.0-beta1 to 6.x-1.0-dev
 -----------------------------
+- Fixed issue with messaging log variable
 - Quick Drupal 6 upgrade and some code clean up
 - Ported latest patches from 5.x branch (MESSAGE_TYPE_NONE and help text)
 - Split admin UI on its own file messaging.admin.inc

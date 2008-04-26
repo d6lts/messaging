@@ -60,7 +60,7 @@ function messaging_admin_message_edit($group) {
 /**
  * Edit message formats
  */
-function messaging_admin_message_form($group, $group_info) {
+function messaging_admin_message_form($form_state, $group, $group_info) {
   $form['group'] = array('#type' => 'value', '#value' => $group);
   $keylist = module_invoke_all('messaging', 'message keys', $group);
   $send_methods = array('default' => t('Default'));
@@ -172,7 +172,7 @@ function messaging_admin_settings() {
     '#title' => t('Logging'),
     '#type' => 'select',
     '#options' => $period,
-    '#default_value' => variable_get('messaging_log_expire', 0),
+    '#default_value' => variable_get('messaging_log', 0),
     '#description' => t('If enabled all messages will be logged and kept for the specified time after they\'re sent.'),
   );
 
