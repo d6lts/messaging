@@ -90,7 +90,6 @@ function messaging_phpmailer_drupal_mail($mailkey, $to, $subject, $body, $from =
 
   $mail->From = $defaults['From'];
   $mail->FromName = $defaults['From'];
-  $mail->to = array();
   $mail->AddAddress($to);
 
   // Strip HTML out of $body for plaintext equivalent of HTML email.
