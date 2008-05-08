@@ -35,5 +35,5 @@ function messaging_mime_mail_send($destination, $message, $params = array()) {
   
   $params = messaging_mail_params($message, $params);
   
-  return mimemail($params['from'], $destination, $message['subject'], $message['body'], NULL, $message['headers'], NULL, array(), $params['mailkey']);
+  return mimemail($params['from'], $destination, $message['subject'], $message['body'], NULL, $params['headers'], NULL, array(), $params['mailkey']);
 }

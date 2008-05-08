@@ -142,9 +142,8 @@ function messaging_admin_message_form_submit($form, &$form_state) {
   $group = $form_state['values']['group'];
   foreach ($form_state['values']['messages'] as $key => $messages) {
     foreach ($messages as $method => $text) {
+      db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
       if ($text = trim($text)) {
-        // Save
-        db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
         db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, module, message) VALUES('%s', '%s', '%s', '', '%s')", $group, $key, $method, $text);
       }
     }
