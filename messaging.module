@@ -31,7 +31,7 @@ function messaging_help($section) {
       return $output;
     default:
       if (arg(0) == 'admin') {
-        if (arg(1) == 'settings' && ararg(2) == 'filters') {
+        if (arg(1) == 'settings' && arg(2) == 'filters') {
           return '<p>'.t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.').'</p>';
         }
         if (arg(1) == 'messaging' && arg(2) == 'template' && arg(3) == 'edit' && ($group = arg(4))) {
