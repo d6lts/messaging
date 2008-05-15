@@ -7,6 +7,7 @@ TO DO
 
 6.x-1.0-dev to .........
 ----------------------------
+- Reworked administration menu options, grouping all settings under Admin/Messaging
 - Porting latest minor features from Drupal 5. Send method settings, etc..
 - Fixing template form not showing, by BTMash, #251372
 

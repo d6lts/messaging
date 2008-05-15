@@ -1,7 +1,0 @@
-; $Id$
-name = System Messages
-description = Redirects system e-mail messages into the messaging system
-package = "Messaging"
-dependencies[] = messaging
-dependencies[] = contact
-core = 6.x

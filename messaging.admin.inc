@@ -8,21 +8,18 @@
  * 
  * By Development Seed, http://wwww.developmentseed.org
  */
- 
 
 /**
- * Menu callback. Admin overview page.
+ * Overview of message parts and sending methods
  */
-function messaging_admin_page($group = NULL, $msgkey = NULL) {
-  if ($group) {
-    return messaging_admin_page_group($group, $msgkey);
-  } else {
-    return messaging_admin_page_overview();
-  }
-}
-
-function messaging_admin_page_overview() {
+function messaging_admin_template() {
   $output = '';
+  // List message groups
+  $groups = module_invoke_all('messaging', 'message groups');
+  foreach ($groups as $group => $group_info) {
+    $list[] = l($group_info['name'], 'admin/messaging/template/edit/'.$group);
+  }
+  $output .= theme('box', t('Message groups'), theme('item_list', $list));
   // List sending methods
   $rows = array();
   messaging_method_list();
@@ -33,19 +30,13 @@ function messaging_admin_page_overview() {
     );
   }
   $output .= theme('box', t('Sending methods'), theme('table', NULL, $rows));
-  // List message groups
-  $groups = module_invoke_all('messaging', 'message groups');
-  foreach ($groups as $group => $group_info) {
-    $list[] = l($group_info['name'], 'admin/settings/messaging/edit/'.$group);
-  }
-  $output .= theme('box', t('Message groups'), theme('item_list', $list));
   return $output;
 }
 
 /**
  * Message groups edit page
  */
-function messaging_admin_message_edit($group) {
+function messaging_admin_template_edit($group) {
   $output = '';
   $groups = module_invoke_all('messaging', 'message groups');
   if (isset($groups[$group])) {
@@ -175,34 +166,6 @@ function messaging_admin_settings() {
     '#description' => t('If enabled all messages will be logged and kept for the specified time after they\'re sent.'),
   );
 
-  // Processing limits
-  $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
-  $form['messaging_process_limit'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Limits for queue processing'),
-    '#tree' => TRUE,
-    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
-  );
-  $form['messaging_process_limit']['message'] = array(
-    '#title' => t('Number of messages sent'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['message'],
-  );
-  $form['messaging_process_limit']['time'] = array(
-    '#title' => t('Time (seconds)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['time'],
-  );
-  $form['messaging_process_limit']['percent'] = array(
-    '#title' => t('Time (% of cron time)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['percent'],
-    '#description' => t('Maximum percentage of cron time the process may use.'),
-  );
-
   // Sending methods settings
   $form['messaging_methods'] = array(
     '#type' => 'fieldset',
@@ -236,6 +199,35 @@ function messaging_admin_settings() {
   } else {
     $form['messaging_methods']['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
   }
+  // Processing limits
+  $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
+  $form['messaging_process_limit'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Limits for queue processing'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+  );
+  $form['messaging_process_limit']['message'] = array(
+    '#title' => t('Number of messages sent'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['message'],
+  );
+  $form['messaging_process_limit']['time'] = array(
+    '#title' => t('Time (seconds)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['time'],
+  );
+  $form['messaging_process_limit']['percent'] = array(
+    '#title' => t('Time (% of cron time)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['percent'],
+    '#description' => t('Maximum percentage of cron time the process may use.'),
+  );
   return system_settings_form($form);
 }
 

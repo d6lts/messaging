@@ -28,11 +28,11 @@ function messaging_help($path, $arg) {
       $output .= '<p>'. t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') .'</p>';
       return $output;
     default:
-      if ($arg[0] == 'admin' && $arg[1] == 'settings') {
-        if ($arg[2] == 'filters') {
+      if ($arg[0] == 'admin') {
+        if ($arg[1] == 'settings' && $arg[2] == 'filters') {
           return '<p>'. t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.') .'</p>';
         }
-        if ($arg[2] == 'messaging' && $arg[3] == 'edit' && ($group = $arg[4])) {
+        if ($arg[1] == 'messaging' && $arg[3] == 'edit' && ($group = $arg[4])) {
           $output = '<p>'. t('These are the message parts for %group. Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%group' => messaging_message_group($group, 'name'), '%empty' => MESSAGING_EMPTY)) .'</p>';
           if ($help = messaging_message_group($group, 'help')) {
             $output .= '<p>'. $help .'</p>';
@@ -47,32 +47,37 @@ function messaging_help($path, $arg) {
  * Implementation of hook_menu()
  */
 function messaging_menu() {
-  $items['admin/settings/messaging'] = array(
+  $items['admin/messaging'] = array(
     'title' => 'Messaging',
-    'page callback' => 'messaging_admin_page',
     'access arguments' => array('administer messaging'),
-    'description' => 'Administration of messages and sending methods',
+    'description' => 'Administer and configure messaging',
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/messaging/settings'] = array(
+    'title' => 'Messaging settings',
+    'description' => 'Configuration of sending methods',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('messaging_admin_settings'),
+    'access arguments' => array('administer messaging'),
     'file' => 'messaging.admin.inc',
   );
-  $items['admin/settings/messaging/manage'] = array(
-    'title' => 'Messages',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
+  $items['admin/messaging/template'] = array(
+    'title' => 'Message templates',
+    'description' => 'Configuration of message templates',
+    'page callback' => 'messaging_admin_template',
+    'access arguments' => array('administer messaging'),
+    'file' => 'messaging.admin.inc',
   );
-  $items['admin/settings/messaging/edit'] = array(
-    'title' => 'Messages',
-    'page callback' => 'messaging_admin_message_edit',
+  $items['admin/messaging/template/edit'] = array(
+    'title' => 'Message templates',
+    'page callback' => 'messaging_admin_template_edit',
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer messaging'),
     'file' => 'messaging.admin.inc',
   );
-  $items['admin/settings/messaging/settings'] = array(
-    'title' => 'Settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('messaging_admin_settings'),
-    'type' => MENU_LOCAL_TASK,
-    'access arguments' => array('administer messaging'),
-    'file' => 'messaging.admin.inc',
-  );
+
 
   return $items;
 }
