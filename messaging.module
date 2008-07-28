@@ -279,12 +279,16 @@ function messaging_admin_message_form_submit($form_id, $form_values) {
  * Admin settings form
  */
 function messaging_admin_settings() {
+  // Get plug-in information and produce big warning if none enabled.
+  $methods = messaging_method_list();
+  if (!$methods) {
+    drupal_set_message(t('No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page.', array('!admin-modules' => l(t('Modules administration'), 'admin/build/modules'))), 'error');
+  }
+    
   $form['general'] = array(
     '#type' => 'fieldset',
     '#title' => t('General settings'),
   );
-  $methods = messaging_method_list();
-
   $form['general']['messaging_default_method'] = array(
     '#title' => t('Default send method'),
     '#type' => 'radios',

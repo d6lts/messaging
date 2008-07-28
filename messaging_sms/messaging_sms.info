@@ -1,4 +1,4 @@
 name = SMS Messaging
 description = Sending Method: SMS
 package = "Messaging"
-dependencies = messaging sms
+dependencies = messaging sms sms_user

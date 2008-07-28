@@ -42,13 +42,17 @@ function messaging_sms_render($message, $info) {
  * Send mail message to user account
  */
 function messaging_sms_send_user($account, $message) {
-  if ($account->sms_user['status'] == 2) {
-  $destination->number = $account->sms_user['number'];
-  foreach ($account->sms_user['gateway'] as $key => $field) {
-    $destination->$key = $field;
-  }
+  // Try to find an available gateway
+  if (!empty($account->sms_user[0]) && $account->sms_user[0]['status'] == 2) {
+    $destination = new Stdclass();
+    $destination->number = $account->sms_user[0]['number'];
+    foreach ($account->sms_user[0]['gateway'] as $key => $field) {
+      $destination->$key = $field;
+    }
     $destinations[] = $destination;
     return messaging_message_send($destinations, $message, 'sms');
+  } else {
+    return FALSE;
   }
 }
 
