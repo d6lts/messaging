@@ -141,7 +141,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
  */
-function messaging_message_send_user($account, $message, $method = NULL, $queue = FALSE) {
+function messaging_message_send_user($account, $message, $method = NULL, $queue = 0) {
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default($account);
   $message['account'] = $account;

@@ -48,6 +48,20 @@ function messaging_schema() {
 function messaging_install() {
   // Create tables.
   drupal_install_schema('messaging');
+  // Create default plain text filter
+  _messaging_install_create_filter();
+}
+
+/**
+ * Create a default plain text filter, just to have some reasonable default to get started
+ */
+function _messaging_install_create_filter() {
+  // Create default filter, plain text
+  db_query("INSERT INTO {filter_formats} (name, cache) VALUES('%s', 0)", t('Messaging plain text'));
+  $format = db_last_insert_id('filter_formats', 'format');
+  db_query("INSERT INTO {filters} (format, module, delta, weight) VALUES(%d, 'messaging', 1, 0)", $format);
+  variable_set('messaging_default_filter', $format);
+  drupal_set_message(t("A new Input format has been created: %name", array('%name' => t('Messaging plain text'))));
 }
 
 /**
@@ -81,4 +95,14 @@ function messaging_update_2() {
   drupal_install_schema('messaging_store');
   return $ret; 
 }
+
+/**
+ * Updates for Drupal 6 version
+ */
+function messaging_update_6001() {
+  $ret = array();
+  _messaging_install_create_filter();
+  return $ret;
+}
+
 
