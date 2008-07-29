@@ -332,7 +332,7 @@ function messaging_admin_settings() {
       $form['messaging_methods'][$key]['filter'] = array(
         '#type' => 'select',
         '#title' => t('Message body filter'),
-        '#default_value' => $options['filter'],
+        '#default_value' => isset($options['filter']) ? $options['filter'] : variable_get('messaging_default_filter', ''),
         '#options' => $format_options,
       );
     }
@@ -393,8 +393,10 @@ function messaging_admin_settings() {
  *   - 'body'. The message body may have 'header', 'content', 'footer', 'etc'
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
+ * @param $queue
+ *   1 to force queueing instead of sending right away
  */
-function messaging_message_send_user($account, $message, $method = NULL, $queue = FALSE) {
+function messaging_message_send_user($account, $message, $method = NULL, $queue = 0) {
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default($account);
   $message['account'] = $account;

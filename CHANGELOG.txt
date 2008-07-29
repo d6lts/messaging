@@ -5,12 +5,13 @@ TO DO
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
 * More sending methods plug-ins: IM, Twitter, etc...
 
-5.x-1.0-beta2 to .............
+5.x-1.0-beta2 to 5.x-1.0-rc1
 --------------------------------
+- Creating default Messaging filter on install, #284414
+- Fixed parameter inconsistency, by darren.ferguson, #272545
 - Changed some names and texts to make them easier to understand
 - Added error message on settings page when no sending methods enabled.
 - Updated sms plug-in for smsframework 5.x-1.0 version
-
 - Fixed issue with mimemail, by jeffmurphy, #250236
 - Fixed bug: "Can't delete message parts", by therzog, #255640
 - Regrouped admin pages for messaging and notifications

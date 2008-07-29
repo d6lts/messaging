@@ -62,11 +62,25 @@ function messaging_install() {
         )");
       break;
   }
+  // Create default input filter
+  _messaging_install_create_filter();
 }
 
 function messaging_uninstall() {
   db_query("DROP TABLE {messaging_message_parts}");
   db_query("DROP TABLE {messaging_store}");
+}
+
+/**
+ * Create a default plain text filter, just to have some reasonable default to get started
+ */
+function _messaging_install_create_filter() {
+  // Create default filter, plain text
+  db_query("INSERT INTO {filter_formats} (name, cache) VALUES('%s', 0)", t('Messaging plain text'));
+  $format = db_result(db_query("SELECT MAX(format) AS format FROM {filter_formats}"));
+  db_query("INSERT INTO {filters} (format, module, delta, weight) VALUES(%d, 'messaging', 0, 0)", $format);
+  variable_set('messaging_default_filter', $format);
+  drupal_set_message(t("A new Input format has been created: %name", array('%name' => t('Messaging plain text'))));
 }
 
 /**
@@ -131,3 +145,11 @@ function messaging_update_2() {
   return $ret; 
 }
 
+/**
+ * Update method settings
+ */
+function messaging_update_3() {
+  $ret = array();
+  _messaging_install_create_filter();
+  return $ret;
+}
