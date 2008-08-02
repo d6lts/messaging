@@ -149,9 +149,11 @@ function messaging_admin_settings() {
   // Get plug-in information and produce big warning if none enabled.
   $methods = messaging_method_list();
   if (!$methods) {
-    drupal_set_message(t('No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page.', array('!admin-modules' => l(t('Modules administration'), 'admin/build/modules'))), 'error');
-  }
-  
+    // Get message from requirements
+    if ($reqs = messaging_requirements('runtime')) {
+      drupal_set_message($reqs['messaging']['value'], 'error');
+    }    
+  }  
   $form['general'] = array(
     '#type' => 'fieldset',
     '#title' => t('General settings'),

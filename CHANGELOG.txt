@@ -5,6 +5,11 @@ TO DO
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
 * Sending messages to potential users, with a reserved user id. It seems we are already good for that with latest hooks introduced in notifications module.
 
+6.x-1.0-rc1 to ...
+----------------------------
+- Fixed: Condition produces false positive when rendering messages, by andremolnar, #290163
+- Added unit tests for message rendering.
+
 6.x-1.0-beta1 to 6.x-1.0-rc1
 ----------------------------
 - Creating a default input format on install, "Messaging plain text"
