@@ -40,6 +40,7 @@ function messaging_mail_messaging($op) {
  * This is a callback function that will be invoked from messaging delivery methods
  * 
  * @see messaging_message_send()
+ * @see messaging_mail_params()
  * @see drupal_mail()
  * 
  * @param $destination

@@ -5,8 +5,9 @@ TO DO
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
 * More sending methods plug-ins: IM, Twitter, etc...
 
-5.x-1.0-rc1 to .........
+5.x-1.0-rc1 to 5.x-1.0
 --------------------------------
+- Some clean up, moved documentation to the handbook, http://drupal.org/node/252582
 - Fixed: Condition produces false positive when rendering messages, by andremolnar, #290163
 - Added unit tests for message rendering.
 
