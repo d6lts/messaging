@@ -863,9 +863,9 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     case 'process':
       switch ($delta) {
         case 0:
-          return messaging_html_to_text($text);
-        case 1:
           return messaging_check_plain($text);
+        case 1:
+          return messaging_html_to_text($text);          
         default:
           return $text;
       }

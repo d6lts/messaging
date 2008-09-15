@@ -13,10 +13,10 @@ function messaging_sms_messaging($op = 'info') {
       $info['sms'] = array(
         'name' => t('SMS'),
         'group' => 'sms', // Class of send method
-        'send' => 'messaging_sms_send',
+        'send' => 'messaging_sms_send_msg',
         'send_user' => 'messaging_sms_send_user',
         'type' => MESSAGING_TYPE_PUSH,
-        'render' => 'messaging_sms_render',
+        'render' => 'messaging_sms_render_message',
         'glue' => '',
         'description' => t('Send SMS using SMS Framework.'),
       );
@@ -27,7 +27,7 @@ function messaging_sms_messaging($op = 'info') {
 /**
  * Message Render callback
  */
-function messaging_sms_render($message, $info) {
+function messaging_sms_render_message($message, $info) {
   // We need to apply filtering first or run through the render function
     $message = messaging_message_render($message, $info);
     // We can assume that we'll get max 110 characters for subject + body
@@ -61,7 +61,7 @@ function messaging_sms_send_user($account, $message) {
  * 
  * This is just a wrapper for sms_send()
  */
-function messaging_sms_send($destination, $message, $params = array()) {
+function messaging_sms_send_msg($destination, $message, $params = array()) {
   // This function takes an array of destinations so 
   return sms_send(array($destination), $message['subject'].$message['body']);
 }
