@@ -10,25 +10,31 @@ require_once 'messaging_testcase.inc';
 
 class Messaging_API_Tests extends MessagingTestCase {
   
-  function get_info() {
-    return array('name' => 'Messaging API', 'group' => 'Messaging', 'desc' => 'Messaging API functions' );
+  function getInfo() {
+    return array(
+      'name' => 'Messaging API', 
+      'group' => 'Messaging', 
+      'description' => 'Messaging API functions'
+    );
   }
 
+  function setUp() {
+    parent::setUp('messaging', 'messaging_debug', 'messaging_simple');
+    variable_set('messaging_method_simple', array('filter' => 0));
+    variable_set('messaging_method_debug', array('filter' => 0));
+  }
+  
   /**
    * Play with creating, retrieving, deleting a pair messages
    */
   function testMessagingBasicAPI() {
     $this->messagingStartTest();
-    // Enable modules and create user for testing
-    $this->drupalModuleEnable('messaging_debug');
-    $this->drupalModuleEnable('messaging_simple');
+
     $test_method = 'simple';
-    $user = $this->drupalCreateUserRolePerm(array());
+    $user = $this->drupalCreateUser();
     $user->messaging_default = $test_method;
     
     // Check messaging settings API
-    $this->drupalVariableSet('messaging_method_simple', array('filter' => 0));
-    $this->drupalVariableSet('messaging_method_debug', array('filter' => 0));
     $info = messaging_method_info(NULL, NULL, NULL, TRUE);
     $this->assertEqual(!empty($info[$test_method]), TRUE, 'Messaging method info retrieves information about methods');
     $this->assertEqual(messaging_method_info($test_method, 'filter') === 0, TRUE, 'Messaging method info retrieves filter information');

@@ -10,10 +10,19 @@ require_once 'messaging_testcase.inc';
 
 class Messaging_Methods_Tests extends MessagingTestCase {
   
-  function get_info() {
-    return array('name' => 'Sending methods', 'group' => 'Messaging', 'desc' => 'API compatibility for sending method plug-ins' );
+  function getInfo() {
+    return array(
+      'name' => 'Sending methods', 
+      'group' => 'Messaging', 
+      'description' => 'API compatibility for sending method plug-ins'
+    );
   }
 
+  function setUp() {
+    parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_mail');
+    // Enable debug mode so messages are not actually sent and create user for testing
+    variable_set('messaging_debug', 0);
+  }
   /**
    * Test message sending callbacks for enabled plug-ins
    */
@@ -21,10 +30,8 @@ class Messaging_Methods_Tests extends MessagingTestCase {
     $this->messagingStartTest();
     // Start time for message cleanup later
     $start_time = time();
-    // Enable debug mode so messages are not actually sent and create user for testing
-    $this->drupalModuleEnable('messaging_debug');
-    $this->drupalVariableSet('messaging_debug', 0);
-    $user = $this->drupalCreateUserRolePerm(array());
+    
+    $user = $this->drupalCreateUser();
     
     // Try each sending method and retrieve messages from store
     

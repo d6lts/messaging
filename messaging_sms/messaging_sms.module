@@ -29,8 +29,8 @@ function messaging_sms_messaging($op = 'info') {
  */
 function messaging_sms_render($message, $info) {
   // We need to apply filtering first or run through the render function
-    $message = messaging_message_render($message, $info);
-    // We can assume that we'll get max 110 characters for subject + body
+  $message = messaging_message_render($message, $info);
+  // We can assume that we'll get max 110 characters for subject + body
   // Because from and data take up about 50 characters and total character limit
   // subject + from + date + body < 160
   $message['subject'] = messaging_sms_truncate($message['subject'], 40);
@@ -42,9 +42,9 @@ function messaging_sms_render($message, $info) {
  * Send mail message to user account
  */
 function messaging_sms_send_user($account, $message) {
-  if ($account->sms_user['status'] == 2) {
-    $destination->number = $account->sms_user['number'];
-    foreach ($account->sms_user['gateway'] as $key => $field) {
+  if ($account->sms_user[0]['status'] == 2) {
+    $destination->number = $account->sms_user[0]['number'];
+    foreach ($account->sms_user[0]['gateway'] as $key => $field) {
       $destination->$key = $field;
     }
     $destinations[] = $destination;
@@ -59,7 +59,8 @@ function messaging_sms_send_user($account, $message) {
  */
 function messaging_sms_send_msg($destination, $message, $params = array()) {
   // This function takes an array of destinations so 
-  return sms_send(array($destination), $message['subject'].$message['body']);
+  $params['country'] = $destination->country;
+  return sms_send($destination->number, $message['subject'].$message['body'], $params);
 }
  
 /**

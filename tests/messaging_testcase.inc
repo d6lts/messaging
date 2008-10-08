@@ -5,7 +5,7 @@
  *  * Created on Mar 18, 2008
  */
 
-class MessagingTestCase extends DrupalTestCase {
+class MessagingTestCase extends DrupalWebTestCase {
   var $_messaging_status;
   // Store current status for clean up
   function messagingStartTest() {

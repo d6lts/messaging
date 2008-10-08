@@ -1,4 +1,6 @@
 name = SMS Messaging
 description = Sending Method: SMS
 package = "Messaging"
-dependencies = messaging sms
+dependencies[] = messaging
+dependencies[] = sms
+core = 6.x

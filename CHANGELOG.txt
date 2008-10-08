@@ -7,6 +7,10 @@ TO DO
 
 6.x-1.0-rc2 to ...........
 --------------------------
+- Upgraded messaging_phpmailer info file, by darren.ferguson, #309945
+- Upgraded messaging_sms module, by darren.ferguson, #314896
+- Updated unit tests to simpletest 6.x-2.x
+
 - Fixed minor issues with modules and documentation
 - Added German translation, by rastatt, #294378
 - Fixed wrong delta in filter system, by the greenman, #305593
