@@ -72,6 +72,23 @@ function messaging_uninstall() {
 }
 
 /**
+ * Implementation of hook_requirements().
+ */
+function messaging_requirements($phase) {
+  if ($phase == 'runtime') {
+    $list = messaging_method_list();
+    if (empty($list)) {
+      $t = get_t();
+      return array('messaging' => array(
+        'title' => $t('Messaging method'),
+        'value' => $t('At least one delivery module needs to be enabled for the messaging module to function.'),
+        'severity' => REQUIREMENT_WARNING
+      ));
+    }
+  }
+}
+
+/**
  * Create a default plain text filter, just to have some reasonable default to get started
  */
 function _messaging_install_create_filter() {
