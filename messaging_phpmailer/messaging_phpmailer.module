@@ -34,10 +34,12 @@ function messaging_phpmailer_messaging($op = 'info') {
  *   Message array
  */
 function messaging_phpmailer_send_msg($destination, $message, $params = array()) {
+  // Get from, headers, mailkey, etc...
+  $message['to'] = $destination;
+  $message['id'] = 'message-'.$message['type'];
+  $message['headers'] = messaging_mail_headers($message, $params);
   
-  $params = messaging_mail_params($message, $params);
-
-  return messaging_phpmailer_drupal_mail($params['mailkey'], $destination, $message['subject'], $message['body'], $params['from'], $params['headers']);
+  return messaging_phpmailer_drupal_mail($message['id'], $destination, $message['subject'], $message['body'], $params['from'], $message['headers']);
 }
 
 /**
