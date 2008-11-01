@@ -28,12 +28,28 @@ function messaging_private_messaging($op) {
 /**
  * Send mail message to user accounts
  * 
+ * Fake form submission till they provide a decent API, see http://drupal.org/node/288183
+ * 
  * @param $destination
  *   User account
  */
 function messaging_private_send_msg($destination, $message) {
-  // Hand over to privatemsg  
-  privatemsg_send_privatemsg($destination, $message['subject'], $message['body']);
+  // Fake form submission, parmeter mapping
+  if (!empty($message['sender_account'])) {
+    $sender = $message['sender_account'];
+  } elseif (!empty($message['sender'])) {
+    $sender = messaging_load_user($message['sender']);
+  }
+  $form_state['validate_built_message'] = array(
+    'subject' => $message['subject'],
+    'author' => !empty($sender) ? $sender : drupal_anonymous_user() ,
+    'body' => $message['body'],
+    'timestamp' => !empty($message['sent']) ? $message['sent'] : time(),
+    'recipients' => $destination,
+  );
+  
+  pm_send(NULL, $form_state);
+  
   // @ TO DO How to check for success?
   return 1;
 }

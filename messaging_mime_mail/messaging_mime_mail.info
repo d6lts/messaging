@@ -1,8 +1,6 @@
 name = Messaging Mime Mail
-description = Mail Sending Method: Integration with Mime Mail module
+description = Mail Sending Method: Integration with Mime Mail module (Beta)
 package = "Messaging"
-dependencies = messaging mimemail
-version = "5.x-1.0-pre-alpha"
-project = "messaging"
-
-
+dependencies[] = messaging 
+dependencies[] = mimemail
+core = 6.x

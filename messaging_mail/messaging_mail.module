@@ -51,9 +51,6 @@ function messaging_mail_messaging($op) {
  *   Optional parameters for this method type
  */
 function messaging_mail_send_msg($destination, $message, $params = array()) {
-  // Get from, headers, mailkey, etc...
-  $message['to'] = $destination;
-  $message['id'] = 'message-'.$message['type'];
-  $message['headers'] = messaging_mail_headers($message, $params);
-  return drupal_mail_send($message);
+  $mail = messaging_mail_prepare($destination, $message, $params);
+  return drupal_mail_send($mail);
 }

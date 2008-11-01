@@ -1,5 +1,7 @@
 ; $Id$
-name = Privatemsg
-description = Sending Method: Integration with Privatemsg
+name = Messaging Privatemsg
+description = Sending Method: Integration with Privatemsg (Beta)
 package = "Messaging"
-dependencies = messaging privatemsg
+dependencies[] = messaging
+dependencies[] = privatemsg
+core = 6.x

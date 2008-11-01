@@ -19,6 +19,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
   }
 
   function setUp() {
+    // We can only test the plugins that don't require other modules
     parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_mail');
     // Enable debug mode so messages are not actually sent and create user for testing
     variable_set('messaging_debug', 0);
