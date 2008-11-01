@@ -11,6 +11,7 @@ function messaging_mime_mail_messaging($op = 'info') {
   switch($op) {
     case 'send methods':
       $info['mimemail'] = array(
+        'title' => 'Mime Mail',
         'name' => t('Mime Mail'), // Name for display
         'group' => 'mail', // Class of send method
         'destination' => 'mail', // Account property to use as destination

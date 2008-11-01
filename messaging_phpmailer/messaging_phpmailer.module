@@ -11,7 +11,8 @@
 function messaging_phpmailer_messaging($op = 'info') {
   switch($op) {
     case 'send methods':
-      $info['html_mail'] = array(
+      $info['phpmailer'] = array(
+        'title' => 'PHPMailer',
         'name' => t('HTML Mail'),
         'group' => 'mail',
         'destination' => 'mail',

@@ -215,6 +215,7 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
   switch($op) {
     case 'send methods':
       $info['debug'] = array(
+        'title' => t('Debug'),
         'name' => t('Debug'),
         'destination' => 'name',
         'send' => 'messaging_debug_send_msg',

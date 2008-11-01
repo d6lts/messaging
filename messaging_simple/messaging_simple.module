@@ -120,7 +120,8 @@ function messaging_simple_messaging($op = 'info') {
   switch($op) {
     case 'send methods':
       $info['simple'] = array(
-        'name' => t('Simple'),
+        'title' => t('Simple'),
+        'name' => t('Web'),
         'group' => 'web',
         'send' => 'messaging_simple_send_msg',
         'type' => MESSAGING_TYPE_PULL,

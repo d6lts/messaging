@@ -193,9 +193,16 @@ function messaging_admin_settings() {
       // This will preserve settings for disabled modules
       $form['messaging_methods'][$key] = array(
         '#type' => 'fieldset',
-        '#title' => t('!name settings', array('!name' => $options['name'])),
+        '#title' => t('!name settings', array('!name' => $options['title'])),
         '#tree' => TRUE,
       );
+      // Display name
+      $form['messaging_methods'][$key]['name'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Name'),
+        '#default_value' => $options['name'],
+        '#description' => t('Name for display.'),
+      );      
       // Output filter applied to message body
       $form['messaging_methods'][$key]['filter'] = array(
         '#type' => 'select',

@@ -22,6 +22,7 @@ function messaging_mail_messaging($op) {
   switch($op) {
     case 'send methods':
       $info['mail'] = array(
+        'title' => 'Drupal mail',
         'name' => t('Mail'), // Name for display
         'group' => 'mail', // Class of sending method
         'destination' => 'mail', // Account property to use as destination

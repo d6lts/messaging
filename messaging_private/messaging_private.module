@@ -13,7 +13,8 @@ function messaging_private_messaging($op) {
   switch($op) {
     case 'send methods':
       $info['privatemsg'] = array(
-        'name' => t('Privatemsg'),
+        'title' => 'Privatemsg',
+        'name' => t('Private message'),
         'group' => 'web',
         'send' => 'messaging_private_send_msg',
         'type' => MESSAGING_TYPE_PUSH,
