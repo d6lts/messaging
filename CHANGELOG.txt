@@ -7,6 +7,7 @@ TO DO
 
 5.x-1.0 to ..........
 --------------------------------
+- Some improvements for template administration page
 - Added hook requirements to check there are sending methods enabled, by Zen, #316122
 - Fixed minor issues with modules and documentation
 - Fixed wrong delta in filter system, by the greenman, #305593

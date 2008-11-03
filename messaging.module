@@ -27,7 +27,8 @@ function messaging_help($section) {
       $output = '<p>'.t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.').'</p>';
       $output .= '<p>'.t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.').'</p>';
       return $output;
-    case 'admin/help#filters':
+    case 'admin/messaging/template':
+      $output = '<p>' . t('Configure the templates for different types of messages. Each message group is defined by other modules using the Messaging Framework.') . '</p>';
       return $output;
     default:
       if (arg(0) == 'admin') {
@@ -149,10 +150,14 @@ function messaging_admin_template_overview() {
   $output = '';
   // List message groups
   $groups = module_invoke_all('messaging', 'message groups');
+  $rows = array();
   foreach ($groups as $group => $group_info) {
-    $list[] = l($group_info['name'], 'admin/messaging/template/edit/'.$group);
+    $rows[] = array(
+    l($group_info['name'], 'admin/messaging/template/edit/'.$group),
+    !empty($group_info['description']) ? $group_info['description'] : '',
+    );
   }
-  $output .= theme('box', t('Message groups'), theme('item_list', $list));
+  $output .= theme('box', t('Message groups'), theme('table', NULL, $rows));
   // List sending methods
   $rows = array();
   messaging_method_list();
@@ -198,10 +203,13 @@ function messaging_admin_message_form($group, $group_info) {
       '#collapsed' => TRUE,
     );
     foreach ($send_methods as $method => $methodname) {
+      $text = messaging_message_part($group, $key, $method, FALSE);
       $form['messages'][$key][$method] = array(
         '#title' => $methodname,
         '#type' => 'textarea',
-        '#default_value' => messaging_message_part($group, $key, $method, FALSE),
+        '#default_value' => $text,
+        // Adjust size to actual number of lines
+        '#rows' => count(explode("\n", $text)),
       );
     }
   }
