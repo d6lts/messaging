@@ -24,8 +24,11 @@ define('MESSAGING_EMPTY', '<none>');
 function messaging_help($path, $arg) {
   switch ($path) {
     case 'admin/help#messaging':
-      $output = '<p>'. t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') .'</p>';
-      $output .= '<p>'. t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') .'</p>';
+      $output = '<p>' . t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') . '</p>';
+      $output .= '<p>' . t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') . '</p>';
+      return $output;
+    case 'admin/messaging/template':
+      $output = '<p>' . t('Configure the templates for different types of messages. Each message group is defined by other modules using the Messaging Framework.') . '</p>';
       return $output;
     default:
       if ($arg[0] == 'admin') {
@@ -66,10 +69,6 @@ function messaging_menu() {
   $items['admin/messaging/settings/overview'] = array(
     'title' => 'Messaging settings',
     'description' => 'Configuration of sending methods',
-    //'page callback' => 'drupal_get_form',
-    //'page arguments' => array('messaging_admin_settings'),
-    //'access arguments' => array('administer messaging'),
-    // 'file' => 'messaging.admin.inc',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );

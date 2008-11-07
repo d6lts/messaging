@@ -3,14 +3,14 @@
 TO DO
 ------
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
-* Sending messages to potential users, with a reserved user id. It seems we are already good for that with latest hooks introduced in notifications module.
+* Multilingual support for message templates.
 
 6.x-1.0-rc2 to ...........
 --------------------------
+- Formatting improvements and help texts for message templates admin page
 - Upgraded messaging_phpmailer info file, by darren.ferguson, #309945
 - Upgraded messaging_sms module, by darren.ferguson, #314896
 - Updated unit tests to simpletest 6.x-2.x
-
 - Fixed minor issues with modules and documentation
 - Added German translation, by rastatt, #294378
 - Fixed wrong delta in filter system, by the greenman, #305593

@@ -16,10 +16,15 @@ function messaging_admin_template() {
   $output = '';
   // List message groups
   $groups = module_invoke_all('messaging', 'message groups');
+  $rows = array();
   foreach ($groups as $group => $group_info) {
-    $list[] = l($group_info['name'], 'admin/messaging/template/edit/'.$group);
+    $rows[] = array(
+    l($group_info['name'], 'admin/messaging/template/edit/'.$group),
+    !empty($group_info['description']) ? $group_info['description'] : '',
+    );
   }
-  $output .= theme('box', t('Message groups'), theme('item_list', $list));
+  $output .= theme('box', t('Message groups'), theme('table', NULL, $rows));
+
   // List sending methods
   $rows = array();
   messaging_method_list();
@@ -65,11 +70,15 @@ function messaging_admin_message_form($form_state, $group, $group_info) {
       '#collapsed' => TRUE,
     );
     foreach ($send_methods as $method => $methodname) {
+      $text = messaging_message_part($group, $key, $method, FALSE);
       $form['messages'][$key][$method] = array(
         '#title' => $methodname,
         '#type' => 'textarea',
-        '#default_value' => messaging_message_part($group, $key, $method, FALSE),
+        '#default_value' => $text,
+        // Adjust size to actual number of lines
+        '#rows' => count(explode("\n", $text)),        
       );
+      
     }
   }
   // Tokens for text replacement
