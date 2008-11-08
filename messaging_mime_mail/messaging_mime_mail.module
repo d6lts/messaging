@@ -38,3 +38,10 @@ function messaging_mime_mail_send_msg($destination, $message, $params = array())
   // mimemail($sender, $recipient, $subject, $body, $plaintext = NULL, $headers = array(), $text = NULL, $attachments = array(), $mailkey = '')  
   return mimemail($mail['from'], $mail['to'], $mail['subject'], $mail['body'], NULL, $mail['headers'], NULL, array(), $mail['id']);
 }
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_mime_mail_disable() {
+  messaging_method_disable('mimemail');
+}

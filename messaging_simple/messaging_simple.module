@@ -142,3 +142,10 @@ function messaging_simple_messaging($op = 'info') {
 function messaging_simple_send_msg($destination, $message) {
   return TRUE;
 }
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_mime_mail_disable() {
+  messaging_method_disable('simple');
+}

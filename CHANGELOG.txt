@@ -5,9 +5,16 @@ TO DO
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
 * Multilingual support for message templates.
 
-6.x-1.0-rc2 to ...........
+6.x-1.0-rc3 to 6.x-1.1
 --------------------------
+- Added some debug tools and some basic support for incoming messages
 - Formatting improvements and help texts for message templates admin page
+- Implemented handling for disabling send methods, notify other modules
+- Renamed some sending methods, better naming and avoid name clashes (phpmailer, mimemail)
+- Added configurable names for sending methods, some changes in admin pages
+
+6.x-1.0-rc2 to 6.x-1.0-rc3
+--------------------------
 - Upgraded messaging_phpmailer info file, by darren.ferguson, #309945
 - Upgraded messaging_sms module, by darren.ferguson, #314896
 - Updated unit tests to simpletest 6.x-2.x

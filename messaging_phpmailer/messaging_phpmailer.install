@@ -1,10 +1,17 @@
 <?php
-
+// $Id$
 /**
  * Implementation of hook_install()
  */
 function messaging_phpmailer_install() {
   drupal_set_message('Messaging PHPMailer sucessfully installed!');
+}
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_phpmailer_disable() {
+  messaging_method_disable('phpmailer');
 }
 
 /**

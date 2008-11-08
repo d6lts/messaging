@@ -73,6 +73,38 @@ function messaging_uninstall() {
 }
 
 /**
+ * Disable a sending method
+ */
+function messaging_update_method_disable($method) {
+  // Check that we are not getting rid of the default method
+  if ($method == messaging_method_default()) {
+    $info = messaging_method_info();
+    unset($info[$method]);
+    $default = key($info);
+    variable_set('messaging_default_method', $default);   
+  }
+}
+
+/**
+ * Replace a sending method
+ */
+function messaging_update_method_replace($old, $new = NULL) {
+  // If not provided a new one find a suitable one, preferred same group
+  if (!$new && ($oldgroup = messaging_method_info($old, 'group'))) {
+    foreach (messaging_method_info(NULL, 'group') as $method => $group) {
+      if ($group == $oldgroup && $method != $old) {
+        $new = $method;
+        break;
+      }
+    }
+  }
+  if (!$new) {
+    $new = messaging_method_default();
+  }
+  return $new;
+}
+
+/**
  * Update method settings
  */
 function messaging_update_1() {

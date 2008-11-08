@@ -104,3 +104,10 @@ function messaging_sms_truncate($message,$length = 160) {
   }
   return ($position == 0) ? $teaser : substr($teaser, 0, $position);
 }
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_sms_disable() {
+  messaging_method_disable('sms');
+}

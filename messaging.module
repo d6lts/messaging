@@ -808,3 +808,19 @@ function messaging_message_in($method, $channel, $message, $params = array()) {
     return FALSE;
   }
 }
+
+/**
+ * Update messaging method.
+ * 
+ * When a messaging method is disabled, we need to update current settings for this and other modues 
+ */
+function messaging_method_disable($method) {
+  module_load_include('install', 'messaging');
+
+  messaging_update_method_disable($method);
+  
+  if ($new = messaging_update_method_replace($method)) {
+    // Notify other modules about this change
+    module_invoke_all('messaging', 'method update', $method, $new);
+  }
+}
