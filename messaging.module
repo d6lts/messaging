@@ -816,11 +816,11 @@ function messaging_message_in($method, $channel, $message, $params = array()) {
  */
 function messaging_method_disable($method) {
   module_load_include('install', 'messaging');
-
-  messaging_update_method_disable($method);
-  
-  if ($new = messaging_update_method_replace($method)) {
-    // Notify other modules about this change
-    module_invoke_all('messaging', 'method update', $method, $new);
-  }
+  if ($replace = messaging_update_method_replace($method)) {
+    messaging_update_method_disable($method, $replace);
+    drupal_set_message(t('Disabled messaging sending method %method and replaced by %replace', array('%method' => messaging_method_info($method, 'title'), '%replace' => messaging_method_info($replace, 'title'))));
+  } else {
+    // It seems all methods are disabled, print warning
+    drupal_set_message(t('Disabled messaging sending method but cannot find a replacement. Please, enable some other sending method.'), 'error');
+  }  
 }
