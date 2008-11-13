@@ -234,6 +234,7 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
     case 'in channels':
       if ($type == 'debug') {
         $info['form'] = array(
+          'channel' => 'form',
           'name' => t('Debug form')
         );
         return $info;
