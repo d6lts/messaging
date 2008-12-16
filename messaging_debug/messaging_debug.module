@@ -39,7 +39,11 @@ function messaging_debug_block($op = 'list', $delta = 0, $edit = array()) {
   switch ($op) {
     case 'list':
       $blocks[0]['info'] = t('Debug: Post message');
-      $blocks[1]['info'] = t('Debug: Incoming message');
+      // Only when incoming messages are enabled
+      if (module_exists('messaging_processor')) {      
+        $blocks[1]['info'] = t('Debug: Incoming message');
+        $blocks[2]['info'] = t('Debug: Message log');
+      }
       return $blocks;
     case 'view':
       switch ($delta) {
@@ -49,9 +53,27 @@ function messaging_debug_block($op = 'list', $delta = 0, $edit = array()) {
           return $block;
         case 1:
           // Only when incoming messages are enabled
-          if (module_exists('messaging_incoming')) {
+          if (module_exists('messaging_processor')) {
             $block['subject'] = t('Incoming message');
             $block['content'] = drupal_get_form('messaging_debug_incoming_form');
+            return $block;
+          }
+          break;
+        case 2:
+          if (!empty($_SESSION['messaging_debug_store'])) {
+            $block['subject'] = t('Message log');
+            foreach ($_SESSION['messaging_debug_store'] as $index => $message) {
+              list($text, $variables) = _messaging_debug_log_text($message);
+              $description = t($text, $variables);
+              $form[$index]= array('#type' => 'fieldset', 
+                '#title' => truncate_utf8($description, 20),
+                '#description' => $description,
+                '#collapsible' => TRUE, '#collapsed' => TRUE);
+              $form[$index][] = array('#type' => 'item', '#title' => t('Subject'), '#value' => check_plain($message->subject));
+              $form[$index][] = array('#type' => 'item', '#title' => t('Body'), '#value' => check_plain($message->body));
+            }
+            $block['content'] = drupal_render($form);
+            unset($_SESSION['messaging_debug_store']);
             return $block;
           }
           break;
@@ -105,7 +127,7 @@ function messaging_debug_post_form_submit($form, $form_state) {
   $body = split("\n", $form_state['values']['body']);
   $body = array_map('trim', $body);
   
-  $message = array(
+  $message = (object)array(
     'type' => 'debug',
     'subject' => $form_state['values']['subject'],
     'body' => $body,  
@@ -218,11 +240,10 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
         'title' => t('Debug'),
         'name' => t('Debug'),
         'destination' => 'name',
-        'send' => 'messaging_debug_send_msg',
-        'send_user' => 'messaging_debug_send_user',
         'type' => MESSAGING_TYPE_PULL,
         'glue' => '<br />',
         'description' => t('The messages will be just logged to watchdog.'),
+        'send callback' => 'messaging_debug_send_msg',
       );
       return $info;
     case 'in methods':
@@ -231,36 +252,71 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
         'description' => t('Messages posted through the debug interface.'),
       );
       return $info;
-    case 'in channels':
-      if ($type == 'debug') {
-        $info['form'] = array(
+    case 'channels':
+      if ($type == 'incoming') {
+        $info[] = array(
+          'method' => 'debug',
           'channel' => 'form',
-          'name' => t('Debug form')
+          'name' => t('Debug form'),
         );
         return $info;
       }
       break;
-    case 'processors':
-      $info['watchdog'] = array(
-        'name' => t('Watchdog'),
-        'process callback' => 'messaging_debug_watchdog_msg',
-        'description' => t('Log message to watchdog.'),
-      );
-      $info['devlog'] = array(
-        'name' => t('Devel log'),
-        'process callback' => 'messaging_debug_devlog_msg',
-        'description' => t('Log message through devel module.'),
-      );
-      return $info;
   }        
+}
+
+/**
+ * Implementation of hook_action_info().
+ */
+function messaging_debug_action_info() {
+  return array(
+    'messaging_debug_watchdog_msg' => array(
+      'type' => 'messaging',
+      'description' => t('Log message to watchdog'),
+      'configurable' => FALSE,
+      'hooks' => array(
+        'messaging' => array('incoming', 'outgoing'),
+      ),
+    ),
+    'messaging_debug_devlog_msg' => array(
+      'description' => t('Log message through devel module'),
+      'type' => 'messaging',
+      'configurable' => FALSE,
+      'hooks' => array(
+        'messaging' => array('incoming', 'outgoing'),
+      )
+    ),
+    'messaging_debug_block_msg' => array(
+      'description' => t('Display message in block'),
+      'type' => 'messaging',
+      'configurable' => FALSE,
+      'hooks' => array(
+        'messaging' => array('incoming', 'outgoing'),
+      )
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_messaging_methods_alter()
+ */
+function messaging_debug_messaging_methods_alter(&$info) {
+  // If debug enabled, replace all send callbacks
+  if (variable_get('messaging_debug', 0)) {
+    foreach (array_keys($info) as $method) {
+      $info[$method]['send callback'] = _messaging_callback('messaging_debug_send_msg');
+      //$info[$method]['user callback'] = _messaging_callback('messaging_debug_send_user');
+    }
+  }
 }
 
 /**
  * Messaging processor
  */
-function messaging_debug_watchdog_msg($message) {
-  $info = $message['messaging'];
-  watchdog('messaging', 'Incoming message, method %method, channel %channel: %subject', array('%method' => $info['method'], '%channel' => $info['channel'], '%subject' => $message['subject']));  
+function messaging_debug_watchdog_msg($message, $context) {
+  list($text, $variables) = _messaging_debug_log_text($message);
+  watchdog('messaging', $text, $variables);
+
   // Return message without changes for further processing
   return $message;
 }
@@ -268,25 +324,43 @@ function messaging_debug_watchdog_msg($message) {
 /**
  * Message processor, just log incoming messages
  */
-function messaging_debug_devlog_msg($message) {
+function messaging_debug_devlog_msg($message, $context) {
   if (module_exists('devel')) {
-    $info = $message['messaging'];
-    $text = t('Incoming message, method %method, channel %channel: %subject', array('%method' => $info['%method'], '%channel' => $info['channel'], '%subject' => $message['subject']));
-    dsm($message, $text);
+    list($text, $variables) = _messaging_debug_log_text($message);
+    dsm($message, t($text, $variables));
   }
+
   // Return message without changes for further processing
   return $message;
 }
 
 /**
- * Just show message title to the user. 
- * 
- * This is a pull method though, so this is mainly intended for testing options
+ * Message processor, store for display in a block
  */
-function messaging_debug_send_user($account, $message, $method = 'debug') {
-  $info = messaging_method_info('debug');
-  $destination = array($account);
-  return messaging_message_send($destination, $message, $method);
+function messaging_debug_block_msg($message, $context) {
+  $_SESSION['messaging_debug_store'][] = $message;
+  return $message;
+}
+
+/**
+ * Format message as loggable text
+ */
+function _messaging_debug_log_text($message) {
+  $source = $message->source;
+  $variables = array(
+    '%subject' => $message->subject,
+  );
+  if ($source['type'] == 'incoming') {
+    $text = 'Incoming message, method %method, channel %channel: %subject';
+    $variables +=  array('%method' => $source['method'], '%channel' => $source['channel']);  
+  } elseif ($source['type'] == 'outgoing') {
+    $text = 'Outgoing message, method %method: %subject';
+    $variables += array('%method' => $message->method);  
+  } else {
+    $text = 'Unknown message type, full dump: %message';
+    $variables['%message'] = print_r($message, TRUE);
+  }
+  return array($text, $variables);
 }
 
 /**
@@ -299,10 +373,10 @@ function messaging_debug_send_msg($destination, $message) {
   $text = '';
   $count = 0;
   $watchdog = array();
-  $text  = t('Message %key for %name: %subject', array('%name' => $destination->name, '%key' => $message['type'], '%subject' => $message['subject']));
+  $text  = t('Message %key for %name: %subject', array('%name' => $destination, '%key' => $message->type, '%subject' => $message->subject));
   messaging_log($text);
   // Just log message body at the end
-  watchdog('messaging', 'Message %key for %name: %subject <br /> Message body: <br /><pre>!body</pre>', array('%name' => $destination->name, '%key' => $message['type'], '%subject' => $message['subject'], '!body' => $message['body']));
+  watchdog('messaging', 'Message %key for %name: %subject <br /> Message body: <br /><pre>!body</pre>', array('%name' => $destination, '%key' => $message->type, '%subject' => $message->subject, '!body' => $message->body));
   return TRUE;
 }
 

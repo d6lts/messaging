@@ -24,6 +24,17 @@ class MessagingTestCase extends DrupalWebTestCase {
         'footer' => $this->randomName(100, 'Test body footer ')
     );
     $message['params'] = array(1, 2);
-    return $message;
+    return (object)$message;
   }
 }
+
+/**
+ * Foo callback functions for testing
+ */
+function messaging_test_foo_message_callback($message, $info) {
+  return $message;
+}
+function messaging_test_foo_getargs_callback() {  
+  return func_get_args();
+}
+
