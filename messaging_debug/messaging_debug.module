@@ -220,7 +220,7 @@ function messaging_debug_user_page($account) {
     $header = array(t('Method'), t('Subject'), t('Body'));
     foreach ($messages as $message) {
       // Check plain everything so we can actually see the mark up if any
-      $rows[] = array($message['method'], check_plain($message['subject']), check_plain($message['body']));
+      $rows[] = array($message->method, check_plain($message->subject), check_plain($message->body));
     }
     $output .= theme('table', $header, $rows);
     $output .= theme('pager', array(), MESSAGING_DEBUG_PAGER); 
