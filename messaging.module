@@ -241,7 +241,7 @@ function messaging_message_send($destinations, &$message, $method, $queue = 0) {
     }
     $message = messaging_message_callbacks($callbacks, $message, $info);
   }
-  
+ 
   // This will return true if the message was sent or queued for delivery
   if (!isset($message->success)) {
     $message->success = $message->sent || $message->queued;
@@ -315,7 +315,7 @@ function messaging_message_multisend($message, $info) {
  * 
  * @todo Improve storage so we can store only once but multiple rows for destinations
  */
-function messaging_message_queue($message, $info) {
+function messaging_message_queue($message, $info = array()) {
   $message->queued = 1;
   return messaging_store('save', $message);
 }
@@ -323,9 +323,12 @@ function messaging_message_queue($message, $info) {
 /**
  * Store messages, custom delivery
  */
-function messaging_message_store($message, $info) {
+function messaging_message_store($message, $info = array()) {
   $message->stored = 1;
-  return messaging_store('save', $message);  
+  if (empty($mssage->mqid)) {
+    $message = messaging_store('save', $message);
+  }
+  return $message;
 }
 
 /**
@@ -986,11 +989,14 @@ function _messaging_callback_invoke() {
 function messaging_message_callbacks($callback_keys, $message, $info) {
   while ($message->process && ($key = array_shift($callback_keys))) {
     if ($callback = _messaging_callback_get($info, $key)) {
+      //dsm($callback);
       $message = messaging_message_invoke($callback, $message, $info);
     } elseif (function_exists('messaging_message_' . $key)) {
+      //dsm("messaging_message_$key");
       $message = call_user_func('messaging_message_' . $key, $message, $info);
     }
-  }    
+  }
+  //dsm($message);  
   return $message;
 }
 
