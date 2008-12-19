@@ -15,7 +15,7 @@ function messaging_schema() {
       'destination' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
       'subject' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
       'body' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big'),
-      'params' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big'),
+      'params' => array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE),
       'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
       'sent' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),  
       'cron' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny'),
@@ -192,5 +192,14 @@ function messaging_update_6002() {
     }
     drupal_set_message('Please, check all your messaging settings for sending methods.');
   }
+  return $ret;
+}
+
+/**
+ * Update schema field
+ */
+function messaging_update_6003() {
+  $ret = array();
+  db_change_field(&$ret, 'messaging_store', 'params', 'params', array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE));
   return $ret;
 }

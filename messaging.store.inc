@@ -247,20 +247,21 @@ function messaging_store_save($message) {
     $params['sender_name'] = $message->sender_name;
   }
   
-  
   // Mark for a user if there's an account parameter, produced by messaging_send_user()
   if (!empty($message->account)) {
     $message->uid = $message->account->uid;
     $message->destination = 'user:' . $message->uid;
   }
-
+  // Save serialized destinations
+  if (!empty($message->destinations)) {
+    $params['destinations'] = $message->destinations;
+  }
   // Check destination, but preserve field in case it is already set. I.e. 'all users'
   if (empty($message->destination)) {
     // Check for multiple destinations, just store 'multiple'
     // Bulk sending modules may store each destination differently
     if (count($message->destinations) > 1) {
-      $message->destination = 'multiple';
-      $params['destinations'] = $message->destinations;
+      $message->destination = 'multiple';      
     }
     // In case there's a single destination, try to put it as string
     elseif ($destination = $message->destinations[0]) {

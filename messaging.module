@@ -325,7 +325,7 @@ function messaging_message_queue($message, $info = array()) {
  */
 function messaging_message_store($message, $info = array()) {
   $message->stored = 1;
-  if (empty($mssage->mqid)) {
+  if (empty($message->mqid)) {
     $message = messaging_store('save', $message);
   }
   return $message;
