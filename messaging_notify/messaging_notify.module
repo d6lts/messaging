@@ -137,7 +137,7 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
     case 'names':
       $subs = &$arg0;
       if ($subs->event_type == 'message') {
-        $subs->type_name = t('Messages');
+        $subs->type_name = t('Messaging');
         if (!empty($subs->fields['method'])) {
           $subs->names['method'] = t('Method: %name', array('%name' => messaging_method_info($subs->fields['method'], 'name')));
         }
@@ -204,26 +204,26 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
 function messaging_notify_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
     case 'message groups':
-      $help = t('The header and footer will be taken from Notification events');
+      $help = t('The header and footer will default to the ones from Notification events');
       // Generic notifications event
-      $info['messaging-event-message'] = array(
+      $info['notifications-event-message'] = array(
         'module' => 'messaging_notify',
-        'name' => t('Notifications for messages'),
-        'description' => t('Notifications for messages.'),
+        'name' => t('Message notifications'),
+        'description' => t('Notifications for messages. When a message is sent through some channel (I.e. a private message), you may want to be notified through a different one (I.e. a daily email digest).'),
         'help' => $help,
       );
       // Node group digests, will have specific help text in hook_help()
-      $info['messaging-digest-message'] = array(
+      $info['notifications-digest-message-method'] = array(
         'module' => 'messaging_notify',
-        'name' => t('Message digests'),
-        'description' => t('Group of events digested for each node.'),
+        'name' => t('Message digests per method'),
+        'description' => t('Digested message events grouping by sending method.'),
       );
       return $info;
 
     case 'message keys':      
       $type = $arg1;
       switch ($type) {
-        case 'messaging-event':
+        case 'notifications-event-message':
           // Some parts may be re-used from 'notifications-event' group
           // So we specify only subject and main message
           return array(
@@ -232,30 +232,42 @@ function messaging_notify_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NUL
             'digest' => t('Digest line'),
             'footer' => t('Footer')
           );
+        case 'notifications-digest-message-method':
+          $parts['title'] = t('Group title');
+          $parts['footer'] = t('Group footer');
+          return $parts;
       }
       break;
     case 'messages':
       $type = $arg1;
       // Event notifications
       switch ($type) {
-        case 'messaging-event':
-        case 'messaging-digest':
-          return array(
-            'subject' => t('Update for [type-name]: [title]'),
+        case 'notifications-event-message':
+          return array(  
+            'subject' => t('New message from [message-author-name]'),
             'main' => array(
-              '[node-teaser]',
-              t('Read more [node-url]'),
+              '[message-subject]',
+              '[message-body]'
             ),
+            'digest' => t('Message from [message-author-name]: [message-subject]'),
+          );
+        case 'notifications-digest-message-method':
+          return array(
+            'subject' => t('New messages for [user]'),
+            'header' => t("Greetings, [user].\n\nThese are your messages"),
           );
       }
       break;
     case 'tokens':
-      $type = explode('-', $arg1);
       $tokens = array();
-      // These are the token groups that will be used for this module's messages
-      if ($type[0] == 'messaging') {
-        $tokens[] = 'author';
-        $tokens[] = 'message'; 
+      switch ($arg1) {
+        case 'notifications-event-message':        
+          $tokens[] = 'author';
+          $tokens[] = 'message';
+          break;
+        case 'notifications-digest-message-method':
+          $tokens[] = array('message', 'message-method');
+          break;
       }
       return $tokens;
   }
@@ -284,7 +296,6 @@ function messaging_notify_aftersend($message, $info) {
 
   // Now trigger notifications event
   $event = array(
-    'module' => 'messaging',
     'uid' => $node->sender,
     'oid' => $message->mqid,
     'type' => 'message',
@@ -321,8 +332,8 @@ function messaging_notify_token_values($type, $object = NULL, $options = array()
   switch ($type) {
     case 'message':
       if ($message = $object) {
-        $values['message-subject'] = $message->subject;
-        $values['message-body'] = $message->body;
+        $values['message-subject'] = check_plain($message->subject);
+        $values['message-body'] = check_markup($message->body);
         $sender = messaging_load_user($message->sender);
         $values['message-author-name'] = check_plain($sender->name);
         $tokens['message-method'] = messaging_method_info($message->method, 'name');

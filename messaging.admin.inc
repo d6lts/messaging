@@ -124,7 +124,13 @@ function messaging_tokens_get_list($group) {
   // Now get token list from token module for each type
   $return = array();
   foreach ($type_list as $type) {
-    if ($list = token_get_list($type)) {
+    // This is a shortcut for single tokens for digests, with the form (token, description)
+    if (is_array($type)) {
+      list($type, $token) = $type;
+      $list = token_get_list($type);
+      $return[$token] = $list[$type][$token];
+    }
+    elseif ($list = token_get_list($type)) {
       foreach ($list as $category => $tokens) {
         foreach ($tokens as $token => $description) {
           $return[$token] = $description;
