@@ -162,7 +162,7 @@ function messaging_message_send_user($account, &$message, $method = NULL, $queue
   } else {
     // Save the message, let it there for further reference
     $message->method = $method;
-    $info = messaging_method_info($method);
+    $info = messaging_method_info($method, NULL, array());
     $message->destination = 'ERROR';
     $message = messaging_message_prepare($message, $info);
     $message = messaging_message_render($message, $info);
@@ -218,7 +218,7 @@ function messaging_message_send($destinations, &$message, $method, $queue = 0) {
 
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default(NULL);
-  $info = messaging_method_info($method);
+  $info = messaging_method_info($method, NULL, array());
   
   // Convert into an object and add all the information into the message object
   $message = (object)$message;
