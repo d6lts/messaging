@@ -1053,3 +1053,25 @@ function _messaging_info($info, $method = NULL, $property = NULL, $default = NUL
     return $info;
   }  
 }
+
+/**
+ * Helper function for query builders.
+ * 
+ * Using schema data get 'field = [placeholder]' and args arrays
+ */
+function _messaging_query_conditions($table, $params) {
+ $schema = drupal_get_schema($table);
+ $conditions = $args = array();
+ foreach ($params as $field => $value) {
+   $type = $schema['fields'][$field]['type'];
+   // For array values, build IN conditions
+   if (is_array($value)) {
+     $conditions[] = $field . ' IN (' . db_placeholders($value, $type) . ')';
+     $args = array_merge($args, $value);
+   } else {
+     $conditions[] = $field . ' = ' . db_type_placeholder($type);
+     $args[] = $value;
+   }
+ }
+ return array('conditions' => $conditions, 'args' => $args);
+}
