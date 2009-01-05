@@ -140,7 +140,7 @@ function messaging_debug_post_form_submit($form, $form_state) {
   } else {
     $result = messaging_message_send(array($destination), $message, $form_state['values']['method']);
   }
-  drupal_set_message(t('Sent message with result: %result', array('%result' => $result))); 
+  drupal_set_message(t('Sent message with result: %result', array('%result' => $result ? 'OK' : 'Error'))); 
 }
 
 

@@ -279,11 +279,11 @@ function messaging_message_prepare($message, $info) {
     }
   }
   // If the messaging method is of type push, cron processing will be enabled
-  if ($message->queue && $info['type'] & MESSAGING_TYPE_PUSH) {
+  if ($message->queue && ($info['type'] & MESSAGING_TYPE_PUSH)) {
     $message->cron = 1;
   }
   // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-  if ($message->queue || $info['type'] & MESSAGING_TYPE_PULL) {
+  if (!$message->queue && ($info['type'] & MESSAGING_TYPE_PULL)) {
     $message->queue = 1;
     $message->cron = 0;
   }
@@ -810,22 +810,22 @@ function messaging_message_load($mqid, $refresh = FALSE) {
  * @param $destination
  *   Email destination
  * @param $message
- *   Message array
+ *   Message object
  * @param $params
  *   Aditional parameters
  * @param $alter
  *   Whether to run the mail_alter hook
  */
 function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) {
-  $message = (array)$message;
+
   // The message 'from' will depend on message sender if present, otherwise default to site mail
   $default_from = variable_get('site_mail', ini_get('sendmail_from'));
   
   if (empty($params['from'])) {
-    if (!empty($message['sender_account']) && !empty($message['sender_account']->mail)) {
-      $from = check_plain($message['sender_account']->name) . ' <'.$message['sender_account']->mail.'>';
-    } elseif(!empty($message['sender_name']) && $default_from) {
-      $from = check_plain($message['sender_name']) . ' <'.$default_from.'>';
+    if (!empty($message->sender_account) && !empty($message->sender_account->mail)) {
+      $from = check_plain($message->sender_account->name) . ' <'.$message->sender_account->mail.'>';
+    } elseif(!empty($message->sender_name) && $default_from) {
+      $from = check_plain($message->sender_name) . ' <'.$default_from.'>';
     } else {
       $from = $default_from;
     }
@@ -836,13 +836,13 @@ function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) 
 
   // Build the mail object, mimic drupal_mail() format
   $mail = array(
-    'id'       => 'messaging_'. 'message-'.$message['type'],
+    'id'       => 'messaging_'. 'message-'.$message->type,
     'to'       => $destination,
     'from'     => $from,
-    'language' => !empty($message['language']) ? $message['language'] : language_default(),
+    'language' => !empty($message->language) ? $message->language : language_default(),
     'params'   => $params,
-    'subject'  => $message['subject'],
-    'body'     => $message['body'],
+    'subject'  => $message->subject,
+    'body'     => $message->body,
     'headers'  => messaging_mail_headers($message, $params),
   );  
   
@@ -992,7 +992,7 @@ function messaging_message_callbacks($callback_keys, $message, $info) {
       //dsm($callback);
       $message = messaging_message_invoke($callback, $message, $info);
     } elseif (function_exists('messaging_message_' . $key)) {
-      //dsm("messaging_message_$key");
+      //dsm("callback $key");dsm($message);
       $message = call_user_func('messaging_message_' . $key, $message, $info);
     }
   }

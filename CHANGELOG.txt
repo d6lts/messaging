@@ -7,6 +7,7 @@ TO DO
 
 6.x-1.1 to ....
 --------------------------
+- Fixed issues with cron processing and queue storage, added tests
 - Added query builder helper for messaging and notifications
 - Improved messaging store, multiple destinations are now serialized and message stored only once
 - Implemented callbacks chain for message processing, callbacks defined on sending method.

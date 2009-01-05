@@ -18,11 +18,18 @@ define('MESSAGING_TIME_MARGIN', 5);
  * It will check for predefined limits and repeat the cycle
  *   [fetch] -> [send] -> [check]
  * until the queue is empty or any of the limits are met
+ * 
+ * @param $timeout
+ *   Optional time out to use instead of cron, just for this api to be testable
  */
-function messaging_store_queue_process() {
+function messaging_store_queue_process($timeout = 0) {
   $limit = variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
   // Calculate time limit. We get the smaller of all these times in seconds
-  $timelimit[] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - MESSAGING_TIME_MARGIN;
+  if ($timeout) {
+    $timelimit[] = time() + $timeout;
+  } else {
+    $timelimit[] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - MESSAGING_TIME_MARGIN;
+  }
   if ($limit['time']) {
     $timelimit[] = time() + $limit['time'];
   }
@@ -55,14 +62,16 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
   $result = db_query_range("SELECT * FROM {messaging_store} WHERE queue = 1 AND cron = 1 ORDER BY mqid", 0, $limit);
   while ($message = db_fetch_object($result)) {
     messaging_store_unpack($message, TRUE);
-    // Actual send function
-    $message = messaging_message_real_send($message, messaging_method_info($message->method));
+    // Actual sending functions function
+    $message->process = TRUE;
+    $message = messaging_message_callbacks(array('multisend', 'alftersend'), $message, messaging_method_info($message->method));
     if ($message->success) {
       $sent[] = $message->mqid;
     } else {
       $unsent[] = $message->mqid;
     }
     $count++;
+    // Check timeout after each message
     if ($timeout && time() > $timeout) break;
   }
   if ($sent) {
@@ -174,13 +183,26 @@ function messaging_store_unpack(&$message, $full = FALSE) {
     }
     // We only saved params for current sending method group
     $group = messaging_method_info($message->method, 'group');
-    $message->params[$group] = $params;
+    if ($group && empty($message->params[$group])) {
+      $message->params[$group] = $params;
+    } else {
+      $message->params = $params;
+    }
   }
   if ($message->uid && $full) {
     $message->account = messaging_load_user($message->uid);       
   }
   if ($message->sender && $full) {
     $message->sender_account = messaging_load_user($message->sender);
+  }
+  // Check destinations array, in case it was not properly filled
+  if (empty($message->destinations)) {
+    if (!empty($message->account) && ($userdest = messaging_user_destination($message->account, $message->method, $message))) {
+      $message->destinations = array($userdest);
+    }
+    elseif (!empty($message->destination)) {
+      $message->destinations = array($message->destination);
+    }
   }
 }
 
@@ -189,19 +211,26 @@ function messaging_store_unpack(&$message, $full = FALSE) {
  * 
  * @param $mqid
  *   Single message id or array of message ids
- * @param $log
- *   Optional, just move queue messages to log, for messages on which sending failed 
+ * @param $error
+ *   Optional, just mark as error move queue messages to log, for messages on which sending failed 
  */
-function messaging_store_sent($mqid, $log = FALSE) {
+function messaging_store_sent($mqid, $error = FALSE) {
   $mqid = is_array($mqid) ? $mqid : array($mqid);
   list($where, $args) = messaging_store_query(array('mqid' => $mqid));
-  // First delete the ones that are not for logging
-  if (!$log) {
-    db_query("DELETE FROM {messaging_store} WHERE log = 0 AND ".implode(' AND ', $where) , $mqid);
+  
+  
+  if ($error) {
+    // Error, log them all, sent = 0
+    $sent = 0;
+  } else {
+    // First delete the ones that are not for logging, then mark as sent
+    db_query("DELETE FROM {messaging_store} WHERE log = 0 AND ".implode(' AND ', $where) , $args);
+    $sent = time();
   }
-  // Now mark the rest as sent
-  $args = array_merge(array(time()), $mqid);
-  db_query("UPDATE {messaging_store} SET queue = 0, log = 1, sent = %d WHERE ".implode(' AND ', $where), $args);
+
+  // Now unmark the rest for queue processing, as logs
+  $args = array_merge(array($sent), $args);
+  db_query("UPDATE {messaging_store} SET queue = 0, cron = 0, log = 1, sent = %d WHERE ".implode(' AND ', $where), $args);
 }
 
 /**

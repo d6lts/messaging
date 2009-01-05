@@ -19,7 +19,7 @@ class Messaging_API_Tests extends MessagingTestCase {
   }
 
   function setUp() {
-    parent::setUp('messaging', 'messaging_debug', 'messaging_simple');
+    parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_mail');
     variable_set('messaging_method_simple', array('filter' => 0));
     variable_set('messaging_method_debug', array('filter' => 0));
   }
@@ -116,6 +116,24 @@ class Messaging_API_Tests extends MessagingTestCase {
     messaging_store('del', array('uid' => $user->uid, 'mqid' => array_keys($queued)));
     $this->assertEqual(count(messaging_store('get', array('uid' => $user->uid))), 0, 'The logs have been successfully deleted');
     
+    // Now try queueing for later sending, we need a push method for that
+    $test_method = 'mail';
+    $user = $this->drupalCreateUser();
+    $user->messaging_default = $test_method;
+
+    $message1 = $this->randomMessage();
+    $message2 = $this->randomMessage();
+    $this->assertTrue(messaging_message_send_user($user, $message1, NULL, 1), 'Message successfully queued for user');
+    $this->assertTrue(messaging_message_send(array($user->mail, $user->mail), $message2, $test_method, 1), 'Bulk message successfully queued for multiple destinations.');
+    
+    $queued = messaging_store('get', array('method' => $test_method, 'cron' => 1, 'queue' => 1));
+    $this->assertEqual(count($queued), 2, 'We have the right number of messages in queue: ' . count($queued));
+
+    // Process queue and check again
+    messaging_store('queue_process', 10);
+    $queued = messaging_store('get', array('method' => $test_method));
+    $this->assertEqual(count($queued), 0, 'We have sent the messages in queue: ' . count($queued));
+
     // Final clean up of messages in store
     $this->messagingCleanUp();
  }
