@@ -120,6 +120,8 @@ function messaging_admin_message_form($form_state, $group, $group_info) {
 function messaging_tokens_get_list($group) {
   // First compile token types for this message group
   $type_list = module_invoke_all('messaging', 'tokens', $group);
+  // Add known global tokens, will be always available
+  $type_list[] = 'global';
 
   // Now get token list from token module for each type
   $return = array();
@@ -138,9 +140,9 @@ function messaging_tokens_get_list($group) {
       }
     }
   }
-
   return $return;
 }
+
 /**
  * Process and save message parts
  */

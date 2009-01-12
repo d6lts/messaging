@@ -802,6 +802,22 @@ function messaging_message_load($mqid, $refresh = FALSE) {
 }
 
 /**
+ * Do token replacement. 
+ * 
+ * Uses token_logic if enabled, standard token replacement otherwise
+ */
+function messaging_text_replace($text, $objects) {
+  // Add some token types
+  $objects['global'] = NULL;  
+
+  if (module_exists('token_logic')) {
+    $text = token_logic_replace_multiple($text, $objects);
+  }
+
+  return token_replace_multiple($text, $objects);
+}
+
+/**
  * Rebuild message in Drupal mail format
  * 
  * This is the only non method agnostic functionality in this module. As there are several plug-ins
