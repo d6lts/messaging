@@ -39,11 +39,15 @@ function messaging_store_queue_process($timeout = 0) {
   }
   $limit['time'] = min($timelimit);
   
-  // Processing loop. Will stop when we run out of rows or reach time limit
+  // Processing loop. Will stop when we run out of rows or reach time / messages limit
+  $count = 0;
+  $max = !empty($limit['message']) ? $limit['message'] : 0;
   do {
-    $number = messaging_store_queue_process_step(MESSAGING_STEP_ROWS, $limit['time']);    
+    $step = $max ? min(MESSAGING_STEP_ROWS, $max - $count) : MESSAGING_STEP_ROWS;
+    $number = messaging_store_queue_process_step($step, $limit['time']);
+    $count += $number;   
   } 
-  while ($number == MESSAGING_STEP_ROWS && time() <= $limit['time']);    
+  while ($number == $step && time() <= $limit['time'] && (!$max || $max > $count));    
 }
 
 /**

@@ -83,6 +83,19 @@ function _messaging_install_create_filter() {
 function messaging_uninstall() {
   // Remove tables.
   drupal_uninstall_schema('messaging');
+  // Remove the default filter, plain text added in install
+  if ($format = variable_get('messaging_default_filter', 0)) {
+    db_query('DELETE FROM {filters} WHERE format = %d', $format);
+    db_query('DELETE FROM {filter_formats} WHERE format = %d', $format);
+  }
+  // Remove variables
+  variable_del('messaging_debug');
+  variable_del('messaging_default_filter');
+  variable_del('messaging_default_method');
+  variable_del('messaging_log');
+  variable_del('messaging_log_expire');
+  variable_del('messaging_process_limit');
+  db_query("DELETE FROM {variable} WHERE name LIKE 'messaging_method_%'");
 }
 
 /**

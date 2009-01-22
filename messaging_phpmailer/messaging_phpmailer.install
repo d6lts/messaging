@@ -8,6 +8,13 @@ function messaging_phpmailer_install() {
 }
 
 /**
+ * Implementation of hook_uninstall().
+ */
+function messaging_phpmailer_uninstall() {
+  variable_del('messaging_phpmailer_smtp_server');
+}
+
+/**
  * Implementation of hook_disable()
  */
 function messaging_phpmailer_disable() {
