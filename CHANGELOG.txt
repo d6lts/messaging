@@ -1,11 +1,12 @@
 // $Id$
 
-TO DO
-------
-* Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
-* More sending methods plug-ins: IM, Twitter, etc...
+Note: This version is on maintenance mode so no more features for it.
 
-5.x-1.0 to ..........
+5.x-1.1 to ......
+------------------
+- Fixed: Incomplete uninstall, by jaydub, #295444 
+
+5.x-1.0 to 5.x-1.1
 --------------------------------
 - Some improvements for template administration page
 - Added hook requirements to check there are sending methods enabled, by Zen, #316122

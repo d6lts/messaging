@@ -1,6 +1,9 @@
 <?php
 // $Id$
 
+/**
+ * Implemenation of hook_install().
+ */
 function messaging_install() {
   switch ($GLOBALS['db_type']) {
     case 'mysql':
@@ -66,9 +69,27 @@ function messaging_install() {
   _messaging_install_create_filter();
 }
 
+/**
+ * Implementation of hook_uninstall().
+ */
 function messaging_uninstall() {
   db_query("DROP TABLE {messaging_message_parts}");
   db_query("DROP TABLE {messaging_store}");
+  
+  // remove the default filter, plain text added in install
+  $format = variable_get('messaging_default_filter', 0);
+  if ($format) {
+    db_query('DELETE FROM {filters} WHERE format = %d', $format);
+    db_query('DELETE FROM {filter_formats} WHERE format = %d', $format);
+  }
+
+  variable_del('messaging_debug');
+  variable_del('messaging_default_filter');
+  variable_del('messaging_default_method');
+  variable_del('messaging_log');
+  variable_del('messaging_log_expire');
+  variable_del('messaging_process_limit');
+  db_query("DELETE FROM {variable} WHERE name LIKE 'messaging_method_%'");
 }
 
 /**

@@ -3,6 +3,8 @@
 README.txt - Drupal Module - Messaging
 ======================================
 
+Note: This version is on maintenance mode so no more features for it.
+
 Drupal Messaging Framework
 
 This is a messaging framework to allow message sending in a channel independent way
