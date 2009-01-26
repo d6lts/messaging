@@ -168,6 +168,7 @@ function messaging_store_unpack(&$message, $full = FALSE) {
   // Preprocessing stored parameters
   if ($message['params']) {
     $params = unserialize($message['params']);
+    $message['params'] = array();
     // Some optional fields that may be into params, may be extended
     foreach (array('destination', 'sender_name') as $field) {
       if (!empty($params[$field])) {
