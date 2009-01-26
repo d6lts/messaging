@@ -4,6 +4,9 @@ Note: This version is on maintenance mode so no more features for it.
 
 5.x-1.1 to ......
 ------------------
+- Fixed issues with debug variable holding messages when debug enabled, #331650
+- Fixed: wrong module description for messaging_phpmailer, #340685
+- Fixed: messaging_phpmailer does not use passed headers (fails with mail2web module), by jmcclelland, #363001
 - Fixed: error when params are unpacked for stored messages, by mcdruid, #364334
 - Fixed: Incomplete uninstall, by jaydub, #295444 
 

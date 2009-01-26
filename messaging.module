@@ -481,12 +481,18 @@ function messaging_message_send($destinations, $message, $method, $queue = 0) {
     $queue = 1;
   }
   // And it will be kept as log if logging or debug enabled
-  if (variable_get('messaging_debug', 0) || variable_get('messaging_log', 0)) {
+  if (variable_get('messaging_log', 0)) {
     $log = 1;
   }
 
   // Send if not for queueing or not debugging enabled  
-  if (!$queue && !variable_get('messaging_debug', 0)) {
+  if (variable_get('messaging_debug', 0) && function_exists('messaging_debug_send_msg')) {
+    $log = 1;
+    $cron = 0;
+    $method = 'debug';
+  }
+  
+  if (!$queue) {
     $success = TRUE;
     foreach ($destinations as $to) {
       // Be careful with the order of function && value, so they both are evaluated
@@ -495,6 +501,7 @@ function messaging_message_send($destinations, $message, $method, $queue = 0) {
     // If sent, set time. If failed force logging.
     $success ? ($sent = time()) : ($log = 1);
   }
+  
   // Depending on parameters and what's happened so far we make the final queue/log decision
   if ($queue || $log) {
     messaging_store('save', $method, $destinations, $message, $sent, $queue, $log, $cron);

@@ -86,6 +86,13 @@ function messaging_phpmailer_drupal_mail($mailkey, $to, $subject, $body, $from =
   $mail->FromName = $defaults['From'];
   $mail->AddAddress($to);
 
+  if(!empty($headers['Message-ID'])) {
+    $mail->AddCustomHeader('Message-ID: ' . $headers['Message-ID']);
+  }
+  if(!empty($headers['Reply-To'])) {
+    $mail->AddReplyTo($headers['Reply-To']);
+  }
+
   // Strip HTML out of $body for plaintext equivalent of HTML email.
   $mail->AltBody = messaging_html_to_text($body);
 
