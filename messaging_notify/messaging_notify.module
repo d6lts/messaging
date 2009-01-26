@@ -130,6 +130,13 @@ function messaging_notify_admin_settings_submit(&$form, &$form_state) {
 }
 
 /**
+ * Implementation of hook_perm().
+ */
+function messaging_notify_perm() {
+  return array('subscribe to messages');
+}
+
+/**
  * Implementation of hook_notifications()
  */
 function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
@@ -144,7 +151,7 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
       }
       break;
     case 'subscription types':
-      $types['method'] = array(
+      $types['messaging'] = array(
         'event_type' => 'message',
         'title' => t('Thread'),
         'access' => 'subscribe to messages',

@@ -1,12 +1,12 @@
 // $Id$
 
-TO DO
-------
-* Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
-* Multilingual support for message templates.
-
 6.x-1.1 to ....
 --------------------------
+- Fixed: wrong module description for messaging_phpmailer, #340685
+- Fixed: messaging_notify - wrong notification type and missing perm(), by Scott Reynolds, #361758
+- Fixed: No messages in watchdog with debug send method, #358667
+- Fixed: messaging_phpmailer does not use passed headers (fails with mail2web module), by jmcclelland, #363001
+- Fixed: error when params are unpacked for stored messages, by mcdruid, #364334
 - Fixed: Incomplete uninstall, by jaydub, #295444 
 - Fixed: Number of messages sent' value is ignored, #339422
 - Added twitter plug-in by Will White

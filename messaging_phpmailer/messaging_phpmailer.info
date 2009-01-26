@@ -1,6 +1,6 @@
 ; $Id$
 name = Messaging PHPMailer
-description = Mail Sending Method: Integration with Drupal mail API for HMTL Mail
+description = Mail Sending Method: Integration with PHPMailer for HMTL Mail
 package = "Messaging"
 dependencies[] = messaging
 core = 6.x
