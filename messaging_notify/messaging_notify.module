@@ -303,7 +303,7 @@ function messaging_notify_aftersend($message, $info) {
 
   // Now trigger notifications event
   $event = array(
-    'uid' => $node->sender,
+    'uid' => $message->sender,
     'oid' => $message->mqid,
     'type' => 'message',
     'action' => 'sent',

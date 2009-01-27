@@ -2,6 +2,9 @@
 
 6.x-1.1 to ....
 --------------------------
+- Fixed: Messaging_notify not adding uid to notifications event, by Scott Reynolds, #364466
+- Performance: added indexes to messaging_store table, by Scott Reynolds, #364590
+- Fixed: messaging_update_replace not finding the right replacement method
 - Fixed: wrong module description for messaging_phpmailer, #340685
 - Fixed: messaging_notify - wrong notification type and missing perm(), by Scott Reynolds, #361758
 - Fixed: No messages in watchdog with debug send method, #358667

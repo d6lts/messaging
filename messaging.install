@@ -23,6 +23,11 @@ function messaging_schema() {
       'log' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny'),
     ),    
     'primary key' => array('mqid'),
+    'indexes' => array(
+      'cron' => array('cron'),
+      'queue' => array('queue'),
+      'log' => array('log'),
+    ),
   );
  
   /*
@@ -116,9 +121,9 @@ function messaging_update_method_disable($method, $replace) {
  */
 function messaging_update_method_replace($method) {
   // Find an alternative one within the same group, i.e. 'mail'
-  if ($group = messaging_method_info($method, 'group')) {
-    foreach (messaging_method_info(NULL, 'group') as $index => $name) {
-      if ($index == $group && $method != $index) {
+  if ($method_group = messaging_method_info($method, 'group')) {
+    foreach (messaging_method_info(NULL, 'group') as $index => $group) {
+      if ($group == $method_group && $method != $index) {
         $replace = $index;
         break;
       }
@@ -214,5 +219,17 @@ function messaging_update_6002() {
 function messaging_update_6003() {
   $ret = array();
   db_change_field($ret, 'messaging_store', 'params', 'params', array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE));
+  return $ret;
+}
+
+/**
+ * update messaging store to add in indexes
+ */
+function messaging_update_6004() {
+  $ret = array();
+  db_add_index($ret, 'messaging_store', 'cron', array('cron'));
+  db_add_index($ret, 'messaging_store', 'queue', array('queue'));
+  db_add_index($ret, 'messaging_store', 'log', array('log'));
+  
   return $ret;
 }
