@@ -625,7 +625,7 @@ function messaging_message_render($message, $info) {
     $message->body['footer'] = array('#prefix' => $info['footer'], '#text' => $message->body['footer']);
   }
   // Render separately subject and body info, adding default parameters
-  $info += array('glue' => '', 'subject_glue' => '');
+  $info += array('glue' => '', 'subject_glue' => '', 'filter' => NULL);
   $message->subject = messaging_check_subject(messaging_text_render($message->subject, $info['subject_glue']));
   $message->body = messaging_text_render($message->body, $info['glue'], $info['filter']); 
   $message->rendered = 1;
@@ -852,7 +852,7 @@ function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) 
 
   // Build the mail object, mimic drupal_mail() format
   $mail = array(
-    'id'       => 'messaging_'. 'message-'.$message->type,
+    'id'       => 'messaging_'. (!empty($message->type) ? 'message-'.$message->type : 'message'),
     'to'       => $destination,
     'from'     => $from,
     'language' => !empty($message->language) ? $message->language : language_default(),
@@ -1003,7 +1003,7 @@ function _messaging_callback_invoke() {
  * Invoke callback list
  */
 function messaging_message_callbacks($callback_keys, $message, $info) {
-  while ($message->process && ($key = array_shift($callback_keys))) {
+  while (!empty($message->process) && ($key = array_shift($callback_keys))) {
     if ($callback = _messaging_callback_get($info, $key)) {
       //dsm($callback);
       $message = messaging_message_invoke($callback, $message, $info);

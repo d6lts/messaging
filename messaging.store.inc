@@ -291,7 +291,7 @@ function messaging_store_save($message) {
     $params['destinations'] = $message->destinations;
   }
   // Check destination, but preserve field in case it is already set. I.e. 'all users'
-  if (empty($message->destination)) {
+  if (empty($message->destination) && !empty($message->destinations)) {
     // Check for multiple destinations, just store 'multiple'
     // Bulk sending modules may store each destination differently
     if (count($message->destinations) > 1) {

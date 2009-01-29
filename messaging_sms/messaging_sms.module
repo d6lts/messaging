@@ -44,7 +44,7 @@ function messaging_sms_render($message, $info) {
  * Send mail message to user account
  */
 function messaging_sms_user_destination($account, $message) {
-  if ($account->sms_user[0]['status'] == 2) {
+  if (!empty($account->sms_user) && $account->sms_user[0]['status'] == 2) {
     $destination = new Stdclass();
     $destination->number = $account->sms_user[0]['number'];
     foreach ($account->sms_user[0]['gateway'] as $key => $field) {
