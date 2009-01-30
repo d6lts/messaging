@@ -2,6 +2,8 @@
 
 6.x-1.1 to ....
 --------------------------
+- Fixed: Update SMS sending method for new SMS Framework, by diggersf, #337518
+- Fixed: PHPmailer, Handle rfc2822 formatted "From:" field, by rcourtna, #349224
 - Fixed: PHP notices, by sun, #366391
 - Fixed: Messaging_notify not adding uid to notifications event, by Scott Reynolds, #364466
 - Performance: added indexes to messaging_store table, by Scott Reynolds, #364590

@@ -76,9 +76,11 @@ function messaging_phpmailer_drupal_mail($message) {
   // Theme the mail message
   list($subject, $body) = theme('messaging_phpmailer', $message);
 
-  // Add some headers
-  $mail->From = $message['headers']['From'];
-  $mail->FromName = $message['headers']['From'];
+  // Add some headers. Look for rfc2822 "From" formatting (ex: "name" <foo@bar.com>)
+  $from = array();
+  preg_match('/["\']?(?<name>.*)["\']? <(?<email>.*)>/', $message['headers']['From'], $from);
+  $mail->From = !empty($from['email']) ? $from['email'] : $message['headers']['From'];
+  $mail->FromName = !empty($from['name']) ? $from['name'] : '';
   $mail->AddAddress($message['to']);
 
   if(!empty($message['headers']['Message-ID'])) {
