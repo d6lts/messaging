@@ -10,20 +10,68 @@
  */
 
 /**
+ * Aditional help for admin pages, will be called from messaging_help().
+ * 
+ * All paths here start with 'admin/messaging'
+ */
+function messaging_admin_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/template':
+      $output = '<p>' . t('Configure the templates for different types of messages. Each message group is defined by other modules using the Messaging Framework. A typical message consists on the following parts:') . '</p>';
+      $output .= '<small><table>';
+      $output .= '<tr><td colspan="2"><em>' . t('Subject') . '</em></td><td>' . t('Single line with a short description') . '</td></tr>';
+      $output .= '<tr><td rowspan="3">' . t('Body') . '</td><td><em>' . t('Header') . '</em></td><td>' . t('Greetings line') . '</td></tr>';
+      $output .= '<tr><td><em>' . t('Content') . '</em></td><td>' . t('Message main content, usually longer with the full description'). '</td></tr>';
+      $output .= '<tr><td><em>' . t('Footer') . '</em></td><td>' .  t('Closing part with site information, unsubscribe links, etc...') . '</td></tr>';
+      $output .= '</table></small>';
+      $output .= '<p>' . t('Here you\'ll be able to configure each of these parts for each sending method. When one of these parts is left blank, there is a fallback system which goes as follows:') . '</p>';
+      $output .= '<ul>';
+      $output .= '<li>' . t('If a message part is left blank for a sending method, the text part from Default sending method will be used.') . '</li>';
+      $output .= '<li>' . t('If the Default part is blank too, the fallback template (the parent in this tree) will be used.') . '</li>';
+      $output .= '</ul>';
+      return $output;
+    default:
+      // Edit template groups
+      if ($arg[3] == 'edit' && ($group = $arg[4])) {
+        $info = messaging_message_group($group);
+        $output = '<p>'. t('These are the message parts for %group.', array('%group' => messaging_message_group($group, 'name')));
+        if (!empty($info['description'])) {
+          $output .= ' ' . $info['description'];
+        }
+        $output .= '</p>';
+        if (!empty($info['help'])) {
+          $output .= '<p>'. $info['help'] .'</p>';
+        }
+        $output .= '<p>' . t('Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%empty' => MESSAGING_EMPTY));
+        if (!empty($info['fallback'])) {
+          $output .= ' ' . t('The fallback template from which message parts will be taken if left blank is <a href="@template_edit">%template_name</a>', array('@template_edit' => url('admin/messaging/template/edit/' . $info['fallback']), '%template_name' => messaging_message_group($info['fallback'], 'name') ));
+        }
+        $output .= '</p>';
+        return $output;
+      }
+  }
+}
+
+/*
  * Overview of message parts and sending methods
  */
 function messaging_admin_template() {
   $output = '';
   // List message groups
   $groups = module_invoke_all('messaging', 'message groups');
-  $rows = array();
+  // Check fallbacks and get root templates for tree-like display
+  $root = array();
   foreach ($groups as $group => $group_info) {
-    $rows[] = array(
-    l($group_info['name'], 'admin/messaging/template/edit/'.$group),
-    !empty($group_info['description']) ? $group_info['description'] : '',
-    );
+    if (empty($group_info['fallback'])) {
+      $root[] = $group;
+    } else {
+      $groups[$group_info['fallback']]['children'][] = $group;
+    }
   }
-  $output .= theme('box', t('Message groups'), theme('table', NULL, $rows));
+  // Now build table which will have some indentation
+  $rows = messaging_admin_template_tree($root, $groups);
+  $header = array(t('Message groups'), t('Description'), t('Parts'));
+  $output .= theme('table', $header, $rows);
 
   // List sending methods
   $rows = array();
@@ -39,14 +87,32 @@ function messaging_admin_template() {
 }
 
 /**
+ * Recursively build a table tree for fallback methods
+ */
+function messaging_admin_template_tree($parents, $groups, $depth = 0) {
+  $rows = array();
+  foreach ($parents as $key) {
+    $info = $groups[$key];    
+    $rows[] = array(
+      theme('indentation', $depth) . l($info['name'], 'admin/messaging/template/edit/'.$key),
+      !empty($info['description']) ? $info['description'] : '',
+      ($parts = module_invoke_all('messaging', 'message keys', $key)) ? implode(', ', $parts) : '',
+    );
+    if (!empty($info['children'])) {
+      $rows = array_merge($rows, messaging_admin_template_tree($info['children'], $groups, $depth + 1));
+    }
+  }
+  return $rows;
+}
+
+/**
  * Message groups edit page
  */
 function messaging_admin_template_edit($group) {
   $output = '';
   $groups = module_invoke_all('messaging', 'message groups');
   if (isset($groups[$group])) {
-    drupal_set_title($groups[$group]['name']);
-
+    drupal_set_title(t('Message template for %name', array('%name' => $groups[$group]['name'])));
     $output .= drupal_get_form('messaging_admin_message_form', $group, $groups[$group]);
 
   }

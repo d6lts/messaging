@@ -27,20 +27,14 @@ function messaging_help($path, $arg) {
       $output = '<p>' . t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') . '</p>';
       $output .= '<p>' . t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') . '</p>';
       return $output;
-    case 'admin/messaging/template':
-      $output = '<p>' . t('Configure the templates for different types of messages. Each message group is defined by other modules using the Messaging Framework.') . '</p>';
-      return $output;
     default:
       if ($arg[0] == 'admin') {
         if ($arg[1] == 'settings' && $arg[2] == 'filters') {
           return '<p>'. t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.') .'</p>';
-        }
-        if ($arg[1] == 'messaging' && $arg[3] == 'edit' && ($group = $arg[4])) {
-          $output = '<p>'. t('These are the message parts for %group. Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%group' => messaging_message_group($group, 'name'), '%empty' => MESSAGING_EMPTY)) .'</p>';
-          if ($help = messaging_message_group($group, 'help')) {
-            $output .= '<p>'. $help .'</p>';
-          }
-          return $output;
+        }        
+        if ($arg[1] == 'messaging') {
+          require_once drupal_get_path('module', 'messaging') .'/messaging.admin.inc';
+          return messaging_admin_help($path, $arg);
         }
       }
   }

@@ -218,12 +218,14 @@ function messaging_notify_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NUL
         'name' => t('Message notifications'),
         'description' => t('Notifications for messages. When a message is sent through some channel (I.e. a private message), you may want to be notified through a different one (I.e. a daily email digest).'),
         'help' => $help,
+        'fallback' => 'notifications-event',
       );
       // Node group digests, will have specific help text in hook_help()
       $info['notifications-digest-message-method'] = array(
         'module' => 'messaging_notify',
         'name' => t('Message digests per method'),
         'description' => t('Digested message events grouping by sending method.'),
+        'fallback' => 'notifications-digest',
       );
       return $info;
 

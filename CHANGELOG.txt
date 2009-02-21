@@ -1,6 +1,11 @@
 // $Id$
 
-6.x-1.1 to ....
+6.x-1.1 to .......
+--------------------------
+- Fixed SMS subject & body formatting issues, #374903
+- Reworked message templates administration indicating fallbacks and added better help texts.
+
+6.x-1.0 to 6.x-1.1
 --------------------------
 - Fixed: Update SMS sending method for new SMS Framework, by diggersf, #337518
 - Fixed: PHPmailer, Handle rfc2822 formatted "From:" field, by rcourtna, #349224
@@ -23,7 +28,7 @@
 - Implemented callbacks chain for message processing, callbacks defined on sending method.
 - Reworked message processing, using objects now instead of array
 
-6.x-1.0-rc3 to 6.x-1.1
+6.x-1.0-rc3 to 6.x-1.0
 --------------------------
 - Fixed Cannot use object of type PHPMailer as array, #321212
 - Added some debug tools and some basic support for incoming messages
