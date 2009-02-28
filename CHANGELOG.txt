@@ -2,6 +2,8 @@
 
 6.x-1.1 to .......
 --------------------------
+- Improvements for messaging_twitter and messaging_debug
+- Messaging method list only displays the ones available for the user.
 - Fixed SMS subject & body formatting issues, #374903
 - Reworked message templates administration indicating fallbacks and added better help texts.
 

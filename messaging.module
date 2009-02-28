@@ -442,8 +442,8 @@ function messaging_method_list($account = NULL) {
   $info = messaging_method_info(NULL, 'name');
   if ($account) {
     foreach (array_keys($info) as $method) {
-      // Check access for each method
-      if (!messaging_method_permission($method, $account)) {
+      // Check access for each method and check destination
+      if (!messaging_method_permission($method, $account) || !messaging_user_destination($account, $method)) {
         unset($info[$method]);
       }
     }

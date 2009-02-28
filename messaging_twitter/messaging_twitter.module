@@ -43,16 +43,20 @@ function messaging_twitter_messaging($op = 'info') {
  * Map user account to twitter screen name
  */
 function messaging_twitter_user_destination($account) {
-   _messaging_twitter_include();
-  
-  $twitter_accounts = twitter_get_user_accounts($account->uid);
-  
-  if (is_array($twitter_accounts) && !empty($twitter_accounts)) {
-    reset($twitter_accounts);
-    $first = current($twitter_accounts);
-    return $first['screen_name'];
+  static $cache = array();
+   
+  if (!array_key_exists($account->uid, $cache)) {
+    _messaging_twitter_include();  
+    $twitter_accounts = twitter_get_user_accounts($account->uid);
+    if (is_array($twitter_accounts) && !empty($twitter_accounts)) {
+      reset($twitter_accounts);
+      $first = current($twitter_accounts);
+      $cache[$account->uid] = $first['screen_name'];
+    } else {
+      $cache[$account->uid] = NULL;
+    }
   }   
-
+  return $cache[$account->uid];
 }
 
 /**

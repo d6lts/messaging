@@ -150,13 +150,15 @@ function messaging_debug_post_form_submit($form, $form_state) {
 function messaging_debug_incoming_form() {
   $form = array();
   // Compile a list of channels
-  if ($method_list = module_invoke('messaging_incoming', 'method_info')) {
+  if ($method_list = messaging_processor_method_info('incoming')) {
     $channels = $options = array();
     foreach ($method_list as $method => $method_info) {
-      foreach (messaging_incoming_method_info($method, 'channels') as $id => $channel) {
-        $key = $method . ':' . $id;
-        $info[$key] = array('method' => $method, 'channel' => $id);
-        $options[$key] = $method_info['name'] . ': ' . $channel['name'];
+      if ($method_channels = messaging_processor_channel_info('incoming', $method)) {
+        foreach ($method_channels as $id => $channel) {
+          $key = $method . ':' . $id;
+          $info[$key] = array('method' => $method, 'channel' => $id);
+          $options[$key] = $method_info['name'] . ': ' . $channel['name'];
+        }
       }
     }
     $form['info'] = array('#type' => 'value', '#value' => $info);
@@ -185,7 +187,7 @@ function messaging_debug_incoming_form_submit($form, $form_state) {
   $info = $form_state['values']['info'][$form_state['values']['channel']];
   $message['subject'] = $form_state['values']['subject'];
   $message['body'] = $form_state['values']['body'];
-  $result = messaging_message_in($info['method'], $info['channel'], $message);
+  $result = messaging_processor_message_in($info['method'], $info['channel'], $message);
   drupal_set_message(t('Processed incoming message with result: %result', array('%result' => $result ? t('OK') : t('None'))));
 }
 
