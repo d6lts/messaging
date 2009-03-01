@@ -2,6 +2,7 @@
 
 6.x-1.1 to .......
 --------------------------
+- Added logging interface (messaging_log)
 - Improvements for messaging_twitter and messaging_debug
 - Messaging method list only displays the ones available for the user.
 - Fixed SMS subject & body formatting issues, #374903

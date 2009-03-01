@@ -752,18 +752,6 @@ function messaging_store() {
 }
 
 /**
- * Log facility for debugging
- */
-function messaging_log($txt = NULL) {
-  static $logs;
-  if ($txt) {
-    $logs[] = $txt;
-  } else {
-    return $logs;
-  }
-}
-
-/**
  * Helper user loading function with static caching
  */
 function messaging_load_user($uid) {
@@ -1084,4 +1072,66 @@ function _messaging_query_conditions($table, $params) {
    }
  }
  return array('conditions' => $conditions, 'args' => $args);
+}
+
+/**
+ * Short hand for info logs
+ */
+function messaging_log($txt = NULL, $variables = NULL) {
+  return _messaging_log('info', $txt, $variables);
+}
+
+/**
+ * Quick logging for debugging and manual queue processing
+ */
+function _messaging_log($type, $txt = NULL, $variables = NULL, $severity = WATCHDOG_NOTICE) {
+  static $logs;
+  
+  if ($txt) {
+    $logs[] = array($type, $txt, $variables, $severity);
+  }
+  elseif ($logs) {
+    $items = array_map('_messaging_log_format', $logs);
+    $logs = NULL;
+    return $items;
+  }
+}
+
+/**
+ * Format notifications log
+ */
+function _messaging_log_format($log) {
+  list($type, $string, $args, $severity) = $log;
+ 
+  if ($args) {
+    // Transform arguments before inserting them.
+    $append = array();
+    foreach ($args as $key => $value) {      
+      if (is_array($value) || is_object($value)) {
+        $value = print_r($value, TRUE);
+      }
+      switch ($key[0]) {
+        case '@':
+          // Escaped only.
+          $args[$key] = check_plain($value);
+          break;
+        case '%':
+          $args[$key] = theme('placeholder', $value);
+          break;
+        case '!':
+          // Pass-through.
+          $args[$key] = $value;
+          break;
+        default:
+          // Append to string a key value pair, different from watchdog format
+          $append[] = ' <strong>' . $key . '</strong>= ' . check_plain($value);
+          $args[$key] = '';
+          break;
+      }
+    }
+    $string = strtr($string, $args);
+    $append ? $string .= ' ' . implode(', ', $append) : NULL;
+  }
+
+  return '<strong> '.$type . '</strong>: ' . $string;
 }

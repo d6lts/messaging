@@ -39,11 +39,7 @@ function messaging_debug_block($op = 'list', $delta = 0, $edit = array()) {
   switch ($op) {
     case 'list':
       $blocks[0]['info'] = t('Debug: Post message');
-      // Only when incoming messages are enabled
-      if (module_exists('messaging_processor')) {      
-        $blocks[1]['info'] = t('Debug: Incoming message');
-        $blocks[2]['info'] = t('Debug: Message log');
-      }
+      $blocks[1]['info'] = t('Debug: Message log');
       return $blocks;
     case 'view':
       switch ($delta) {
@@ -52,14 +48,6 @@ function messaging_debug_block($op = 'list', $delta = 0, $edit = array()) {
           $block['content'] = drupal_get_form('messaging_debug_post_form');
           return $block;
         case 1:
-          // Only when incoming messages are enabled
-          if (module_exists('messaging_processor')) {
-            $block['subject'] = t('Incoming message');
-            $block['content'] = drupal_get_form('messaging_debug_incoming_form');
-            return $block;
-          }
-          break;
-        case 2:
           if (!empty($_SESSION['messaging_debug_store'])) {
             $block['subject'] = t('Message log');
             foreach ($_SESSION['messaging_debug_store'] as $index => $message) {
@@ -143,54 +131,6 @@ function messaging_debug_post_form_submit($form, $form_state) {
   drupal_set_message(t('Sent message with result: %result', array('%result' => $result ? 'OK' : 'Error'))); 
 }
 
-
-/**
- * Incoming message form
- */
-function messaging_debug_incoming_form() {
-  $form = array();
-  // Compile a list of channels
-  if ($method_list = messaging_processor_method_info('incoming')) {
-    $channels = $options = array();
-    foreach ($method_list as $method => $method_info) {
-      if ($method_channels = messaging_processor_channel_info('incoming', $method)) {
-        foreach ($method_channels as $id => $channel) {
-          $key = $method . ':' . $id;
-          $info[$key] = array('method' => $method, 'channel' => $id);
-          $options[$key] = $method_info['name'] . ': ' . $channel['name'];
-        }
-      }
-    }
-    $form['info'] = array('#type' => 'value', '#value' => $info);
-    $form['channel'] = array(
-      '#type' => 'select',
-      '#title' => t('Channel'),
-      '#options' => $options,
-      '#default_value' => 'debug:form', // This block's channel
-    );
-    $form['subject'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Subject'),
-      '#size' => 15,
-    );
-    $form['body'] = array(
-      '#type' => 'textarea',
-      '#title' => t('Body'),    
-    );
-    $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
-  }
-  return $form;
-}
-
-function messaging_debug_incoming_form_submit($form, $form_state) {
-  // Work out method and channel
-  $info = $form_state['values']['info'][$form_state['values']['channel']];
-  $message['subject'] = $form_state['values']['subject'];
-  $message['body'] = $form_state['values']['body'];
-  $result = messaging_processor_message_in($info['method'], $info['channel'], $message);
-  drupal_set_message(t('Processed incoming message with result: %result', array('%result' => $result ? t('OK') : t('None'))));
-}
-
 /**
  * Implementation of hook_form_alter()
  */
@@ -248,22 +188,6 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
         'send callback' => 'messaging_debug_send_msg',
       );
       return $info;
-    case 'in methods':
-      $info['debug'] = array(
-        'name' => t('Debug'),
-        'description' => t('Messages posted through the debug interface.'),
-      );
-      return $info;
-    case 'channels':
-      if ($type == 'incoming') {
-        $info[] = array(
-          'method' => 'debug',
-          'channel' => 'form',
-          'name' => t('Debug form'),
-        );
-        return $info;
-      }
-      break;
   }        
 }
 
@@ -388,7 +312,7 @@ function messaging_debug_send_msg($destination, &$message) {
  * Only debugging functionality for administrators, uses devel module facility
  */
 function messaging_debug_footer() {
-  if (user_access('administer messaging') && ($logs = messaging_log()) && function_exists('dsm')) {
+  if (variable_get('messaging_debug', 0) && user_access('administer messaging') && ($logs = messaging_log()) && function_exists('dsm')) {
     foreach ($logs as $log) {
       dsm($log);
     }
