@@ -153,7 +153,7 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
     case 'subscription types':
       $types['messaging'] = array(
         'event_type' => 'message',
-        'title' => t('Thread'),
+        'title' => t('Messages'),
         'access' => 'subscribe to messages',
         'fields' => array('method'),
       );
