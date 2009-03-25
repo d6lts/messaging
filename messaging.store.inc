@@ -267,7 +267,10 @@ function messaging_store_del($params) {
  *   Should be 1 when this entry is to be processed on cron (queueing for push methods)
  */
 function messaging_store_save($message) {
-  
+  // Normalize some values. Boolean parameters must be 0|1
+  foreach (array('queue', 'log', 'cron') as $field) {
+    $message->$field = empty($message->$field) ? 0 : 1;
+  }
   // If sender is a user account, save sender field
   if (!empty($message->sender_account)) {
     $message->sender = $message->sender_account->uid;

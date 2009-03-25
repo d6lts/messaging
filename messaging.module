@@ -267,7 +267,7 @@ function messaging_message_prepare($message, $info) {
   global $user;
 
   // Set some default values if not already set
-  foreach (array('sent' => 0, 'queue' => 0, 'cron' => 0, 'log' => variable_get('messaging_log', 0), 'sender' => $user->uid) as $field => $value) {
+  foreach (array('sent' => 0, 'queue' => 0, 'cron' => 0, 'log' => (bool)variable_get('messaging_log', 0), 'sender' => $user->uid) as $field => $value) {
     if (!isset($message->$field)) {
       $message->$field = $value;
     }

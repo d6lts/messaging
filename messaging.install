@@ -231,3 +231,13 @@ function messaging_update_6004() {
   db_add_index($ret, 'messaging_store', 'log', array('log'));  
   return $ret;
 }
+
+/**
+ * Clean up message logs that were not properly cleaned before
+ */
+function messaging_update_6005() {
+  $ret = array();
+  $ret[] = update_sql('UPDATE {messaging_store} SET log = 1 WHERE log > 1');
+  $ret[] = update_sql('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d', time() - variable_get('messaging_log', 0));
+  return $ret;
+}
