@@ -2,6 +2,10 @@
 
 6.x-1.1 to .......
 --------------------------
+- Fixed issue with messaging logs not being deleted.
+- Updated Privatemsg integration, #340676
+- Fixed: Two 'Thread' subscription types on UI settings, #409084
+- Fixed: cron - mimemail parameters issue, by scottrigby, #382576
 - Added logging interface (messaging_log)
 - Improvements for messaging_twitter and messaging_debug
 - Messaging method list only displays the ones available for the user.
@@ -10,10 +14,6 @@
 
 6.x-1.0 to 6.x-1.1
 --------------------------
-- Updated Privatemsg integration, #340676
-- Fixed: Two 'Thread' subscription types on UI settings, #409084
-- Fixed: cron - mimemail parameters issue, by scottrigby, #382576
-
 - Fixed: Update SMS sending method for new SMS Framework, by diggersf, #337518
 - Fixed: PHPmailer, Handle rfc2822 formatted "From:" field, by rcourtna, #349224
 - Fixed: PHP notices, by sun, #366391

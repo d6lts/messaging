@@ -98,7 +98,6 @@ function messaging_uninstall() {
   variable_del('messaging_default_filter');
   variable_del('messaging_default_method');
   variable_del('messaging_log');
-  variable_del('messaging_log_expire');
   variable_del('messaging_process_limit');
   db_query("DELETE FROM {variable} WHERE name LIKE 'messaging_method_%'");
 }
@@ -229,7 +228,6 @@ function messaging_update_6004() {
   $ret = array();
   db_add_index($ret, 'messaging_store', 'cron', array('cron'));
   db_add_index($ret, 'messaging_store', 'queue', array('queue'));
-  db_add_index($ret, 'messaging_store', 'log', array('log'));
-  
+  db_add_index($ret, 'messaging_store', 'log', array('log'));  
   return $ret;
 }

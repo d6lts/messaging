@@ -93,7 +93,7 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
  * - @ TODO Remove expired queued messages
  */
 function messaging_store_queue_cleanup() {
-  if ($expire = variable_get('messaging_log_expire', 0)) {
+  if ($expire = variable_get('messaging_log', 0)) {
     db_query('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d', time() - $expire);
   }
 }
