@@ -792,11 +792,14 @@ function messaging_text_replace($text, $objects) {
   // Add some token types
   $objects['global'] = NULL;  
 
+  // Use token_logic if available, http://code.developmentseed.org/token_logic
+  // Otherwise use standard contrib token module, http://drupal.org/project/token
   if (module_exists('token_logic')) {
-    $text = token_logic_replace_multiple($text, $objects);
+    return token_logic_replace_multiple($text, $objects);
   }
-
-  return token_replace_multiple($text, $objects);
+  else {
+    return token_replace_multiple($text, $objects);
+  }
 }
 
 /**
