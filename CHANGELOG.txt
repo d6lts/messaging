@@ -2,6 +2,9 @@
 
 6.x-1.1 to .......
 --------------------------
+- Added PHPMailer settings and debug settings,  #358386 and #248743
+- Moved send method settings to its own tab, and moved mail functions to messaging.mail.inc
+- Defined some new constants for sending method types, updated plug-ins
 - Updated token_logic support, http://www.developmentseed.org/blog/2009/mar/25/tokenlogic-helps-messaging-and-notifications
 - Fixed issue with messaging logs not being deleted.
 - Updated Privatemsg integration, #340676
