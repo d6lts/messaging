@@ -44,37 +44,6 @@ function messaging_twitter_messaging($op = 'info') {
 }
 
 /**
- * Form to add/edit user account
- */
-function messaging_twitter_account_form($form_state, $account) {
-  $form = messaging_account_form($form_state, $account);
-  
-  $form['account']['account']['#title'] = t('Username');
-  $form['account']['account']['#description'] = t('Twitter user name');
-  $form['account']['password'] = array(
-    '#type' => 'password',
-    '#title' => t('Password'),
-    '#default_value' => $account->password,
-    '#size' => 30,
-    '#maxlength' => 64,
-    '#required' => TRUE,
-    '#description' => t('Password to connect to Twitter account.')
-  );
-  
-  return $form;
-}
-
-/**
- * Validate admin settings
- */
-function messaging_twitter_account_form_validate($form, &$form_state) {
-  _messaging_twitter_include();
-  if (!twitter_authenticate($form_state['values']['account']['account'], $form_state['values']['account']['password'])) {
-    form_set_error('account', t('Twitter authentication failed. Please check your username and password.'));
-  }
-}
-
-/**
  * Map user account to twitter screen name
  */
 function messaging_twitter_user_destination($account) {
