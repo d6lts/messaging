@@ -154,6 +154,7 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
       $types['messaging'] = array(
         'event_type' => 'message',
         'title' => t('Messages'),
+        'description' => t('Receive an aditional notification whenever a message is sent to you by a different method.'),
         'access' => 'subscribe to messages',
         'fields' => array('method'),
       );
@@ -164,6 +165,7 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
         'name' => t('Sending method'),
         'field' => 'method',
         'type' => 'string',
+        'options callback' => 'messaging_notify_method_list'
       );
       return $fields;
 
@@ -203,6 +205,20 @@ function messaging_notify_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL)
       return $types;
 
    }
+}
+
+/**
+ * Available methods to subscribe to
+ */
+function messaging_notify_method_list() {
+  $options = array();
+  $allowed = variable_get('messaging_notify_subscribe', array());
+  foreach (messaging_method_info(NULL, 'name') as $method => $name) {
+    if (!empty($allowed[$method])) {
+      $options[$method] = $name;
+    }
+  }
+  return $options;
 }
 
 /**
