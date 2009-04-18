@@ -191,17 +191,23 @@ function messaging_message_send_user($account, &$message, $method = NULL, $queue
 }
 
 /**
- * Get destination from user account
+ * Get destination from user account.
+ * 
+ * This will handle also anonymous user accounts that should have a 'destination' property
  */
 function messaging_user_destination($account, $method, $message = NULL) {
   if ($info = messaging_method_info($method)) {
-    if ($callback = _messaging_callback_get($info, 'destination')) {
-      // We have a mapping function
-      return _messaging_callback_invoke($callback, $account, $method, $message);
-    }
-    elseif ($property = messaging_method_info($method, 'destination')) {
+    if (($property = messaging_method_info($method, 'destination')) && !empty($account->$property)) {
       // Get destination property from user account
-      return !empty($account->$property) ? $account->$property : NULL;
+      return $account->$property;
+    }    
+    elseif (empty($account->uid) && !empty($account->destination)) {
+      // Anonymous account with destination property
+      return $account->destination;
+    }
+    elseif ($callback = _messaging_callback_get($info, 'destination')) {
+      // We have a mapping function, it may also work for anonymous users
+      return _messaging_callback_invoke($callback, $account, $method, $message);
     }
   }
 }
