@@ -1,8 +1,12 @@
 // $Id$
 
-6.x-1.1 to .......
---------------------------
+6.x-2.x-beta1 to .......
+-------------------------
+- Fixed minor issues with storing message templates (trim) by mehmeta #243743
 - Added support for anonymous accounts with 'destination' property set
+
+6.x-1.1 to 6.x-2.x-beta1
+--------------------------
 - Added PHPMailer settings and debug settings,  #358386 and #248743
 - Moved send method settings to its own tab, and moved mail functions to messaging.mail.inc
 - Defined some new constants for sending method types, updated plug-ins
