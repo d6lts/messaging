@@ -1,9 +1,15 @@
 // $Id$
 
-6.x-2.x-beta1 to .......
--------------------------
+6.x-2.x-beta5 to ............
+------------------------------
+- Fixed: messaging_phpmailer does not use passed headers, by jmcclelland, #363001
+- Added table and field descriptions to schema, #429184
+
+6.x-2.x-beta1 to 6.x-2.x-beta5
+------------------------------
 - Fixed regexp for compatibility, by Ogredude, #393384
 - Fixed broken function: messaging_pull_pending()
+- Moved messaging notify module to a different package, http://drupal.org/project/notifications_extra
 - Fixed minor issues with storing message templates (trim) by mehmeta #243743
 - Added support for anonymous accounts with 'destination' property set
 

@@ -128,7 +128,7 @@ function messaging_phpmailer_drupal_mail($message) {
   $mail->AddAddress($message['to']);
 
   if(!empty($message['headers']['Message-ID'])) {
-    $mail->AddCustomHeader('Message-ID: ' . $message['headers']['Message-ID']);
+    $mail->MessageID = $message['headers']['Message-ID'];
   }
   if(!empty($message['headers']['Reply-To'])) {
     $mail->AddReplyTo($message['headers']['Reply-To']);
