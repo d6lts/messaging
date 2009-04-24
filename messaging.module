@@ -831,6 +831,47 @@ function messaging_text_replace($text, $objects) {
 }
 
 /**
+ * Truncate messages to given length.  Adapted from node_teaser() in node.module
+ */
+function messaging_text_truncate($text, $length) {
+
+  // If we have a short message, return the message
+  if (drupal_strlen($text) < $length) {
+    return $text;
+  }
+
+  // Initial slice.
+  $teaser = truncate_utf8($text, $length);
+  $position = 0;
+  // Cache the reverse of the message.
+  $reversed = strrev($teaser);
+
+  // split at paragraph boundaries.
+  $breakpoints = array('</p>' => 0, '<br />' => 6, '<br>' => 4, "\n" => 1);
+  // We use strpos on the reversed needle and haystack for speed.
+  foreach ($breakpoints as $point => $offset) {
+    $length = strpos($reversed, strrev($point));
+    if ($length !== FALSE) {
+      $position = - $length - $offset;
+      return ($position == 0) ? $teaser : substr($teaser, 0, $position);
+    }
+  }
+
+  // When even the first paragraph is too long, we try to split at the end of
+  // the last full sentence.
+  $breakpoints = array('. ' => 1, '! ' => 1, '? ' => 1, ' ' => 0);
+  $min_length = strlen($reversed);
+  foreach ($breakpoints as $point => $offset) {
+    $length = strpos($reversed, strrev($point));
+    if ($length !== FALSE) {
+      $min_length = min($length, $min_length);
+      $position = 0 - $length - $offset;
+    }
+  }
+  return ($position == 0) ? $teaser : substr($teaser, 0, $position);
+}
+
+/**
  * Implementation of hook_requirements()
  */
 function messaging_requirements($phase) {

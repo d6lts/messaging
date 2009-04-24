@@ -2,6 +2,8 @@
 
 6.x-2.x-beta5 to ............
 ------------------------------
+- Added new API function: messaging_text_truncate(), from sms module
+- Reworked SMS formatting, removed text limit, #390438
 - Fixed: messaging_phpmailer does not use passed headers, by jmcclelland, #363001
 - Added table and field descriptions to schema, #429184
 
