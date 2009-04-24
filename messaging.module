@@ -437,7 +437,7 @@ function messaging_pull_pending($method, $users = NULL, $limit = 0, $delete = TR
   if (!is_null($users)) {
     $params['uid'] = $users; 
   }
-  $messages = messaging_store_get($params);
+  $messages = messaging_store('get', $params);
   // Not exactly delete but mark as sent
   if ($messages && $delete) {
     messaging_store('sent', array_keys($messages));
@@ -1044,7 +1044,11 @@ function _messaging_query_conditions($table, $params) {
    if (is_array($value)) {
      $conditions[] = $field . ' IN (' . db_placeholders($value, $type) . ')';
      $args = array_merge($args, $value);
-   } else {
+   }
+   elseif (is_null($value)) {
+     $condtions[] = $field . ' IS NULL';
+   }
+   else {
      $conditions[] = $field . ' = ' . db_type_placeholder($type);
      $args[] = $value;
    }
