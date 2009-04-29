@@ -1,7 +1,10 @@
 // $Id$
 
-6.x-2.x-beta5 to ............
+6.x-2.x-beta5 to 6.x-2.x-beta6
 ------------------------------
+- Reworked logging and log formatting and moved debug module to Development package
+- Fixed: default filter set to default variable if empty
+- Added line endings for 'Plain text' filter, #428440
 - Added new API function: messaging_user_setting()
 - Added wrapper for no pending messages text, by CrackWilding, #446218
 - Added new API function: messaging_text_truncate(), from sms module

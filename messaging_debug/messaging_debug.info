@@ -1,6 +1,6 @@
 ; $Id$
-name = Debug tool
-description = Debugging utilities for messaging.
-package = "Messaging"
+name = Messaging debug
+description = Debugging and development utilities for messaging package.
+package = "Development"
 dependencies[] = messaging
 core = 6.x
