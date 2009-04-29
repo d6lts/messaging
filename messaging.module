@@ -515,6 +515,29 @@ function messaging_method_default($account = NULL) {
 }
 
 /**
+ * Get setting from user account or get default setting if not available
+ * 
+ * If first checks for a 'messaging_$name' property in the user account
+ * and returns the value of the variable 'messaging_default_$name' if not set
+ * 
+ * @param $name
+ *   Option name
+ * @param $account
+ *   Optional account to check setting for
+ * @param $default
+ *   Default value if no option set
+ */
+function messaging_user_setting($name, $account = NULL, $default = NULL) {
+  $variable = 'messaging_' . $name;
+  if ($account && isset($account->$variable)) {
+    return $account->variable;
+  }
+  else {
+    return variable_get('messaging_default_' . $name, $default);
+  }
+}
+
+/**
  * Returns parts of messages, that may be formatted for each sending method
  *
  * @ TODO Review logic, optimizations, text pre-fetching

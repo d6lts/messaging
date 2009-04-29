@@ -2,6 +2,8 @@
 
 6.x-2.x-beta5 to ............
 ------------------------------
+- Added new API function: messaging_user_setting()
+- Added wrapper for no pending messages text, by CrackWilding, #446218
 - Added new API function: messaging_text_truncate(), from sms module
 - Reworked SMS formatting, removed text limit, #390438
 - Fixed: messaging_phpmailer does not use passed headers, by jmcclelland, #363001

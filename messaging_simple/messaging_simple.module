@@ -73,7 +73,7 @@ function messaging_simple_user_overview($account) {
     $output .= theme('table', $header, $rows);
     $output .= theme('pager', array(), MESSAGING_SIMPLE_PAGER);
   } else {
-    $output .= t('No pending messages');
+    $output .= '<p class="message-queue-empty">' . t('No pending messages') . '</p>';
   }
   return $output;
 }
