@@ -167,29 +167,52 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
  *   Optional send method. Defaults to the user account predefined method
  */
 function messaging_message_send_user($account, &$message, $method = NULL, $queue = 0) {
+  messaging_debug('Sending message to user', array('account' => $account, 'message' => $message, 'method' => $method));
+  // Build array of parameters so they can be overridden by callbacks
   $message = (object)$message;
-  // Get default sending method, or default for this user account
-  $method = $method ? $method : messaging_method_default($account);
+  $params = array(
+    'message' => $message,
+    // Get default sending method, or default for this user account
+    'method' => $method ? $method : messaging_method_default($account),
+    'queue' => $queue,
+    'account' => $account,
+    'log' => TRUE, // Log in case it cannot be delivered. This can be overridden by user callback
+  );
+  // Check user and availability if there's a callback for that. Depending on the sending method,
+  // when user is not available it may just be discarded / queued / redirected through other method
+  if ($callback = messaging_method_info($method, 'user callback')) {
+    $params = _messaging_callback_invoke($callback, $params);
+  }
+  // Set the parameters back into variables. I don't like extract()
+  $method = $params['method'];
+  $queue = $params['queue'];   
+  // Now check that we have a destination for this user account. If set to FALSE we just don't try anymore
+  if (isset($params['destination'])) {
+    $destination = $params['destination'];
+  }
+  elseif ($account) {
+    $destination = messaging_user_destination($account, $method, $message);
+  }
+  // Set some values into the message
+  $message->method = $method;
   $message->account = $account;
-  messaging_debug('Sending message to user', array('message' => $message));
   // Send the message or, if no destination, abort the message sending
-  if ($destination = messaging_user_destination($account, $method, $message)) {
+  if (!empty($destination)) {
     messaging_debug('Found destination for user, sending message', array('method' => $method, 'destination' => $destination));
     return messaging_message_send(array($destination), $message, $method, $queue);
-  } else {
+  } elseif (!empty($params['log'])) {
     // Save the message, let it there for further reference
     messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
-    $message->method = $method;
-    $info = messaging_method_info($method, NULL, array());
     $message->destination = 'ERROR';
+    $info = messaging_method_info($method);
     $message = messaging_message_prepare($message, $info);
     $message = messaging_message_render($message, $info);
     $message->cron = $message->queue = 0;
     $message->log = 1;
     $message->success = FALSE;
-    $message = messaging_store('save', $message);
-    return FALSE;
+    $message = messaging_store('save', $message);    
   }
+  return FALSE;
 }
 
 /**
@@ -209,7 +232,7 @@ function messaging_user_destination($account, $method, $message = NULL) {
     }
     elseif ($callback = _messaging_callback_get($info, 'destination')) {
       // We have a mapping function, it may also work for anonymous users
-      return _messaging_callback_invoke($callback, $account, $method, $message);
+      return _messaging_callback_invoke($callback, $account, $message);
     }
   }
 }
@@ -530,6 +553,9 @@ function messaging_method_default($account = NULL) {
  * If first checks for a 'messaging_$name' property in the user account
  * and returns the value of the variable 'messaging_default_$name' if not set
  * 
+ * There's an optional variable 'messaging_peruser_$name' that if true will block
+ * per user settings and use only global settings.
+ * 
  * @param $name
  *   Option name
  * @param $account
@@ -539,8 +565,8 @@ function messaging_method_default($account = NULL) {
  */
 function messaging_user_setting($name, $account = NULL, $default = NULL) {
   $variable = 'messaging_' . $name;
-  if ($account && isset($account->$variable)) {
-    return $account->variable;
+  if ($account && isset($account->$variable) && variable_get('messaging_peruser_' . $name, 1)) {
+    return $account->$variable;
   }
   else {
     return variable_get('messaging_default_' . $name, $default);
@@ -794,11 +820,8 @@ function messaging_check_plain($text, $break = NULL) {
     $text = _filter_htmlcorrector($text);
     $text = str_replace(array('</p>', '<br />', '<hr />', '</li>', '</h1>', '</h2>', '</h3>', '</h4>'), $break, $text);
   }
-  // Filters out all remaining HTML tags
-  $text = filter_xss($text, array());  
-  // HTML entities to plain text conversion.
-  $text = decode_entities($text);
-  return $text;
+  // Final text clean up
+  return messaging_text_clean($text);
 }
 
 /**
@@ -874,6 +897,50 @@ function messaging_text_replace($text, $objects) {
   else {
     return token_replace_multiple($text, $objects);
   }
+}
+
+/**
+ * Build a simple text with message subject and body
+ * 
+ * This is useful for methods requiring a simple text instead of header and subject
+ * 
+ * @param $message
+ *   Message object
+ * @param $glue
+ *   Separator to glue subject and body together
+ */
+function messaging_text_build($message, $glue = ' ') {
+  $parts = array(trim($message->subject), trim($message->body));
+  $parts = array_filter($parts);
+  if ($parts) {
+    $text = implode($glue, $parts);
+    return $text;
+  }
+  else {
+    return '';
+  }
+}
+
+/**
+ * Clean text of HTML stuff and optionally of line endings
+ * 
+ * @param $text
+ *   Dirty HTML text to be filtered
+ * @param $newline
+ *   Optional string to be used as line ending
+ */
+function messaging_text_clean($text, $newline= NULL) {
+  // HTML entities to plain text conversion.
+  $text = decode_entities($text);  
+  // Filters out all remaining HTML tags
+  $text = filter_xss($text, array());
+  // Optionally, replace new lines
+  if (!is_null($newline)) {
+    $text = str_replace("\n", $newline, $text);
+  }
+  // Trim out remaining beginning/ending spaces
+  $text = trim($text);
+  return $text;
 }
 
 /**
@@ -1073,6 +1140,18 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
       }
       break;
   }
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function messaging_theme() {
+  return array(
+    'messaging_admin_method_settings' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'messaging.admin.inc',
+    ),
+  );
 }
 
 /**

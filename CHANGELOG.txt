@@ -1,5 +1,12 @@
 // $Id$
 
+6.x-2.x-beta6 to ............
+------------------------------
+- Added new module, messaging_xmpp, to replace xmppframework xmpp_messaging
+- Added a new callback in message method info ('user callback') for use with xmppframework
+- Fixed some issues with SMS messages, gateway parameter is not used anymore.
+- Added some utility functions for text handling: messaging_text_build(), messaging_text_clean()
+
 6.x-2.x-beta5 to 6.x-2.x-beta6
 ------------------------------
 - Reworked logging and log formatting and moved debug module to Development package
