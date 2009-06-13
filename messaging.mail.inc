@@ -48,8 +48,9 @@ function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) 
     'subject'  => $message->subject,
     'body'     => $message->body,
     'headers'  => messaging_mail_headers($message, $params),
+    'attachments' => !empty($message->files) ? $message->files : array(),
   );  
-  
+
   // Invoke hook_mail_alter() to allow all modules to alter the resulting e-mail.
   if ($alter) {
     drupal_alter('mail', $mail);

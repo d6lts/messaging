@@ -2,6 +2,8 @@
 
 6.x-2.0 to ....
 --------------------------
+- Fixed: message params not properly handled in the store table, by greenSkin, #449112
+- Added attachments support for some mail methods, by Dane Powell, #371596
 - Added messaging debug test page to messaging settings
 - PHPMailer: Added SMTP authentication, by batje, #467438
 - Fix to private messaging send method interface, by David Goode
