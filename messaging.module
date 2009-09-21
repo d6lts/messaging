@@ -781,7 +781,7 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
         case 0:
           return t('Filters out all HTML tags and replaces HTML entities by characters, respects HTML line breaks.');
         case 1:
-          return t('Replaces HTML tags and entities with plain text formatting, moving links at the end.');
+          return t('Replaces HTML tags and entities with plain text formatting, moving links at the end. This filter is just for text messages and it isn\'t safe for rendering content on a web page.');
       }
 
     case 'process':

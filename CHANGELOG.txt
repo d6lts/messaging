@@ -1,5 +1,10 @@
 // $Id$
 
+6.x-2.1 to ........
+-------------------------
+- Fixed issue with sms sending, #407524
+- Strenghtening message filtering, better description, #546116
+ 
 6.x-2.0 to 6.x-2.1
 --------------------------
 - Fixed: outdated permission in privatemsg module, by askibinski, #491364
