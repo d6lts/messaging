@@ -28,11 +28,10 @@
 #  messaging_xmpp.module,v 1.1.2.1 2009/04/30 10:42:35 jareyero
 #
 msgid ""
-msgstr ""
-"Project-Id-Version: Drupal Messaging V6.x-2.0\n"
+msgstr "Project-Id-Version: Drupal Messaging V6.x-2.0\n"
 "POT-Creation-Date: 2009-06-28 14:17+0200\n"
 "PO-Revision-Date: 2009-06-28 14:22+0100\n"
-"Last-Translator: Alexander Haß\n"
+"Last-Translator: Thomas Zahreddin\n"
 "Language-Team: Frank Tartler <frank.tartler@googlemail.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -44,7 +43,7 @@ msgstr ""
 
 #: messaging.admin.inc:20
 msgid "Configure the templates for different types of messages. Each message group is defined by other modules using the Messaging Framework. A typical message consists on the following parts:"
-msgstr "Vorlagen für verschiedene Arten von Nachrichten konfigurieren. Jede Nachrichtengruppe wird von anderen Modulen definiert, die das Nachrichten-Rahmenwerk verwenden. Eine typische Nachricht besteht aus den folgenden Teilen:"
+msgstr "Konfigurieren Sie die Vorlagen für die verschiedenen Arten von Nachrichten. Jede Nachricht Gruppe ist mit den anderen Modulen mit dem Messaging Framework definiert. Eine typische Meldung besteht auf folgenden Teilen:"
 
 #: messaging.admin.inc:22
 msgid "Single line with a short description"
@@ -72,7 +71,7 @@ msgstr "Abschließender Teil mit Website-Informationen, Links zum Aufheben des A
 
 #: messaging.admin.inc:27
 msgid "Here you'll be able to configure each of these parts for each sending method. When one of these parts is left blank, there is a fallback system which goes as follows:"
-msgstr "Hier kann jeder dieser Teile für jede Sendemethode konfiguriert werden. Wenn einer dieser Teile leer gelassen wird, wird wie folgt vorgegangen:"
+msgstr "Hier kann jeder dieser Teile für jede Sendemethode konfiguriert werden.  Wenn einer dieser Teile leer gelassen wird, wird wie folgt vorgegangen:"
 
 #: messaging.admin.inc:29
 msgid "If a message part is left blank for a sending method, the text part from Default sending method will be used."
@@ -84,7 +83,7 @@ msgstr "Wenn der Standardteil ebenfalls leer ist, wird die Rückgriff-Vorlage (d
 
 #: messaging.admin.inc:34
 msgid "Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body. Set up the filters you need using the <a href=\"@input_formats\">Input formats</a> page"
-msgstr "Abhängig vom Inhaltsformat und den für Nachrichten verwendeten Tokens ist es wichtig, dass die richtige Filtermethode für den Nachrichtentext verwendet wird. Benötigte Filter können auf der Seite <a href=\"@input_formats\">Eingabeformate</a> eingerichtet werden."
+msgstr " Abhängig vom Inhaltsformat und den für Nachrichten verwendeten Tokens ist es wichtig, dass die richtige Filtermethode für den Nachrichtentext verwendet wird.  Benötigte Filter können auf der Seite <a href=\"@input_formats\">Eingabeformate</a> eingerichtet werden."
 
 #: messaging.admin.inc:40
 msgid "These are the message parts for %group."
@@ -166,7 +165,7 @@ msgstr "Grenzwerte für das Abarbeiten der Warteschlange"
 
 #: messaging.admin.inc:271
 msgid "These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit."
-msgstr "Dies sind Grenzwerte für jeden Cron-Lauf für das Abarbeiten der Warteschlange. Der Prozess endet, wenn es den ersten davon erreicht. Auf 0 einstellen für keinen Grenzwert."
+msgstr "Dies sind Grenzwerte für jeden Cron-Lauf für das Abarbeiten der Warteschlange Der Prozess endet, wenn es den ersten einem der Kriterien genügt. Auf 0 einstellen für keinen Grenzwert."
 
 #: messaging.admin.inc:274
 msgid "Number of messages sent"
@@ -193,7 +192,6 @@ msgid "You should enable some messaging method plug-ins for this to work."
 msgstr "Es müssen Plug-Ins für Nachrichten-Methoden aktiviert werden, damit dies funktioniert."
 
 #: messaging.admin.inc:337
-#, fuzzy
 msgid "Name for display"
 msgstr "Anzeigename"
 
@@ -211,7 +209,7 @@ msgstr "Es müssen ein oder mehrere beinhaltete Plug-Ins aktiviert werden, um ta
 
 #: messaging.module:40
 msgid "Filters are used also for messaging. If the input format is to be used only for messaging you don't need to allow any role for it."
-msgstr "Filter werden auch für Nachrichten verwendet. Wenn das zu verwendende Eingabeformat nur für Nachrichten verwendet werden soll, muss es für keine Rolle erlaubt werden."
+msgstr "Die Filter werden auch für Mitteilungen verwendet. Wenn das zu verwendende Eingabeformat nur für Nachrichten verwendet werden soll, muss dafür keine Rolle berechtigt werden."
 
 #: messaging.module:128;63
 msgid "Messaging settings"
@@ -243,7 +241,7 @@ msgstr "Nachrichten-Sendemethode %method deaktiviert und ersetzt durch %replace"
 
 #: messaging.module:1033
 msgid "Disabled messaging sending method but cannot find a replacement. Please, enable some other sending method."
-msgstr "Nachrichten-Sendemethode deaktiviert, es kann aber kein Ersatz gefunden werden. Es muss eine andere Sendemethode aktiviert werden."
+msgstr "Nachrichten-Sendemethode ist deaktiviert, es kann aber kein Ersatz gefunden werden. Es muss eine andere Sendemethode aktiviert werden."
 
 #: messaging.module:1117
 msgid "The message subject."
@@ -279,7 +277,7 @@ msgstr "Nachrichten-Sendemethoden"
 
 #: (duplicate) messaging.module:1000
 msgid "No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page."
-msgstr "Es sind keine Plug-Ins für Sendemethoden verfügbar. Es müssen Sendemethoden auf der Seite !admin-modules aktiviert werden."
+msgstr "Es sind keine Plug-Ins für Sendemethoden verfügbar. Es müssen Sendemethoden auf !admin-modules aktiviert werden."
 
 #: (duplicate) messaging.module:1000
 msgid "Modules administration"
@@ -344,5 +342,5 @@ msgstr "Ein neues Eingabeformat wurde erstellt: %name"
 
 #: messaging.info:0
 msgid "Messaging system. This is the base module for the Messaging Framework"
-msgstr "Sendesystem. Dies ist das Basismodul für das Nachrichten-Rahmenwerk"
+msgstr "Messaging System Dies ist das Basismodul für das Messaging Framework"
 
