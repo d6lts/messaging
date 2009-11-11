@@ -2,6 +2,9 @@
 
 6.x-2.1 to ........
 -------------------------
+- Fixed: 'aftersend' typo by batje, #508054 
+- Added line break default filter on install, by aaronbauman, #516012
+- PHPMailer: Added support for libraries API, by markus_petrux, #541938
 - Fixed issue with sms sending, #407524
 - Strenghtening message filtering, better description, #546116
  

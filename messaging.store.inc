@@ -68,7 +68,7 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
     messaging_store_unpack($message, TRUE);
     // Actual sending functions function
     $message->process = TRUE;
-    $message = messaging_message_callbacks(array('multisend', 'alftersend'), $message, messaging_method_info($message->method));
+    $message = messaging_message_callbacks(array('multisend', 'aftersend'), $message, messaging_method_info($message->method));
     if ($message->success) {
       $sent[] = $message->mqid;
     } else {

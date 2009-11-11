@@ -30,9 +30,9 @@ function messaging_phpmailer_requirements($phase) {
   $t = get_t();
 
   if ($phase == 'runtime') {
-    $path = drupal_get_path('module', 'messaging_phpmailer') .'/PHPMailer';
+    drupal_load('module', 'messaging_phpmailer');
 
-    if (!file_exists($path .'/class.phpmailer.php')) {
+    if (!messaging_phpmailer_load_library()) {
       $requirements['messaging_html_mail'] = array(
         'title' => $t('Messaging PHPMailer'),
         'value' => $t('PHP Mailer missing'),
