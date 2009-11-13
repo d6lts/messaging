@@ -1,7 +1,8 @@
 // $Id$
 
-6.x-2.1 to ........
+6.x-2.1 to 6.x-2.2
 -------------------------
+- Fixed: removed no caching for filters, #577418
 - Fixed: 'aftersend' typo by batje, #508054 
 - Added line break default filter on install, by aaronbauman, #516012
 - PHPMailer: Added support for libraries API, by markus_petrux, #541938

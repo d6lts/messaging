@@ -773,9 +773,6 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
       $info[1] = t('HTML to text');
       return $info;
 
-    case 'no cache':
-      return TRUE; // No caching at all, at least for development
-
     case 'description':
       switch ($delta) {
         case 0:
