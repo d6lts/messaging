@@ -11,6 +11,13 @@
 define('MESSAGING_DEBUG_PAGER', 10);
 
 /**
+ * Implementation of hook_init
+ */
+function messaging_debug_init() {
+  if (user_access('administer_messaging') && variable_get('messaging_debug', 0)) messaging_log_start();
+}
+
+/**
  * Implementation of hook_menu().
  */
 function messaging_debug_menu() {
@@ -383,7 +390,7 @@ function messaging_debug_send_msg($destination, &$message) {
  * Note: this is useless when there is a redirection after submitting. Enable Devel option 'Display redirection page' to see them.
  */
 function messaging_debug_footer() {
-  if (variable_get('messaging_debug', 0) && user_access('administer messaging') && ($logs = messaging_log())) {
+  if (user_access('administer messaging') && $logs = messaging_log_get()) {
     return messaging_log_format($logs);
   }
 }

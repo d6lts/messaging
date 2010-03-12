@@ -327,7 +327,12 @@ function messaging_admin_method_settings() {
   } else {
     $form['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
   }
-  return system_settings_form($form);  
+  $form = system_settings_form($form);
+  // Refresh strings after update if translation enabled
+  if (module_exists('i18nstrings')) {
+    $form['#submit'][] = 'messaging_locale_refresh';
+  }
+  return $form;
 }
 
 /**

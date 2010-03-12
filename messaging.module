@@ -507,6 +507,9 @@ function messaging_method_list($account = NULL) {
       if (!messaging_method_permission($method, $account) || !messaging_user_destination($account, $method)) {
         unset($info[$method]);
       }
+      else {
+        $info[$method] = messaging_translate("method:$method:name", $info[$method]);
+      }
     }
   }
   return $info;
@@ -1246,6 +1249,23 @@ function messaging_log($txt = NULL, $variables = NULL) {
 }
 
 /**
+ * Get logs without formatting
+ */
+function messaging_log_get() {
+  if ($logs = _messaging_log('return')) {
+    _messaging_log('reset');
+    return $logs;
+  }
+}
+
+/**
+ * Init logging system so logs are saved from now on
+ */
+function messaging_log_start() {
+  return _messaging_log('start');
+}
+
+/**
  * Short hand for debug logs
  */
 function messaging_debug($txt = NULL, $variables = NULL) {
@@ -1295,13 +1315,26 @@ function messaging_log_format($logs) {
  * Quick logging for debugging and manual queue processing
  */
 function _messaging_log($type, $txt = NULL, $variables = NULL, $severity = WATCHDOG_NOTICE) {
-  static $logs;
-  
-  if ($txt) {
-    $logs[] = array($type, $txt, $variables, $severity);
-  }
-  else {
-    return $logs;
+  static $enabled = FALSE;
+  switch ($type) {
+    case 'info':
+    case 'debug':
+      if ($enabled) {
+        $_SESSION['messaging_log'][] = array($type, $txt, $variables, $severity);
+      }
+      break;
+    case 'return':
+      return isset($_SESSION['messaging_log']) ? $_SESSION['messaging_log'] : NULL;
+      break;
+    case 'reset':
+      unset($_SESSION['messaging_log']);
+      break;
+    case 'start':
+      $enabled = TRUE;
+      break;
+    case 'stop':
+      $enabled = FALSE;
+      break;
   }
 }
 
@@ -1341,4 +1374,35 @@ function _messaging_log_format($log) {
   }
 
   return array($type, $string, $append, $objects);
+}
+
+/**   
+ * Wrapper function for 1i8nstrings() if i18nstrings enabled.   
+ */   
+function messaging_translate($name, $string, $langcode = NULL, $textgroup = 'messaging') {
+  return function_exists('i18nstrings') ? i18nstrings($textgroup . ':' . $name, $string, $langcode) : $string;  
+}
+
+/**
+ * Implementation of hook_locale().
+ */
+function messaging_locale($op = 'groups') {
+  switch ($op) {
+    case 'groups':
+      return array('messaging' => t('Notifications'));
+    case 'info':
+      $info['messaging']['refresh callback'] = 'messaging_locale_refresh';
+      $info['messaging']['format'] = TRUE; // Strings may have format
+      return $info;
+  }
+}
+
+/**
+ * Refresh strings for translation system
+ */
+function messaging_locale_refresh() {
+  foreach (messaging_method_info() as $name => $info) {
+    i18nstrings_update("messaging:method:$name:name", $info['name']);
+  }
+  return TRUE;
 }

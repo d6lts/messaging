@@ -1,5 +1,10 @@
 // $Id$
 
+6.x-2.2 to ...
+------------------------
+- Improved logging system so it needs to be enabled, see #733176
+- Updated translation function to work with latest i18nstrings. New messaging_translate()
+
 6.x-2.1 to 6.x-2.2
 -------------------------
 - Fixed: removed no caching for filters, #577418
