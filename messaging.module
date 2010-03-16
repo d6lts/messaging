@@ -1480,7 +1480,7 @@ function messaging_static_reset($name = NULL) {
  *   Existing mdid key or destination array
  */
 function messaging_destination_get($params) {
-  $destination = &drupal_static(__FUNCTION__);
+  $destination = &messaging_static(__FUNCTION__);
   if (is_array($params)) {
     $query = _messaging_query_conditions('messaging_destination', $params);
     $dest = db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE " . $query['where'], $query['params']));
