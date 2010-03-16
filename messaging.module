@@ -26,6 +26,15 @@ define('MESSAGING_TYPE_SEND', MESSAGING_TYPE_PUSH | MESSAGING_TYPE_OUTGOING);
 define('MESSAGING_EMPTY', '<none>');
 
 /**
+ * Implementation of hook_autoload_info().
+ */
+function messaging_autoload_info() {
+  return array(
+    'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),
+  ); 
+}
+
+/**
  * Implementation of hook_help().
  */
 function messaging_help($path, $arg) {
@@ -123,7 +132,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
   switch ($type) {
     case 'delete':
       // Delete user data from tables
-      db_query("DELETE FROM {messaging_destination} WHERE uid = %d", $user->uid);
+      Messaging_Destination::delete_multiple(array('uid' => $user->uid));
       db_query("DELETE FROM {messaging_store} WHERE uid = %d", $user->uid);
       break;
     case 'update':
@@ -1471,73 +1480,5 @@ function &messaging_static($name, $default_value = NULL, $reset = FALSE) {
  */
 function messaging_static_reset($name = NULL) {
   messaging_static($name, NULL, TRUE);
-}
-
-/**
- * Get destination
- * 
- * @param $params
- *   Existing mdid key or destination array
- */
-function messaging_destination_get($params) {
-  $destination = &messaging_static(__FUNCTION__);
-  if (is_array($params)) {
-    $query = _messaging_query_conditions('messaging_destination', $params);
-    $dest = db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE " . $query['where'], $query['params']));
-  }
-  else {
-    // If not array, parameter is mdid
-    if (!isset($destination[$params])) {
-      $destination[$params] = messaging_destination_load($mdid);
-    }
-    return $destination[$params];
-  }
-}
-
-/**
- * Load single destination
- */
-function messaging_destination_load($mdid) {
-  return db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE mdid = %d", $mdid));
-}
-
-/**
- * Build destination with partial parameters
- * 
- * If the destination(method, address) exists for a different user, it will return FALSE
- * @return
- *   Destination object if possible, 
- */
-function messaging_destination_build($method, $address, $uid = NULL) {
-  $params = array('method' => $method, 'address' => $address);
-  if ($destination = messaging_destination_get($params)) {
-    // Not valid, there's already a destination with these parameters but different user
-    return !isset($uid) || $destination->uid == $uid ? $destination : FALSE;
-  }
-  // Transitional case, row for user with no address, update it
-  if ($uid && ($destination = messaging_destination_get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
-    $params['mdid'] = $destination->mdid;
-  }
-  // Create a new destination object
-  $destination = (object)$params;
-  messaging_destination_save($destination);
-  return $destination;
-}
-
-/**
- * Save destination array/object
- */
-function messaging_destination_save($destination) {
-  $destination = (object)$destination;
-  $update = empty($destination->mdid) ? array() : 'mdid';
-  return drupal_write_record('messaging_destination', $destination, $update); 
-}
-
-/**
- * Delete messaging destination object/s
- */
-function messaging_destination_delete($params) {
-  $query = _messaging_query_conditions('messaging_destination', $params);
-  db_query("DELETE FROM {messaging_destination} WHERE " . $query['where'], $query['params']);
 }
 

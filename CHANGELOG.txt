@@ -2,6 +2,7 @@
 
 6.x-2.2 to ...
 ------------------------
+- Added Messaging_Destination class, new dependency on autoload module
 - Added messaging_destination table and basic API, see #743008
 - Added messaging_static(), Drupal 7 API backport, see #742884
 - Improved logging system so it needs to be enabled, see #733176
