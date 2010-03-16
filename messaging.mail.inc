@@ -93,28 +93,3 @@ function messaging_mail_headers($message, $params) {
 
   return $headers;
 }
-
-/**
- * Get list of mail methods
- */
-function messaging_mail_methods() {
-  $mail_methods = array();
-  foreach (messaging_method_info() as $method => $info) {
-    if (!empty($method['group']) && $method['group'] == 'mail') {
-      $mail_methods[] = $method;
-    }
-  }
-  return $mail_methods;
-}
-/**
- * Update destinations when a user account is updated, created
- * 
- * The destinations for that mail account will be assigned to the user
- */
-function messaging_mail_update_user($account) {
-  $methods = messaging_mail_methods();
-  if ($methods && $account->status) {
-    $params = array_merge(array($account->uid, $account->mail), $methods);
-    db_query("UPDATE {messaging_destinations} SET uid = %d WHERE uid = 0 AND address = '%s' AND method IN (" . db_placeholders($methods, 'varchar') . ")", $params);
-  }
-}

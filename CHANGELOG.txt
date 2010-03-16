@@ -2,8 +2,6 @@
 
 6.x-2.2 to ...
 ------------------------
-- Added messaging_destination table and basic API, see #743008
-- Added messaging_static(), Drupal 7 API backport, see #742884
 - Improved logging system so it needs to be enabled, see #733176
 - Updated translation function to work with latest i18nstrings. New messaging_translate()
 

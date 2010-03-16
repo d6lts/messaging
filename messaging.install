@@ -68,7 +68,19 @@ function messaging_schema() {
       'log' => array('log'),
     ),
   );
-
+ 
+  /*
+  $schema['messaging_user'] = array(
+    'description' => 'User variables for messaging',
+    'fields' => array(
+      'uid'    => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'name' => array('type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => ''),
+      'value'    => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+    ),
+    'primary key' => array('uid', 'name')
+  );
+  */
   $schema['messaging_message_parts'] = array(
     'description' => 'Templates for message composition.',
     'fields' => array(
@@ -100,44 +112,6 @@ function messaging_schema() {
     ),
   );
 
-  $schema['messaging_destination'] = array(
-    'description' => 'Stores message destination for users and non users.',
-    'fields' => array(
-      'mdid'    => array(      
-        'type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,
-        'description' => 'Unique destination id.',
-      ),
-      'uid'    => array(
-        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
-        'description' => 'The {user}.uid for destination if it belongs to a registered user.',        
-      ),
-      'method' => array(
-        'type' => 'varchar', 'length' => 60, 'not null' => TRUE, 'default' => '',
-        'description' => 'Messaging send method key.',
-      ),
-      'address' => array(
-        'type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '',
-        'description' => 'Destination identifier, it may be an email address.',
-      ),
-      'status' => array(
-        'type' => 'int', 'not null' => TRUE, 'default' => 1, 'size' => 'tiny',
-        'description' => 'Destination status: 1= active, 0 = inactive.',
-      ),
-      'sent' => array(
-        'type' => 'int', 'not null' => TRUE, 'default' => 0,
-        'description' => 'Unix timestamp, when the last message was sent to this address.',
-      ),
-    ),
-    'primary key' => array('mdid'),
-    'unique keys' => array(
-      'destination' => array('method', 'address'),
-    ),
-    'indexes' => array(
-      'uid' => array('uid'),
-      'method' => array('method'),
-      'address' => array('address'),
-    ),
-  );
   return $schema;
 }
 
@@ -322,14 +296,4 @@ function messaging_update_6005() {
   $ret[] = update_sql('UPDATE {messaging_store} SET log = 1 WHERE log > 1');
   $ret[] = update_sql('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d', time() - variable_get('messaging_log', 0));
   return $ret;
-}
-
-/**
- * Create destination table
- */
-function messaging_update_6006() {
-  $ret = array();
-  $table = drupal_get_schema('messaging_destination', TRUE);
-  db_create_table($table, 'messaging_destination', $table);
-  return $ret; 
 }
