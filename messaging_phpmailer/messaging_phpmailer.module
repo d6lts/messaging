@@ -41,6 +41,7 @@ function messaging_phpmailer_messaging($op = 'info') {
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
         'footer' => "<br><br>--",
         'description' => t('Send HTML e-mails using PHPMailer'),
+        'address_name' => t('E-mail address'), // Name of the address for this method
       );
       return $info;
   }

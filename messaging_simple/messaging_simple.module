@@ -130,6 +130,7 @@ function messaging_simple_messaging($op = 'info') {
         'send callback' => 'messaging_simple_send_msg',
         'destination' => 'uid',
         'format' => 'HTML',
+        'address_name' => t('User name'), // Name of the address for this method
       );
       return $info;  
   }

@@ -88,7 +88,8 @@ function messaging_xmpp_messaging($op) {
         'send callback' => 'messaging_xmpp_send_msg',
         'destination callback' => 'messaging_xmpp_user_destination',
         'render callback' => 'messaging_xmpp_render',
-        'user callback' => 'messaging_xmpp_user_check'
+        'user callback' => 'messaging_xmpp_user_check',
+        'address_name' => t('XMPP account'), // Name of the address for this method
       );
       return $info;
   }

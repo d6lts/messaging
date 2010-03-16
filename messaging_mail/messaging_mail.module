@@ -36,6 +36,7 @@ function messaging_mail_messaging($op, $type = NULL) {
         'send callback' => 'messaging_mail_send_msg', // Sending callback
         'system accounts' => TRUE, // Supports multiple sending accounts
         'account type' => 'mail', // The type of system account to use
+        'address_name' => t('E-mail address'), // Name of the address for this method
       );
       return $info;  
   }

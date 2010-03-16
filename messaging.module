@@ -1482,3 +1482,9 @@ function messaging_static_reset($name = NULL) {
   messaging_static($name, NULL, TRUE);
 }
 
+/**
+ * Load destination from key. Menu autoloading.
+ */
+function messaging_destination_load($mdid) {
+  return Messaging_Destination::load($mdid);  
+}

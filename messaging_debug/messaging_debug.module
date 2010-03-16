@@ -203,6 +203,7 @@ function messaging_debug_messaging($op = 'info', $type = NULL) {
         'glue' => '<br />',
         'description' => t('The messages will be just logged (And printed on page if Devel module enabled).'),
         'send callback' => 'messaging_debug_send_msg',
+        'address_name' => t('User name'), // Name of the address for this method
       );
       return $info;
   }        

@@ -22,6 +22,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
         'footer' => "<br><br>--",  // Separator for message footer
         'send callback' => 'messaging_mime_mail_send_msg',  // Sending callback
+        'address_name' => t('E-mail address'), // Name of the address for this method
       );
       return $info;  
   }

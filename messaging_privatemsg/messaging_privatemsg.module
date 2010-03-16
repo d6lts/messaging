@@ -22,6 +22,7 @@ function messaging_privatemsg_messaging($op) {
         'description' => t('Send messages through Privatemsg'),
         'send callback' => 'messaging_privatemsg_send_msg', // Sending callback
         'destination' => 'uid',
+        'address_name' => t('User name'), // Name of the address for this method
       );
       return $info;  
   }

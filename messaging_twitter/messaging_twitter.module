@@ -26,6 +26,7 @@ function messaging_twitter_messaging($op = 'info') {
         'destination callback' => 'messaging_twitter_user_destination',
         'system accounts' => TRUE, // Supports multiple sending accounts
         'account type' => 'twitter', // The type of system account to use
+        'address_name' => t('Twitter account'), // Name of the address for this method
       );
       $info['twitter_at'] = array(
         'title' => t('Twitter @ Message'),
@@ -38,6 +39,7 @@ function messaging_twitter_messaging($op = 'info') {
         'destination callback' => 'messaging_twitter_user_destination',
         'system accounts' => TRUE, // Supports multiple sending accounts
         'account type' => 'twitter', // The type of system account to use
+        'address_name' => t('Twitter account'), // Name of the address for this method
       );
       return $info;  
   }

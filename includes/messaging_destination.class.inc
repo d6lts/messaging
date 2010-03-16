@@ -52,7 +52,7 @@ class Messaging_Destination {
    * Get from db using conditions
    */
   public static function get($params) {
-    if ($dest = db_fetch_object($this->db_query("SELECT *", $params))) {    
+    if ($dest = db_fetch_object(self::db_query("SELECT *", $params))) {    
       $destinations = &messaging_static('messaging_destination');
       $destinations[$dest->mdid] = $dest;
       return $dest;
@@ -68,12 +68,12 @@ class Messaging_Destination {
    */
   public static function build($method, $address, $uid = NULL) {
     $params = array('method' => $method, 'address' => $address);
-    if ($destination = $this->get($params)) {
+    if ($destination = self::get($params)) {
       // Not valid, there's already a destination with these parameters but different user
       return !isset($uid) || $destination->uid == $uid ? $destination : FALSE;
     }
     // Transitional case, row for user with no address, update it
-    if ($uid && ($destination = $this->get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
+    if ($uid && ($destination = self::get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
       $params['mdid'] = $destination->mdid;
     }
     // Create a new destination object
@@ -100,7 +100,7 @@ class Messaging_Destination {
    * Delete messaging destination object/s
    */
   public static function delete_multiple($params) {
-    return $this->db_query("DELETE", $params);
+    return self::db_query("DELETE", $params);
   }
   // Magic function, format as string
   public function __toString() {

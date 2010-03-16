@@ -20,6 +20,7 @@ function messaging_sms_messaging($op = 'info') {
         'render callback' => 'messaging_sms_render',
         'send callback' => 'messaging_sms_send_msg',
         'destination callback' => 'messaging_sms_user_destination',
+        'address_name' => t('Phone number'), // Name of the address for this method
       );
       return $info;  
   }
