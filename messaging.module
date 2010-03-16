@@ -121,6 +121,15 @@ function messaging_perm() {
  */
 function messaging_user($type, $edit, &$user, $category = NULL) {
   switch ($type) {
+    case 'delete':
+      // Delete user data from tables
+      db_query("DELETE FROM {messaging_destination} WHERE uid = %d", $user->uid);
+      db_query("DELETE FROM {messaging_store} WHERE uid = %d", $user->uid);
+      break;
+    case 'update':
+      // Claim user mail address if in destinations table
+      module_invoke('messaging', 'mail_update_user', $user);
+      break;
     case 'form':
       if ($category == 'account' && ($list = messaging_method_list($user))) {
         $form['messaging'] = array(
@@ -852,9 +861,8 @@ function messaging_store() {
  * Helper user loading function with static caching
  */
 function messaging_load_user($uid) {
-  static $cache = array();
-  
-  if (!array_key_exists($uid, $cache)) {
+  $cache = &messaging_static(__FUNCTION__);
+  if (!$cache || !array_key_exists($uid, $cache)) {
     $cache[$uid] = user_load(array('uid' => $uid));
   }
   return $cache[$uid];
@@ -1219,26 +1227,35 @@ function _messaging_info($info, $method = NULL, $property = NULL, $default = NUL
  * Helper function for query builders.
  * 
  * Using schema data get 'field = [placeholder]' and args arrays
+ * 
+ * @param $table
+ *   Table name (to be prefixed)
+ * @param $params
+ *   Array of field => value conditions
+ * @param $table_alias
+ *   Optional table alias to prefix fields in conditions
  */
-function _messaging_query_conditions($table, $params) {
+function _messaging_query_conditions($table, $params, $table_alias = NULL) {
  $schema = drupal_get_schema($table);
  $conditions = $args = array();
  foreach ($params as $field => $value) {
    $type = $schema['fields'][$field]['type'];
+   $field_name = $table_alias ? "$table_alias.$field" : $field;
    // For array values, build IN conditions
    if (is_array($value)) {
-     $conditions[] = $field . ' IN (' . db_placeholders($value, $type) . ')';
+     $conditions[] = $field_name . ' IN (' . db_placeholders($value, $type) . ')';
      $args = array_merge($args, $value);
    }
    elseif (is_null($value)) {
-     $condtions[] = $field . ' IS NULL';
+     $condtions[] = $field_name . ' IS NULL';
    }
    else {
-     $conditions[] = $field . ' = ' . db_type_placeholder($type);
+     $conditions[] = $field_name . ' = ' . db_type_placeholder($type);
      $args[] = $value;
    }
  }
- return array('conditions' => $conditions, 'args' => $args);
+ // Return arrwy with conditions and arguments. Also full where clause.
+ return array('conditions' => $conditions, 'args' => $args, 'where' => implode(' AND ', $conditions));
 }
 
 /**
@@ -1406,3 +1423,121 @@ function messaging_locale_refresh() {
   }
   return TRUE;
 }
+
+/**
+ * Central static variable storage, Drupal 7 core backport
+ * 
+ * See http://api.drupal.org/api/function/drupal_static/7
+ */
+function &messaging_static($name, $default_value = NULL, $reset = FALSE) {
+  static $data = array(), $default = array();
+  if (!isset($name)) {
+    // All variables are reset. This needs to be done one at a time so that
+    // references returned by earlier invocations of drupal_static() also get
+    // reset.
+    foreach ($default as $name => $value) {
+      $data[$name] = $value;
+    }
+    // As the function returns a reference, the return should always be a
+    // variable.
+    return $data;
+  }
+  if ($reset) {
+    // The reset means the default is loaded.
+    if (array_key_exists($name, $default)) {
+      $data[$name] = $default[$name];
+    }
+    else {
+      // Reset was called before a default is set and yet a variable must be
+      // returned.
+      return $data;
+    }
+  }
+  elseif (!array_key_exists($name, $data)) {
+    // Store the default value internally and also copy it to the reference to
+    // be returned.
+    $default[$name] = $data[$name] = $default_value;
+  }
+  return $data[$name];
+}
+
+/**
+ * Reset static variable. Drupal 7 core backport.
+ * 
+ * See http://api.drupal.org/api/function/drupal_static_reset/7
+ * 
+ * @param $name
+ *   Name of the static variable to reset. Omit to reset all variables.
+ */
+function messaging_static_reset($name = NULL) {
+  messaging_static($name, NULL, TRUE);
+}
+
+/**
+ * Get destination
+ * 
+ * @param $params
+ *   Existing mdid key or destination array
+ */
+function messaging_destination_get($params) {
+  $destination = &drupal_static(__FUNCTION__);
+  if (is_array($params)) {
+    $query = _messaging_query_conditions('messaging_destination', $params);
+    $dest = db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE " . $query['where'], $query['params']));
+  }
+  else {
+    // If not array, parameter is mdid
+    if (!isset($destination[$params])) {
+      $destination[$params] = messaging_destination_load($mdid);
+    }
+    return $destination[$params];
+  }
+}
+
+/**
+ * Load single destination
+ */
+function messaging_destination_load($mdid) {
+  return db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE mdid = %d", $mdid));
+}
+
+/**
+ * Build destination with partial parameters
+ * 
+ * If the destination(method, address) exists for a different user, it will return FALSE
+ * @return
+ *   Destination object if possible, 
+ */
+function messaging_destination_build($method, $address, $uid = NULL) {
+  $params = array('method' => $method, 'address' => $address);
+  if ($destination = messaging_destination_get($params)) {
+    // Not valid, there's already a destination with these parameters but different user
+    return !isset($uid) || $destination->uid == $uid ? $destination : FALSE;
+  }
+  // Transitional case, row for user with no address, update it
+  if ($uid && ($destination = messaging_destination_get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
+    $params['mdid'] = $destination->mdid;
+  }
+  // Create a new destination object
+  $destination = (object)$params;
+  messaging_destination_save($destination);
+  return $destination;
+}
+
+/**
+ * Save destination array/object
+ */
+function messaging_destination_save($destination) {
+  $destination = (object)$destination;
+  $update = empty($destination->mdid) ? array() : 'mdid';
+  return drupal_write_record('messaging_destination', $destination, $update); 
+}
+
+/**
+ * Delete messaging destination object/s
+ */
+function messaging_destination_delete($params) {
+  $query = _messaging_query_conditions('messaging_destination', $params);
+  db_query("DELETE FROM {messaging_destination} WHERE " . $query['where'], $query['params']);
+}
+
