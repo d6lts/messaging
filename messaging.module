@@ -1396,9 +1396,7 @@ function _messaging_log_format($log) {
     // Transform arguments before inserting them.
     $append = $replace = $objects = array();
     foreach ($args as $key => $value) {
-      if (is_array($value) || is_object($value)) {
-        $objects[$key] = $value;
-      } else {
+      if (is_numeric($value) || is_string($value)) {
         switch ($key[0]) {
           case '@':
             // Escaped only.
@@ -1416,6 +1414,9 @@ function _messaging_log_format($log) {
             $append[$key] = '<strong>' . $key . '</strong>= ' . check_plain($value);
             break;
         }
+      }
+      elseif (is_array($value) || is_object($value)) {
+        $objects[$key] = $value;
       }
     }
     $string = strtr($string, $replace);
