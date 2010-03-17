@@ -52,7 +52,8 @@ class Messaging_Destination {
    * Get from db using conditions
    */
   public static function get($params) {
-    if ($dest = db_fetch_object(self::db_query("SELECT *", $params))) {    
+    if ($dest = db_fetch_object(self::db_query("SELECT *", $params))) {
+      $dest = new Messaging_Destination($dest);
       $destinations = &messaging_static('messaging_destination');
       $destinations[$dest->mdid] = $dest;
       return $dest;
@@ -66,11 +67,25 @@ class Messaging_Destination {
    * @return
    *   Destination object if possible, 
    */
-  public static function build($method, $address, $uid = NULL) {
+  public static function build($method, $address, $uid = 0) {
     $params = array('method' => $method, 'address' => $address);
-    if ($destination = self::get($params)) {
-      // Not valid, there's already a destination with these parameters but different user
-      return !isset($uid) || $destination->uid == $uid ? $destination : FALSE;
+    if ($destination = self::get($params)) { 
+      if ($destination->uid != $uid) {
+        // There's already a destination with these parameters but different user
+        if ($uid && !$destination->uid) {
+          // This was an anonymous destination, now it must be assigned to the user
+          $destination->uid = $uid;
+          $destination->save();
+          return $destination;
+        }
+        else {
+          // Not valid: it was a destination for another user
+          return FALSE;
+        }
+      }
+      else {
+        return $destination;
+      }
     }
     // Transitional case, row for user with no address, update it
     if ($uid && ($destination = self::get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
@@ -111,6 +126,6 @@ class Messaging_Destination {
    */
   protected static function db_query($sql, $params) {
     $query = _messaging_query_conditions('messaging_destination', $params);
-    return db_query($sql . ' FROM {messaging_destination} WHERE ' . $query['where'], $query['params']);
+    return db_query($sql . ' FROM {messaging_destination} WHERE ' . $query['where'], $query['args']);
   }
 }

@@ -234,6 +234,28 @@ function messaging_message_send_user($account, &$message, $method = NULL, $queue
 }
 
 /**
+ * Build destination object from user account
+ */
+function messaging_account_build_destination($account, $method = NULL, $address = NULL) {
+  if ($account->uid) {
+    if ($method && !$address) {
+      $address = messaging_user_destination($account, $method);
+    }
+    if ($method && $address) {
+      return Messaging_Destination::build($method, $address, $account->uid);
+    }
+    elseif (($fallback = messaging_method_default($account)) && $fallback != $method) {
+      // Retry with new method
+      return messaging_account_build_destination($account, $fallback);
+    }
+  }
+  elseif ($method && $address) { // Anonymous users
+    // @todo check the address doesn't belong to any user ???
+    return Messaging_Destination::build($method, $address, 0);
+  }
+}
+
+/**
  * Get destination from user account.
  * 
  * This will handle also anonymous user accounts that should have a 'destination' property
