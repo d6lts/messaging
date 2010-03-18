@@ -32,7 +32,9 @@ class Messaging_Destination {
   function __construct($object = NULL) {
     if ($object) {
       foreach ($object as $field => $value) {
-        $this->$field = $value;
+        if (property_exists($this, $field)) {
+          $this->$field = $value;
+        }
       }
     }
   }
@@ -103,7 +105,18 @@ class Messaging_Destination {
   function index() {
     return $this->uid . ':' . $this->method . ':' . $this->address;
   }
-
+  /**
+   * Get address name
+   */
+  function address_name() {
+    return messaging_method_info($this->method, 'address_name');
+  }
+  /**
+   * Get method name
+   */
+  function method_name() {
+    return messaging_method_info($this->method, 'name');
+  }
   /**
    * Save to store: Create or update
    */
