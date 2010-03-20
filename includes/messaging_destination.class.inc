@@ -80,6 +80,9 @@ class Messaging_Destination {
    *   Object template or messaging method
    */
   public static function build($template) {
+    if (is_array($template)) {
+      $template = (object)$template;
+    }
     if (is_object($template)) {
       $object = $template;
       $method = $tepmplate->method;
@@ -141,7 +144,9 @@ class Messaging_Destination {
       return $destination;
     }
   }
-  
+  /**
+   * Get destination by method and address. This allows advanced caching.
+   */
   public static function get_by_address($method, $address) {
     $destinations = &messaging_static('messaging_destination');
     if (!isset($destinations[$method][$address])) {
