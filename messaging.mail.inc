@@ -106,15 +106,17 @@ function messaging_mail_methods() {
   }
   return $mail_methods;
 }
+
 /**
  * Update destinations when a user account is updated, created
  * 
  * The destinations for that mail account will be assigned to the user
  */
 function messaging_mail_update_user($account) {
-  $methods = messaging_mail_methods();
-  if ($methods && $account->status) {
-    $params = array_merge(array($account->uid, $account->mail), $methods);
-    db_query("UPDATE {messaging_destinations} SET uid = %d WHERE uid = 0 AND address = '%s' AND method IN (" . db_placeholders($methods, 'varchar') . ")", $params);
+  if ($account->status) {
+    // Update mail for destinations of this user
+    db_query("UPDATE {messaging_destinations} SET mail = '%s' WHERE uid = %d AND type = 'mail'", $account->mail, $account->uid);
+    // Update uid for destinations with this mail
+    db_query("UPDATE {messaging_destinations} SET uid = %d WHERE uid = 0 AND type = 'mail' AND address = '%s'", $account->uid, $account->mail);
   }
 }

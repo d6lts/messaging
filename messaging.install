@@ -111,6 +111,10 @@ function messaging_schema() {
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
         'description' => 'The {user}.uid for destination if it belongs to a registered user.',        
       ),
+      'type' => array(
+        'type' => 'varchar', 'length' => 60, 'not null' => TRUE, 'default' => '',
+        'description' => 'Destination type: mail, xmpp, etc.',
+      ),
       'method' => array(
         'type' => 'varchar', 'length' => 60, 'not null' => TRUE, 'default' => '',
         'description' => 'Messaging send method key.',

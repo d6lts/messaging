@@ -17,6 +17,8 @@ class Messaging_Destination {
   public $mdid;
   // User id
   public $uid;
+  // Destination type
+  public $type;
   // Sending method
   public $method;
   // Address for this sending method
@@ -25,17 +27,22 @@ class Messaging_Destination {
   public $sent = 0;
   // Status
   public $status = 0;
-
+  // Processing values
+  protected $account;
+  
   /**
    * Constructor
    */
-  function __construct($object = NULL) {
+  function __construct($method = NULL, $object = NULL) {
+    $this->method = $method;
     if ($object) {
       foreach ($object as $field => $value) {
-        if (property_exists($this, $field)) {
-          $this->$field = $value;
-        }
+        $this->$field = $value;
       }
+    }
+    // Set destination type if missing
+    if (empty($this->type) && !empty($this->method)) {
+      $this->type = messaging_method_info($this->method, 'group');
     }
   }
   /**
@@ -45,7 +52,7 @@ class Messaging_Destination {
     $destinations = &messaging_static('messaging_destination');
     if (!$destinations || !isset($destinations[$mdid])) {
       $object = db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE mdid = %d", $mdid));
-      $destinations[$mdid] = $object ? new Messaging_Destination($object) : FALSE;
+      $destinations[$mdid] = $object ? self::build($object) : FALSE;
     }
     return $destinations[$mdid];
   }
@@ -55,50 +62,93 @@ class Messaging_Destination {
    */
   public static function get($params) {
     if ($dest = db_fetch_object(self::db_query("SELECT *", $params))) {
-      $dest = new Messaging_Destination($dest);
+      $dest = self::build($dest);
       $destinations = &messaging_static('messaging_destination');
       $destinations[$dest->mdid] = $dest;
+      $destinations[$dest->method][$dest->address] = $dest;
       return $dest;
-    }  
+    }
+    else {
+      return FALSE;
+    }
   }
 
   /**
    * Build destination with partial parameters
    * 
-   * If the destination(method, address) exists for a different user, it will return FALSE
-   * @return
-   *   Destination object if possible, 
+   * @param $template
+   *   Object template or messaging method
    */
-  public static function build($method, $address, $uid = 0) {
+  public static function build($template) {
+    if (is_object($template)) {
+      $object = $template;
+      $method = $tepmplate->method;
+    }
+    else {
+      $method = $template;
+      $object = NULL;
+    }
+    // The type may define its own class
+    if ($class = messaging_method_info($method, 'destination_class')) {
+      return new $class($method, $object);
+    }
+    else {
+      return new Messaging_Destination($method, $object);
+    }    
+  }
+  /**
+   * Validate values to create a destination
+   */
+  public static function validate($method, $address, $account = 0) {
+    $account = is_object($account) ? $account : messaging_load_user($account);
     $params = array('method' => $method, 'address' => $address);
-    if ($destination = self::get($params)) { 
-      if ($destination->uid != $uid) {
-        // There's already a destination with these parameters but different user
-        if ($uid && !$destination->uid) {
-          // This was an anonymous destination, now it must be assigned to the user
-          $destination->uid = $uid;
-          $destination->save();
-          return $destination;
-        }
-        else {
-          // Not valid: it was a destination for another user
-          return FALSE;
-        }
+    // First check permission
+    if (messaging_method_permission($method, $account)) {
+      if ($existing = self::get_by_address($method, $address)) {
+        // There's already a destination with these parameters, check user
+        // It will be ok if users match or it was anonymous before
+        return !$existing->uid || $existing->uid == $account->uid;
       }
       else {
-        return $destination;
+        // @todo Check if anonymous destinations match an existing user
+        return TRUE;
       }
     }
-    // Transitional case, row for user with no address, update it
-    if ($uid && ($destination = self::get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
-      $params['mdid'] = $destination->mdid;
-    }
-    // Create a new destination object
-    $destination = new Messaging_Destination((object)$params);
-    $destination->save();
-    return $destination;
   }
-
+  /**
+   * Create with parameters
+   */
+  public static function create($method, $address, $uid) {
+    if ($existing = self::get_by_address($method, $address)) {
+      if ($existing->uid != $uid) {
+        $existing->uid = $uid;
+        $existing->save();
+      }
+      return $existing;
+    }
+    // Transitional case, row for user with no address, update it
+    elseif ($uid && ($existing = self::get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
+      $existing->address = $address;
+      $existing->save();
+      return $existing;
+    }
+    else {
+      $destination = new Stdclass();
+      $destination->method = $method;
+      $destination->address = $address;
+      $destination = self::build($destination);
+      $destination->save();
+      return $destination;
+    }
+  }
+  
+  public static function get_by_address($method, $address) {
+    $destinations = &messaging_static('messaging_destination');
+    if (!isset($destinations[$method][$address])) {
+      $destinations[$method][$address] = self::get(array('method' => $method, 'address' => $address));
+    }
+    return $destinations[$method][$address];
+  }
   /**
    * Get unique index for this destination
    */
@@ -118,11 +168,26 @@ class Messaging_Destination {
     return messaging_method_info($this->method, 'name');
   }
   /**
+   * Get user account
+   */
+  function get_account() {
+    if (!isset($this->account) && isset($this->uid)) {
+      $this->account = messaging_load_user($this->uid);
+    }
+    return isset($this->account) ? $this->account : NULL;
+  }
+  /**
    * Save to store: Create or update
    */
   function save() {
     $update = empty($this->mdid) ? array() : 'mdid';
-    return drupal_write_record('messaging_destination', $this, $update);
+    $result = drupal_write_record('messaging_destination', $this, $update);
+    if ($result && !$update) {
+      $destinations = &messaging_static('messaging_destination');
+      $destinations[$this->mdid] = $this;
+      $destinations[$this->method][$this->address] = $this;
+    }
+    return $result;
   }
   /**
    * Delete messaging destination object/s
