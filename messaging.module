@@ -33,7 +33,6 @@ function messaging_autoload_info() {
     'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),
   ); 
 }
-
 /**
  * Implementation of hook_help().
  */
@@ -137,7 +136,9 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
       break;
     case 'update':
       // Claim user mail address if in destinations table
-      module_invoke('messaging', 'mail_update_user', $user);
+      if (function_exists('messaging_mail_update_user', $user)) {
+        messaging_mail_update_user($user);
+      }
       break;
     case 'form':
       if ($category == 'account' && ($list = messaging_method_list($user))) {

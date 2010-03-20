@@ -85,7 +85,7 @@ class Messaging_Destination {
     }
     if (is_object($template)) {
       $object = $template;
-      $method = $tepmplate->method;
+      $method = $template->method;
     }
     else {
       $method = $template;
@@ -136,10 +136,7 @@ class Messaging_Destination {
       return $existing;
     }
     else {
-      $destination = new Stdclass();
-      $destination->method = $method;
-      $destination->address = $address;
-      $destination = self::build($destination);
+      $destination = self::build(array('method' => $method, 'address' => $address, 'uid' => $uid));
       $destination->save();
       return $destination;
     }
