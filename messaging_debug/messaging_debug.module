@@ -351,16 +351,19 @@ function _messaging_debug_format_log($type, $string, $append, $objects) {
 function _messaging_debug_format_object($data, $name) {
   $rows = array();
   foreach ($data as $key => $value) {
-    if (is_object($value) || is_array($value)) {
-      $content = _messaging_debug_format_object($value, $key);
-    } else {
+    if (is_numeric($value) || is_string($value)) {
       // Make line endings visible
-      $content = str_replace("\n", '\n<br />', check_plain($value));
+      $content = str_replace("\n", '\n<br />', check_plain($value));      
     }
-    $rows[] = array(
-      check_plain($key),
-      $content, 
-    );
+    elseif (is_object($value) || is_array($value)) {
+      $content = _messaging_debug_format_object($value, $key);
+    }
+    if (isset($content)) {
+      $rows[] = array(
+        check_plain($key),
+        $content, 
+      );
+    }
   }
   $header = array(check_plain($name), is_object($data) ? t('Object') : t('Array'));
   return theme('table', $header, $rows);

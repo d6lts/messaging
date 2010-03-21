@@ -165,6 +165,32 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
 /** Messaging API **/
 
 /**
+ * Send message to destination object
+ *
+ * @param $destination
+ *   Messaging Destination object to recieve message.
+ * @param $message
+ *   Array of message parts that will be compiled depending on send method.
+ *   Mandatory message parts, which may have nexted parts are:
+ *   - 'type'
+ *   - 'subject'
+ *   - 'body'. The message body may have 'header', 'content', 'footer', 'etc'
+ * @param $queue
+ *   Optional send method. Defaults to the user account predefined method
+ */
+function messaging_message_send_destination($destination, $message, $queue = FALSE) {
+  messaging_debug('Sending message to destination', array('destination' => $account, 'message' => $message));
+  // Build array of parameters so they can be overridden by callbacks
+  $message = (object)$message;
+  $message->method = $destination->method;
+  $message->destination = $destination->address;
+  $message->acccount = $destination->get_account();
+  $message->queue = $queue ? 1 : 0;
+  $message->log = TRUE; // Log in case it cannot be delivered.
+  return messaging_message_send(array($destination->address), $message, $destination->method, $queue);
+}
+
+/**
  * Send message to user represented by account
  *
  * We are applying same output filter for everybody, depending on send method
@@ -235,7 +261,7 @@ function messaging_message_send_user($account, &$message, $method = NULL, $queue
 }
 
 /**
- * Build destination object from user account
+ * Build destination object from user account (and create destination if not exists)
  */
 function messaging_account_build_destination($account, $method = NULL, $address = NULL) {
   if ($account->uid) {
@@ -243,7 +269,7 @@ function messaging_account_build_destination($account, $method = NULL, $address 
       $address = messaging_user_destination($account, $method);
     }
     if ($method && $address) {
-      return Messaging_Destination::build($method, $address, $account->uid);
+      return Messaging_Destination::create($method, $address, $account->uid);
     }
     elseif (($fallback = messaging_method_default($account)) && $fallback != $method) {
       // Retry with new method
@@ -252,7 +278,7 @@ function messaging_account_build_destination($account, $method = NULL, $address 
   }
   elseif ($method && $address) { // Anonymous users
     // @todo check the address doesn't belong to any user ???
-    return Messaging_Destination::build($method, $address, 0);
+    return Messaging_Destination::create($method, $address, 0);
   }
 }
 
