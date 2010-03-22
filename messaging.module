@@ -136,7 +136,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
       break;
     case 'update':
       // Claim user mail address if in destinations table
-      if (function_exists('messaging_mail_update_user', $user)) {
+      if (function_exists('messaging_mail_update_user')) {
         messaging_mail_update_user($user);
       }
       break;
@@ -179,7 +179,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
  *   Optional send method. Defaults to the user account predefined method
  */
 function messaging_message_send_destination($destination, $message, $queue = FALSE) {
-  messaging_debug('Sending message to destination', array('destination' => $account, 'message' => $message));
+  messaging_debug('Sending message to destination', array('destination' => $destination, 'message' => $message));
   // Build array of parameters so they can be overridden by callbacks
   $message = (object)$message;
   $message->method = $destination->method;
@@ -921,7 +921,7 @@ function messaging_store() {
 function messaging_load_user($uid) {
   $cache = &messaging_static(__FUNCTION__);
   if (!$cache || !array_key_exists($uid, $cache)) {
-    $cache[$uid] = user_load(array('uid' => $uid));
+    $cache[$uid] = $uid ? user_load($uid) : drupal_anonymous_user();
   }
   return $cache[$uid];
 }
