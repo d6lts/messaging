@@ -182,6 +182,7 @@ function messaging_message_send_destination($destination, $message, $queue = FAL
   messaging_debug('Sending message to destination', array('destination' => $destination, 'message' => $message));
   // Build array of parameters so they can be overridden by callbacks
   $message = (object)$message;
+  $message->uid = $destination->uid;
   $message->method = $destination->method;
   $message->destination = $destination->address;
   $message->acccount = $destination->get_account();
