@@ -21,8 +21,11 @@ define('MESSAGING_TIME_MARGIN', 5);
  * 
  * @param $timeout
  *   Optional time out to use instead of cron, just for this api to be testable
+ * @return
+ *   Array of results indexed by message id
  */
 function messaging_store_queue_process($timeout = 0) {
+  $results = array();
   $limit = variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
   // Calculate time limit. We get the smaller of all these times in seconds
   if ($timeout) {
@@ -44,10 +47,13 @@ function messaging_store_queue_process($timeout = 0) {
   $max = !empty($limit['message']) ? $limit['message'] : 0;
   do {
     $step = $max ? min(MESSAGING_STEP_ROWS, $max - $count) : MESSAGING_STEP_ROWS;
-    $number = messaging_store_queue_process_step($step, $limit['time']);
-    $count += $number;   
+    $result = messaging_store_queue_process_step($step, $limit['time']);
+    $number = count($result);
+    $count += $number;
+    $results = array_merge($results, $result);
   } 
-  while ($number == $step && time() <= $limit['time'] && (!$max || $max > $count));    
+  while ($number == $step && time() <= $limit['time'] && (!$max || $max > $count));
+  return $results;
 }
 
 /**
@@ -58,18 +64,24 @@ function messaging_store_queue_process($timeout = 0) {
  * @param $timeout
  *   Optional time limit for processing, will return when if reached during processing
  * @return
- *   Number of messages processed in this step
+ *   Array of sending results indexed by message id
  */
 function messaging_store_queue_process_step($limit, $timeout = 0) {
   $count = 0;
-  $sent = $unsent = array();
+  $sent = $unsent = $processed = array();
   $result = db_query_range("SELECT * FROM {messaging_store} WHERE queue = 1 AND cron = 1 ORDER BY mqid", 0, $limit);
-  while ($message = db_fetch_object($result)) {
-    messaging_store_unpack($message, TRUE);
-    // Actual sending functions function
-    $message->process = TRUE;
-    $message = messaging_message_callbacks(array('multisend', 'aftersend'), $message, messaging_method_info($message->method));
-    if ($message->success) {
+  while ($object = db_fetch_object($result)) {
+    $message = messaging_store_unpack($object, TRUE);
+    // Do not queue again but send out
+    $message->queue = 0;
+    if (!empty($message->destinations)) {
+      $success = $message->send_multiple();
+    }
+    else {
+      $success = $message->send();
+    }
+    $processed[$message->mqid] = $success;
+    if ($success) {
       $sent[] = $message->mqid;
     } else {
       $unsent[] = $message->mqid;
@@ -84,7 +96,7 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
   if ($unsent) {
     messaging_store_sent($unsent, TRUE);
   }
-  return $count;
+  return $processed;
 }
 
 /**
@@ -127,8 +139,7 @@ function messaging_store_get($params, $order = NULL, $limit = NULL, $pager = NUL
     $result = db_query($sql, $args);
   }
   while ($msg = db_fetch_object($result)) {
-    messaging_store_unpack($msg, $unpack);
-    $messages[$msg->mqid] = $msg;
+    $messages[$msg->mqid] = messaging_store_unpack($msg, $unpack);
   }
   return $messages;
 }
@@ -138,8 +149,7 @@ function messaging_store_get($params, $order = NULL, $limit = NULL, $pager = NUL
  */
 function messaging_store_load($mqid) {
   if ($message = db_fetch_object(db_query('SELECT * FROM {messaging_store} WHERE mqid = %d', $mqid))) {
-    messaging_store_unpack($message, TRUE);
-    return $message;
+    return messaging_store_unpack($message, TRUE);
   } 
 }
 
@@ -175,50 +185,16 @@ function messaging_store_query($fields) {
  *   True for loading the account data if this message is intended for a user
  *   And loading the file objects associated too
  */
-function messaging_store_unpack(&$message, $full = FALSE) {
-  // Preprocessing stored parameters
+function messaging_store_unpack($message, $full = FALSE) {
+  // Unserialize stored parameters
   if ($message->params) {
-    $params = unserialize($message->params);
-    $message->params = array();
-    // Some optional fields that may be into params, may be extended
-    foreach (array('destination', 'sender_name', 'destinations') as $field) {
-      if (!empty($params[$field])) {
-        $message->$field = $params[$field];
-        unset($params[$field]);
-      }
-    }
-    // Load files attached to this message if any
-    // This will serve as a check of whether the files still exist
-    if (!empty($message->params['files']) && $full) {
-      $message->files = array();
-      $result = db_query('SELECT * FROM {upload} WHERE fid IN (' . db_placeholders($message->params['files']) . ')', $message->params['files']);
-      while ($file = db_fetch_object($result)) {
-        $message->files[$file->fid] = $file;
-      }
-    }
-    // We only saved params for current sending method group
-    $group = messaging_method_info($message->method, 'group');
-    if ($group && empty($message->params[$group])) {
-      $message->params[$group] = $params;
-    } else {
-      $message->params = $params;
-    }
+    $message->params = unserialize($message->params);
   }
-  if ($message->uid && $full) {
-    $message->account = messaging_load_user($message->uid);       
-  }
-  if ($message->sender && $full) {
-    $message->sender_account = messaging_load_user($message->sender);
-  }
-  // Check destinations array, in case it was not properly filled
-  if (empty($message->destinations)) {
-    if (!empty($message->account) && ($userdest = messaging_user_destination($message->account, $message->method, $message))) {
-      $message->destinations = array($userdest);
-    }
-    elseif (!empty($message->destination)) {
-      $message->destinations = array($message->destination);
-    }
-  }
+  // Unserialize data field
+  drupal_unpack($message);
+  // Saved messages are prepared and rendered
+  $message->prepared = $message->rendered = TRUE;
+  return new Messaging_Message($message);
 }
 
 /**
@@ -232,8 +208,6 @@ function messaging_store_unpack(&$message, $full = FALSE) {
 function messaging_store_sent($mqid, $error = FALSE) {
   $mqid = is_array($mqid) ? $mqid : array($mqid);
   list($where, $args) = messaging_store_query(array('mqid' => $mqid));
-  
-  
   if ($error) {
     // Error, log them all, sent = 0
     $sent = 0;
@@ -249,11 +223,19 @@ function messaging_store_sent($mqid, $error = FALSE) {
 }
 
 /**
- * Delete messages from queue
+ * Delete multiple messages from queue
  */
 function messaging_store_del($params) {
   list($where, $args) = messaging_store_query($params);
   db_query("DELETE FROM {messaging_store} WHERE ".implode(' AND ', $where), $args);
+}
+
+/**
+ * Delete single message from store
+ */
+function messaging_store_delete($message) {
+  $mqid = is_object($message) ? $message->mqid : $message;
+  db_query("DELETE FROM {messaging_store} WHERE mqid = %d", $mqid);
 }
 
 /**
@@ -265,56 +247,33 @@ function messaging_store_del($params) {
  *   Message object
  */
 function messaging_store_save($message) {
+  // Check we have a message object
+  $message = messaging_message_build($message);
+  messaging_store_prepare($message);
+  $update = empty($message->mqid) ? array() : 'mqid';
+  drupal_write_record('messaging_store', $message);
+  // Return message object for backwards compatibility
+  return $message;
+}
+
+/**
+ * Prepare for storage
+ */
+function messaging_store_prepare($message) {
   // Normalize some values. Boolean parameters must be 0|1
   foreach (array('queue', 'log', 'cron') as $field) {
     $message->$field = empty($message->$field) ? 0 : 1;
   }
-  // If sender is a user account, save sender field
-  if (!empty($message->sender_account)) {
-    $message->sender = $message->sender_account->uid;
+  // Check for multiple destinations, just store 'multiple'
+  // Bulk sending modules may store each destination differently
+  if (!empty($message->destinations) && count($message->destinations) > 1) {
+    $message->destination = 'multiple';      
   }
-  // We just save the params for current sending method group
-  $group = messaging_method_info($message->method, 'group');
-  $params = !empty($message->params[$group]) ? $message->params[$group] : array();
-  
-  // And there's one more optional param that is sender_name
-  if (!empty($message->sender_name)) {
-    $params['sender_name'] = $message->sender_name;
-  }
-  
-  // Mark for a user if there's an account parameter, produced by messaging_send_user()
-  if (!empty($message->account)) {
-    $message->uid = $message->account->uid;
-    $message->destination = 'user:' . $message->uid;
-  }
-  // Save serialized destinations
-  if (!empty($message->destinations)) {
-    $params['destinations'] = $message->destinations;
-  }
-  // Check destination, but preserve field in case it is already set. I.e. 'all users'
-  if (empty($message->destination) && !empty($message->destinations)) {
-    // Check for multiple destinations, just store 'multiple'
-    // Bulk sending modules may store each destination differently
-    if (count($message->destinations) > 1) {
-      $message->destination = 'multiple';      
-    }
-    // In case there's a single destination, try to put it as string
-    elseif ($destination = $message->destinations[0]) {
-      if (is_string($destination) || is_numeric($destination)) {
-        $message->destination = $destination;
-      }
+  // Add data fields to serialize
+  foreach ($message->data_fields() as $field) {
+    if (isset($message->$field)) {
+      $data[$field] = $message->$field;
     }
   }
-  // If there are files, serialize $file->fids in an array
-  if (!empty($message->files)) {
-    $params['files'] = array_keys($message->files);
-  }
-  // Add parameters, timestamp and save
-  $message->params = $params ? $params : NULL;
-  $message->created = time();
-  drupal_write_record('messaging_store', $message);
-  
-  // Finally, return the message object which should have a unique 'mqid'
-  return $message;
+  $message->data = !empty($data) ? $data : NULL;
 }
-

@@ -31,8 +31,10 @@ define('MESSAGING_EMPTY', '<none>');
 function messaging_autoload_info() {
   return array(
     'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),
+    'Messaging_Message' => array('file' => 'includes/messaging_message.class.inc'),
   ); 
 }
+
 /**
  * Implementation of hook_help().
  */
@@ -165,6 +167,17 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
 /** Messaging API **/
 
 /**
+ * Build message object from object or array
+ */
+function messaging_message_build($message) {
+  if(is_object($message) && is_a($message, 'Messaging_Message')) {
+    return $message;
+  }
+  else {
+    return new Messaging_Message($message);
+  }
+}
+/**
  * Send message to destination object
  *
  * @param $destination
@@ -181,14 +194,17 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
 function messaging_message_send_destination($destination, $message, $queue = FALSE) {
   messaging_debug('Sending message to destination', array('destination' => $destination, 'message' => $message));
   // Build array of parameters so they can be overridden by callbacks
-  $message = (object)$message;
+  $message = messaging_message_build($message);
   $message->uid = $destination->uid;
   $message->method = $destination->method;
   $message->destination = $destination->address;
   $message->acccount = $destination->get_account();
-  $message->queue = $queue ? 1 : 0;
-  $message->log = TRUE; // Log in case it cannot be delivered.
-  return messaging_message_send(array($destination->address), $message, $destination->method, $queue);
+  if ($queue) {
+    return $message->queue();
+  }
+  else {
+    return $message->send();
+  }
 }
 
 /**
@@ -212,53 +228,45 @@ function messaging_message_send_destination($destination, $message, $queue = FAL
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
  */
-function messaging_message_send_user($account, &$message, $method = NULL, $queue = 0) {
+function messaging_message_send_user($account, $message, $method = NULL, $queue = 0) {
   messaging_debug('Sending message to user', array('account' => $account, 'message' => $message, 'method' => $method));
   // Build array of parameters so they can be overridden by callbacks
-  $message = (object)$message;
-  $params = array(
-    'message' => $message,
-    // Get default sending method, or default for this user account
-    'method' => $method ? $method : messaging_method_default($account),
-    'queue' => $queue,
-    'account' => $account,
-    'log' => TRUE, // Log in case it cannot be delivered. This can be overridden by user callback
-  );
+  $message = messaging_message_build($message);
+  $message->method = $method ? $method : messaging_method_default($account);
+  $message->queue = $queue ? 1 : 0;
+  // Log in case it cannot be delivered. This can be overridden by user callback
+  //$message->log = TRUE;
+  $message->set_user($account);
   // Check user and availability if there's a callback for that. Depending on the sending method,
   // when user is not available it may just be discarded / queued / redirected through other method
-  if ($callback = messaging_method_info($method, 'user callback')) {
-    $params = _messaging_callback_invoke($callback, $params);
+  $message->process = TRUE;
+  $message->discard = FALSE;
+  // This can go through multiple redirections, when done $process should be FALSE
+  while (!$message->queue && $message->method && !$message->discard && $message->process && ($callback = messaging_method_info($message->method, 'user callback'))) {
+    $params = _messaging_callback_invoke($callback, $message);
   }
-  // Set the parameters back into variables. I don't like extract()
-  $method = $params['method'];
-  $queue = $params['queue'];   
+  // The sending method may have decided the message is to be discarded.
+  if ($message->discard) {
+    return FALSE;
+  }
+  if ($message->method && empty($message->destination)) {
+    $message->destination = messaging_user_destination($account, $message->method, $message);
+  }
   // Now check that we have a destination for this user account. If set to FALSE we just don't try anymore
-  if (isset($params['destination'])) {
-    $destination = $params['destination'];
-  }
-  elseif ($account) {
-    $destination = messaging_user_destination($account, $method, $message);
-  }
-  // Set some values into the message
-  $message->method = $method;
-  $message->account = $account;
   // Send the message or, if no destination, abort the message sending
-  if (!empty($destination)) {
-    messaging_debug('Found destination for user, sending message', array('method' => $method, 'destination' => $destination));
-    return messaging_message_send(array($destination), $message, $method, $queue);
-  } elseif (!empty($params['log'])) {
+  if ($message->method && $message->destination) {
+    messaging_debug('Found destination for user, sending message', array('method' => $message->method, 'destination' => $message->destination));
+    $message->send();
+  } elseif (!empty($message->log)) {
     // Save the message, let it there for further reference
     messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
     $message->destination = 'ERROR';
-    $info = messaging_method_info($method);
-    $message = messaging_message_prepare($message, $info);
-    $message = messaging_message_render($message, $info);
     $message->cron = $message->queue = 0;
     $message->log = 1;
     $message->success = FALSE;
-    $message = messaging_store('save', $message);    
+    $message->store();    
   }
-  return FALSE;
+  return $message->success;
 }
 
 /**
@@ -329,46 +337,38 @@ function messaging_user_destination($account, $method, $message = NULL) {
  *   We may want to force queueing for bulk messaging. Otherwise it will depend on the sending method
  *   wether to queue the messages (for pull methods) or not (push methods)
  */
-function messaging_message_send($destinations, &$message, $method, $queue = 0) {
+function messaging_message_send($destinations, $message, $method, $queue = 0) {
   messaging_debug('Sending message', array('destinations' => $destinations, 'message' => $message, 'method' => $method, 'queue' => $queue));
-  // Get default sending method, or default for this user account
-  $method = $method ? $method : messaging_method_default(NULL);
-  $info = messaging_method_info($method, NULL, array());
   
   // Convert into an object and add all the information into the message object
-  $message = (object)$message;
-  $message->method = $method;
+  $message = messaging_message_build($message);
+  $message->method = $method ? $method : messaging_method_default(NULL);
   $message->source['type'] = 'outgoing';
   $message->destinations = $destinations;
-  $message->queue = $queue;
+  $message->queue = $queue ? 1 : 0;
   $message->sent = $message->queued = 0;
 
-  // Message preprocessing, before sending
-  $message->process = TRUE;
-  $message = messaging_message_callbacks(array('prepare', 'render', 'presend'), $message, $info);
-  
-  // If queue / send call the next hooks
-  if (!empty($message->test)) {
-    // We are doing a test run so we don't send the message
-    messaging_log('Emulating message sending (test run)', array('message' => $message, 'destinations' => $destinations));
-    $message->success = TRUE;
+  if ($queue) {
+    $message->queue();
   }
   else {
-    if ($message->process) {
-      if ($message->queue) {
-        $callbacks = array('queue', 'afterqueue');
-      } else {
-        $callbacks = array('multisend', 'aftersend');
-      }
-      $message = messaging_message_callbacks($callbacks, $message, $info);
-    }
+    $message->send_multiple();
   }
- 
   // This will return true if the message was sent or queued for delivery
   if (!isset($message->success)) {
     $message->success = $message->sent || $message->queued;
   }
   return $message->success;
+}
+
+/**
+ * Test sending, just log message
+ */
+function messaging_message_test($message, $destinations = array()) {
+  $message->prepare();
+  $message->render();
+  messaging_log('Emulating message sending (test run)', array('summary' => (string)$message, 'message' => $message, 'destinations' => $destinations));
+  return $message->success = TRUE;
 }
 
 /**
@@ -393,7 +393,7 @@ function messaging_message_invoke($callback_list, $message, $info) {
  */
 function messaging_message_prepare($message, $info) {
   global $user;
-  
+
   messaging_debug('Preparing message for sending', array('message' => $message, 'info' => $info));
   // Set some default values if not already set
   foreach (array('sent' => 0, 'queue' => 0, 'cron' => 0, 'log' => (bool)variable_get('messaging_log', 0), 'sender' => $user->uid) as $field => $value) {
@@ -414,7 +414,8 @@ function messaging_message_prepare($message, $info) {
   foreach (module_implements('message_alter') as $module) {
     $function = $module.'_message_alter';
     $function($message, $info);
-  } 
+  }
+  $message->prepared = TRUE;
   return $message;
 }
 
@@ -440,7 +441,7 @@ function messaging_message_multisend($message, $info) {
  */
 function messaging_message_queue($message, $info = array()) {
   $message->queued = 1;
-  return messaging_store('save', $message);
+  $message->store();
 }
 
 /**
@@ -492,10 +493,11 @@ function messaging_message_log($message, $info) {
  *   Message successfully sent
  */
 function messaging_message_send_out($destination, $message, $method) {
+  $message = messaging_message_build($message);
   if ($callback = messaging_method_info($method, 'send callback')) {
     // Check for specific parameters for this sending method
-    $group = messaging_method_info($method, 'group');
-    $params = (!empty($message->params[$group])) ? $message->params[$group] : array();    
+    $params = $message->get_params($method);
+    $message->render();   
     return _messaging_callback_invoke($callback, $destination, $message, $params);
   } else {
     watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $method), WATCHDOG_ERROR);
@@ -1166,9 +1168,9 @@ function _messaging_callback_invoke() {
 function messaging_message_callbacks($callback_keys, $message, $info) {
   while (!empty($message->process) && ($key = array_shift($callback_keys))) {
     if ($callback = _messaging_callback_get($info, $key)) {
-      $message = messaging_message_invoke($callback, $message, $info);
+      messaging_message_invoke($callback, $message, $info);
     } elseif (function_exists('messaging_message_' . $key)) {
-      $message = call_user_func('messaging_message_' . $key, $message, $info);
+      call_user_func('messaging_message_' . $key, $message, $info);
     }
   }
   return $message;
@@ -1368,7 +1370,7 @@ function messaging_get_log() {
 function messaging_log_format($logs) {
   $rows = array();
   foreach ($logs as $log) {
-    list($type, $string, $append, $objects) = _messaging_log_format($log);        
+    list($type, $string, $append, $objects) = _messaging_log_format($log);     
     // Full objects/arrays are only rendered when debug module is enabled
     if ($objects && function_exists('_messaging_debug_format_log')) {
       $text = _messaging_debug_format_log($type, $string, $append, $objects);

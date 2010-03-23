@@ -55,11 +55,13 @@ class Messaging_Methods_Tests extends MessagingTestCase {
         $count++;
       }
       // Try these fake destinations, it should work as they're finally send through debug
+      $message = $this->randomMessage();
       $message->account = $user;
-      $this->assertEqual(messaging_message_send(array('foo1', 'foo2'), $message, $method, TRUE), TRUE, 'Bulk messages sent using: '.$name);
+      $result = messaging_message_send(array('foo1', 'foo2'), $message, $method, TRUE);
+      $this->assertEqual($result, TRUE, 'Bulk messages sent using: '.$name);
       $count++;
       $queued = messaging_store('get', array('uid' => $user->uid, 'method' => $method));
-      $this->assertEqual(count($queued), $count, 'The right number of messages have been queued for method: '.$method.' ('.count($queued).')');    
+      $this->assertEqual(count($queued), $count, 'The right number of messages have been queued for method: '.$method.' (Expected=' . $count . ' Real= ' . count($queued).')');    
     }    
   }  
 }

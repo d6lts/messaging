@@ -125,16 +125,14 @@ class Messaging_API_Tests extends MessagingTestCase {
     $message2 = $this->randomMessage();
     $this->assertTrue(messaging_message_send_user($user, $message1, NULL, 1), 'Message successfully queued for user');
     $this->assertTrue(messaging_message_send(array($user->mail, $user->mail), $message2, $test_method, 1), 'Bulk message successfully queued for multiple destinations.');
-    
     $queued = messaging_store('get', array('method' => $test_method, 'cron' => 1, 'queue' => 1));
     $this->assertEqual(count($queued), 2, 'We have the right number of messages in queue: ' . count($queued));
 
     // Process queue and check again
-    messaging_store('queue_process', 10);
+    $results = messaging_store('queue_process', 10);
+    $this->assertEqual(count($results), 2, 'Two rows have been processed.');
+    $this->assertEqual(count(array_filter($results)), 2, 'Both rows have been processed successfully.');
     $queued = messaging_store('get', array('method' => $test_method));
     $this->assertEqual(count($queued), 0, 'We have sent the messages in queue: ' . count($queued));
-
-    // Final clean up of messages in store
-    $this->messagingCleanUp();
- }
+  }
 }

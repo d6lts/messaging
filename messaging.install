@@ -60,6 +60,14 @@ function messaging_schema() {
         'type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny',
         'description' => 'Will be 1 if this is a message log.',
       ),
+      'error' => array(
+        'type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny',
+        'description' => 'Error code.',
+      ),
+      'data' => array(
+        'type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE,
+        'description' => 'Additional serialized parameters.',
+      ),
     ),    
     'primary key' => array('mqid'),
     'indexes' => array(
@@ -338,4 +346,14 @@ function messaging_update_6006() {
   $table = drupal_get_schema('messaging_destination', TRUE);
   db_create_table($table, 'messaging_destination', $table);
   return $ret; 
+}
+
+/**
+ * Add fields to messaging_store table
+ */
+function messaging_update_6007() {
+  $ret = array();
+  db_add_field($ret, 'messaging_store', 'data', array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE));
+  db_add_field($ret, 'messaging_store', 'error', array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny'));
+  return $ret;
 }

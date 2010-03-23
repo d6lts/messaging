@@ -127,23 +127,26 @@ function messaging_debug_post_form() {
  */
 function messaging_debug_post_form_submit($form, $form_state) {
   global $user;  
-  
+  messaging_log_start();
   // Convert body in array of lines
   $body = split("\n", $form_state['values']['body']);
   $body = array_map('trim', $body);
-  
-  $message = (object)array(
+  $method = $form_state['values']['method'];
+
+  $message = messaging_message_build(array(
     'type' => 'debug',
     'subject' => $form_state['values']['subject'],
-    'body' => $body,  
-  );
+    'body' => $body,
+    'method' => $method,
+  ));
   
   // Destination may be account or plain parameter/s
   $destination = $form_state['values']['to'];
+  
   if ($account = user_load(array('name' => $destination))) {
-    $result = messaging_message_send_user($account, $message, $form_state['values']['method']);
+    $result = messaging_message_send_user($account, $message, $method);
   } else {
-    $result = messaging_message_send(array($destination), $message, $form_state['values']['method']);
+    $result = messaging_message_send(array($destination), $message, $method);
   }
   drupal_set_message(t('Sent message with result: %result', array('%result' => $result ? 'OK' : 'Error'))); 
 }
@@ -316,7 +319,7 @@ function messaging_debug_log($txt = NULL, $variables = NULL) {
   if ($variables) {
     foreach ($variables as $key => $value) {
       if (is_object($value)) {
-        $variables[$key] = clone($value);
+        $variables[$key] = (object)$value;
       }
     }
   }
@@ -374,15 +377,15 @@ function _messaging_debug_format_object($data, $name) {
  * 
  * This is a pull method though, so this is mainly intended for testing options
  */
-function messaging_debug_send_msg($destination, &$message) {
+function messaging_debug_send_msg($destination, $message) {
   // Just logs everything and mark the message for logging too.
   $message->log = 1;
   $text = '';
   $watchdog = array();
-  $variables = array('%name' => $destination, '%key' => $message->type, '%subject' => $message->subject, '!body' => $message->body);
+  $variables = array('%name' => $destination, '%key' => $message->type, '%subject' => $message->subject, '@body' => $message->body);
   messaging_log('Message %key for %name: %subject', $variables);
   // Just log message body at the end
-  watchdog('messaging', 'Message %key for %name: %subject <br /> Message body: <br /><pre>!body</pre>', $variables);
+  watchdog('messaging', 'Message %key for %name: %subject <br /> Message body: <br /><pre>@body</pre>', $variables);
   return TRUE;
 }
 
@@ -395,6 +398,7 @@ function messaging_debug_send_msg($destination, &$message) {
  */
 function messaging_debug_footer() {
   if (user_access('administer messaging') && $logs = messaging_log_get()) {
+    
     return messaging_log_format($logs);
   }
 }
