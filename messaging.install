@@ -24,6 +24,10 @@ function messaging_schema() {
         'type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '',
         'description' => 'Messaging send method key.',
       ),
+      'language' => array(
+        'type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => '',
+        'description' => 'Language code.',
+      ),
       'destination' => array(
         'type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '',
         'description' => 'Destination identifier, it may be an email address.',
@@ -355,5 +359,6 @@ function messaging_update_6007() {
   $ret = array();
   db_add_field($ret, 'messaging_store', 'data', array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE));
   db_add_field($ret, 'messaging_store', 'error', array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'size' => 'tiny'));
+  db_add_field($ret, 'messaging_store', 'language', array('type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => ''));
   return $ret;
 }
