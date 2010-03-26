@@ -1,0 +1,7 @@
+; $Id$
+name = Text templates
+description = Configurable text templates for modules using messaging.
+package = "Messaging"
+dependencies[] = messaging
+dependencies[] = token
+core = 6.x

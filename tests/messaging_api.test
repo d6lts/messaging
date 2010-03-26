@@ -19,7 +19,7 @@ class Messaging_API_Tests extends MessagingTestCase {
   }
 
   function setUp() {
-    parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_mail');
+    parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_debug', 'messaging_mail');
     variable_set('messaging_method_simple', array('filter' => 0));
     variable_set('messaging_method_debug', array('filter' => 0));
   }
@@ -67,7 +67,7 @@ class Messaging_API_Tests extends MessagingTestCase {
   function testMessagingSendingAPI() {
     $this->messagingStartTest();
 
-    $test_method = 'simple';
+    $test_method = 'debug';
 
     $user = $this->drupalCreateUser();
     $user->messaging_default = $test_method;
@@ -105,8 +105,6 @@ class Messaging_API_Tests extends MessagingTestCase {
     // Now there should be two messages in queue for this user retrieve using two different methods
     $queued = messaging_store('get', array('uid' => $user->uid));
     $this->assertEqual(count($queued), 2, 'We have the right number of messages in queue: ' . count($queued));
-    $pending = messaging_pull_pending($test_method, array($user->uid), 0, FALSE);
-    $this->assertEqual(count($pending), 2, 'We can pull the right number of messages from queue: ' . count($pending));
     
     // Make messages into logs and then delete
     messaging_store('sent', array_keys($queued), TRUE);

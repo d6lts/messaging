@@ -44,16 +44,9 @@ function messaging_help($path, $arg) {
       $output = '<p>' . t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') . '</p>';
       $output .= '<p>' . t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') . '</p>';
       return $output;
-    default:
-      if ($arg[0] == 'admin') {
-        if ($arg[1] == 'settings' && $arg[2] == 'filters') {
-          return '<p>'. t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.') .'</p>';
-        }        
-        if ($arg[1] == 'messaging') {
-          require_once drupal_get_path('module', 'messaging') .'/messaging.admin.inc';
-          return messaging_admin_help($path, $arg);
-        }
-      }
+    case 'admin/messaging/settings/method':
+      $output = '<p>' . t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body. Set up the filters you need using the <a href="@input_formats">Input formats</a> page', array('@input_formats' => url('admin/settings/filters'))) . '</p>';
+      return $output;
   }
 }
 
@@ -99,21 +92,6 @@ function messaging_menu() {
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
-  $items['admin/messaging/template'] = array(
-    'title' => 'Message templates',
-    'description' => 'Configuration of message templates',
-    'page callback' => 'messaging_admin_template',
-    'access arguments' => array('administer messaging'),
-    'file' => 'messaging.admin.inc',
-  );
-  $items['admin/messaging/template/edit'] = array(
-    'title' => 'Message templates',
-    'page callback' => 'messaging_admin_template_edit',
-    'type' => MENU_CALLBACK,
-    'access arguments' => array('administer messaging'),
-    'file' => 'messaging.admin.inc',
-  );
-
   return $items;
 }
 
@@ -647,93 +625,6 @@ function messaging_user_setting($name, $account = NULL, $default = NULL) {
 }
 
 /**
- * Returns parts of messages, that may be formatted for each sending method
- *
- * @ TODO Review logic, optimizations, text pre-fetching
- * @ TODO Glue text in a method-dependent way
- *
- * First checks for message, key, method
- * Then checks for message, key for method 'default'
- * Finally checks default values from modules and hook_messaging()
- *
- * @param $group
- *   String, specified by the module where the message originates. ie 'subscriptions-event'.
- * @param $key
- *   String, key for the desired message part.
- * @param $method
- *   String the mailing method that should be used. OPTIONAL
- * @param $getdefault
- *   Boolean, whether to use the default if a specific message isn't available for the used method. OPTIONAL, Defaults to true.
- *
- * @return
- *   Assembled text of a message part.
- */
-function messaging_message_part($group, $key, $method = 'default', $getdefault = TRUE) {
-  static $cache;
-  if (isset($cache[$group][$key][$method])) {
-    $text_part = $cache[$group][$key][$method];
-  } else {
-    if ($method && ($text = db_result(db_query("SELECT message FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method)))){
-      $text_part = $text;
-    } elseif ($method == 'default' && ($text = messaging_message_info($group, $key))) {
-      // Retry with default but also set the cache for this method
-      $text_part = $text;
-    } elseif ($method != 'default' && $getdefault && ($text = messaging_message_part($group, $key, 'default'))) {
-      $text_part = $text;
-    } else {
-      $text_part = FALSE;
-    }
-    // Convert array into plain text
-    if ($text_part && is_array($text_part)) {
-      $text_part = implode("\n", $text_part);
-    }
-    $cache[$group][$key][$method] = $text_part;
-  }
-
-  return $text_part ? $text_part : '';
-}
-
-/**
- * Returns parts of messages, that may be formatted for each sending method
- *
- * @param $group
- *   Message group.
- * @param $key
- *   Optional message key inside the group. Returns all keys if null.
- * @return array()
- *   Depending on parameters, may be all message groups and keys or only a specific one.
- */
-function messaging_message_info($group, $key = NULL) {
-  static $info;
-  
-  if (!isset($info[$group])) {
-    $info[$group] = module_invoke_all('messaging', 'messages', $group);
-  }
-  
-  return _messaging_info($info, $group, $key);
-}
-
-/**
- * Returns information about message groups
- *
- * @param $group
- *   Optional message group. Returns all groups if null.
- * @param $key
- *   Optional message key inside the group. Returns all keys if null.
- * @return array()
- *   Depending on parameters, may be all message groups and keys or only a specific one.
- */
-function messaging_message_group($group = NULL, $key = NULL) {
-  static $info;
-  
-  if (!isset($info)) {
-    $info = module_invoke_all('messaging', 'message groups');
-  }
-  
-  return _messaging_info($info, $group, $key);
-}
-
-/**
  * Returns messaging methods properties
  *
  * @param $method
@@ -785,7 +676,7 @@ function messaging_message_render($message, $info) {
   $message->subject = messaging_check_subject(messaging_text_render($message->subject, $info['subject_glue']));
   $message->body = messaging_text_render($message->body, $info['glue'], $info['filter']); 
   $message->rendered = 1;  
-  messaging_debug('Rendering message', array('message' => $message, 'info' => $info));
+  messaging_debug('Rendered message', array('message' => array('subject' => $message->subject, 'body' => $message->body), 'info' => $info));
   return $message;
 }
 
@@ -947,25 +838,6 @@ function messaging_message_load($mqid, $refresh = FALSE) {
   }
 
   return $cache[$mqid];
-}
-
-/**
- * Do token replacement. 
- * 
- * Uses token_logic if enabled, standard token replacement otherwise
- */
-function messaging_text_replace($text, $objects) {
-  // Add some token types
-  $objects['global'] = NULL;  
-
-  // Use token_logic if available, http://code.developmentseed.org/token_logic
-  // Otherwise use standard contrib token module, http://drupal.org/project/token
-  if (module_exists('token_logic')) {
-    return token_logic_replace_multiple($text, $objects);
-  }
-  else {
-    return token_replace_multiple($text, $objects);
-  }
 }
 
 /**

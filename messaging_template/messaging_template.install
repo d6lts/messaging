@@ -1,0 +1,55 @@
+<?php
+// $Id$
+
+/**
+* Implementation of hook_schema().
+*/
+function messaging_template_schema() {
+  $schema['messaging_message_parts'] = array(
+    'description' => 'Templates for message composition.',
+    'fields' => array(
+      'type'    => array(
+        'type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => '',
+        'description' => 'Message group key.',
+      ),
+      'method'    => array(
+        'type' => 'varchar', 'length' => 50, 'not null' => TRUE, 'default' => '',
+        'description' => 'Messaging send method.',
+      ),
+      'msgkey' => array(
+        'type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => '',
+        'description' => 'Message part key, should be unique within a group (header, footer,..).',
+      ),
+      'module' => array(
+        'type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '',
+        'description' => 'Module that owns this template.',
+      ),
+      'message' => array(
+        'type' => 'text', 'not null' => TRUE, 'size' => 'big',
+        'description' => 'Message template, multiline text with tokens for replacement.',
+      ),
+    ),
+    'indexes' => array(
+      'type'    => array('type'),
+      'method' => array('method'),
+      'msgkey' => array('msgkey'),
+    ),
+  );
+  return $schema;  
+}
+
+/**
+ * Implementation of hook_install()
+ */
+function messaging_template_install() {
+  if (!db_table_exists('messaging_template_parts')) {
+    drupal_install_schema('messaging_template');
+  }
+}
+
+/**
+ * Implementation of hook_uninstall()
+ */
+function messaging_template_uninstall() {
+  drupal_uninstall_schema('messaging_template');
+}
