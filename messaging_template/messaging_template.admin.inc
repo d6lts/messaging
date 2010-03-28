@@ -66,7 +66,7 @@ function messaging_template_admin_template_edit($group) {
   $groups = module_invoke_all('messaging', 'message groups');
   if (isset($groups[$group])) {
     drupal_set_title(t('Message template for %name', array('%name' => $groups[$group]['name'])));
-    $output .= drupal_get_form('messaging_admin_message_form', $group, $groups[$group]);
+    $output .= drupal_get_form('messaging_template_admin_message_form', $group, $groups[$group]);
 
   }
   return $output;
@@ -75,7 +75,7 @@ function messaging_template_admin_template_edit($group) {
 /**
  * Edit message formats
  */
-function messaging_admin_message_form($form_state, $group, $group_info) {
+function messaging_template_admin_message_form($form_state, $group, $group_info) {
   $form['group'] = array('#type' => 'value', '#value' => $group);
   $keylist = module_invoke_all('messaging', 'message keys', $group);
   $send_methods = array('default' => t('Default'));

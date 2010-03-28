@@ -1061,6 +1061,11 @@ function messaging_token_list($type = 'all') {
     $tokens['message']['message-method'] = t('The message\'s method name.');
     $tokens['message']['message-date'] = t('The message\'s sending date.');
   }
+  if ($type == 'destination' || $type == 'all') {
+    $tokens['destination']['destination-address'] = t('Destination address.');
+    $tokens['destination']['destination-address-name'] = t('Destination address name.');
+    $tokens['destination']['destination-method-name'] = t('Destination method name.');
+  }
   return $tokens;
 }
 
@@ -1078,6 +1083,14 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
         $tokens['message-method'] = messaging_method_info($message->method, 'name');
         $tokens['message-date'] = format_date($message->sent);
         return $values;
+      }
+      break;
+    case 'destination':
+      // Messaging destinations
+      if ($destination = $object) {
+        $values['destination-address'] = check_plain($destination->address);
+        $values['destination-address-name'] = $destination->address_name();
+        $values['destination-method-name'] = $destination->method_name();
       }
       break;
   }
