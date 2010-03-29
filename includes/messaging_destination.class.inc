@@ -8,15 +8,17 @@
 /**
  * Message destination class
  */
-class Messaging_Destination {
+class Messaging_Destination extends Messaging_Cached_Object {
+  // Database properties
+  const DB_TABLE = 'messaging_destination';
+  const DB_KEY = 'mdid';
+
   // Destination status
   const STATUS_PENDING = 0;
   const STATUS_ACTIVE = 1;
 
   // Object unique id
   public $mdid;
-  // User id
-  public $uid;
   // Destination type
   public $type;
   // Sending method
@@ -27,45 +29,25 @@ class Messaging_Destination {
   public $sent = 0;
   // Status
   public $status = 0;
-  // Processing values
-  protected $account;
   
   /**
    * Constructor
    */
-  function __construct($method = NULL, $object = NULL) {
-    $this->method = $method;
-    if ($object) {
-      foreach ($object as $field => $value) {
-        $this->$field = $value;
-      }
-    }
+  function __construct($template = NULL) {
+    parent::__construct($template);
     // Set destination type if missing
     if (empty($this->type) && !empty($this->method)) {
       $this->type = messaging_method_info($this->method, 'group');
     }
-  }
-  /**
-   * Load single destination
-   */
-  public static function load($mdid) {
-    $destinations = &messaging_static('messaging_destination');
-    if (!$destinations || !isset($destinations[$mdid])) {
-      $object = db_fetch_object(db_query("SELECT * FROM {messaging_destination} WHERE mdid = %d", $mdid));
-      $destinations[$mdid] = $object ? self::build($object) : FALSE;
-    }
-    return $destinations[$mdid];
   }
 
   /**
    * Get from db using conditions
    */
   public static function get($params) {
-    if ($dest = db_fetch_object(self::db_query("SELECT *", $params))) {
-      $dest = self::build($dest);
-      $destinations = &messaging_static('messaging_destination');
-      $destinations[$dest->mdid] = $dest;
-      $destinations[$dest->method][$dest->address] = $dest;
+    if ($object = db_fetch_object(self::db_query("SELECT *", $params))) {
+      $dest = self::build($object);
+      $dest->cache_save();
       return $dest;
     }
     else {
@@ -81,6 +63,7 @@ class Messaging_Destination {
    */
   public static function build($template) {
     if (is_array($template)) {
+      $method = NULL;
       $template = (object)$template;
     }
     if (is_object($template)) {
@@ -89,15 +72,21 @@ class Messaging_Destination {
     }
     else {
       $method = $template;
-      $object = NULL;
+      $object = array('method' => $method);
     }
     // The type may define its own class
-    if ($class = messaging_method_info($method, 'destination_class')) {
-      return new $class($method, $object);
+    if ($method && ($class = messaging_method_info($method, 'destination_class'))) {
+      return new $class($object);
     }
     else {
-      return new Messaging_Destination($method, $object);
+      return new Messaging_Destination($object);
     }    
+  }
+  /**
+   * Load object from database
+   */
+  public static function load($key) {
+    return self::object_load(self::DB_TABLE, self::DB_KEY, $key, 'Messaging_Destination');
   }
   /**
    * Validate values to create a destination
@@ -145,12 +134,15 @@ class Messaging_Destination {
    * Get destination by method and address. This allows advanced caching.
    */
   public static function get_by_address($method, $address) {
-    $destinations = &messaging_static('messaging_destination');
-    if (!isset($destinations[$method][$address])) {
-      $destinations[$method][$address] = self::get(array('method' => $method, 'address' => $address));
+    $cached = self::cache_by_address($method, $address);
+    if (isset($cached)) {
+      return $cached;
     }
-    return $destinations[$method][$address];
+    else {
+      return self::get(array('method' => $method, 'address' => $address));
+    }
   }
+
   /**
    * Get unique index for this destination
    */
@@ -161,7 +153,8 @@ class Messaging_Destination {
    * Get address name
    */
   function address_name() {
-    return messaging_method_info($this->method, 'address_name');
+    $name = messaging_method_info($this->method, 'address_name');
+    return $name ? $name : t('Address');
   }
   /**
    * Get method name
@@ -170,27 +163,24 @@ class Messaging_Destination {
     return messaging_method_info($this->method, 'name');
   }
   /**
+   * Format address
+   */
+  function format_address($html = FALSE) {
+    if ($callback = messaging_method_info($this->method, 'format address callback')) {
+      $address = $callback($this->address, $html);
+      return $address ? $address : t('Unknown');
+    }
+    else {
+      return check_plain($this->address);
+    }
+  }
+  /**
    * Get user account
    */
   function get_account() {
-    if (!isset($this->account) && isset($this->uid)) {
-      $this->account = messaging_load_user($this->uid);
-    }
-    return isset($this->account) ? $this->account : NULL;
+    return $this->get_user();
   }
-  /**
-   * Save to store: Create or update
-   */
-  function save() {
-    $update = empty($this->mdid) ? array() : 'mdid';
-    $result = drupal_write_record('messaging_destination', $this, $update);
-    if ($result && !$update) {
-      $destinations = &messaging_static('messaging_destination');
-      $destinations[$this->mdid] = $this;
-      $destinations[$this->method][$this->address] = $this;
-    }
-    return $result;
-  }
+
   /**
    * Delete messaging destination object/s
    */
@@ -207,5 +197,41 @@ class Messaging_Destination {
   protected static function db_query($sql, $params) {
     $query = _messaging_query_conditions('messaging_destination', $params);
     return db_query($sql . ' FROM {messaging_destination} WHERE ' . $query['where'], $query['args']);
+  }
+  // Get table name for storage
+  public static function db_table() {
+    return self::DB_TABLE;
+  }
+  // Get key field name for storage
+  public static function db_key() {
+    return self::DB_KEY;
+  }
+  /**
+   * Save object to cache
+   */
+  public function cache_save() {
+    if ($this->key()) {
+      $this->cache_set($this->key(), $this);
+      $this->cache_by_address($this->method, $this->address, $this);
+    }
+  }
+  // Store into cache
+  public static function cache_set($key, $object) {
+    return self::object_cache_set('Notifications_Destination', $key, $object);
+  }
+  // Get from cache
+  public static function cache_get($key) {
+    return self::object_cache_get('Notifications_Destination', $key);
+  }
+  /**
+   * Cache get/set by method and address
+   */
+  public static function cache_by_address($method, $address, $object = NULL) {
+    if (isset($object)) {
+      return self::cache_set("$method:$address", $object);
+    }
+    else {
+      return self::cache_get("$method:$address");
+    }
   }
 }

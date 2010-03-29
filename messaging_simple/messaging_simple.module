@@ -131,8 +131,18 @@ function messaging_simple_messaging($op = 'info') {
         'destination' => 'uid',
         'format' => 'HTML',
         'address_name' => t('User name'), // Name of the address for this method
+        'format address callback' => 'messaging_simple_format_address',
       );
       return $info;  
+  }
+}
+
+/**
+ * Callback for address formatting
+ */
+function messaging_simple_format_address($uid, $html = FALSE) {
+  if ($account = messaging_load_user($uid)) {
+    return $html ? theme('username', $account) : check_plain($account->name);
   }
 }
 

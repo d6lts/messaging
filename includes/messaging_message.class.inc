@@ -10,7 +10,10 @@
  * 
  * This is a message with all the information, ready for sending
  */
-class Messaging_Message {
+class Messaging_Message extends Messaging_Object {
+  // Database properties
+  const DB_TABLE = 'messaging_store';
+  const DB_KEY = 'mqid';
   // Unique id
   public $mqid;
   // Message type: outgoing, incoming
@@ -20,8 +23,6 @@ class Messaging_Message {
   protected $method_info;
   // Message source, mixed data
   public $source;
-  // Language code
-  public $language;
   // Sending method specific params
   public $params;
   // Message destination
@@ -75,9 +76,7 @@ class Messaging_Message {
    * Constructor, with predefined array of data
    */ 
   function __construct($data = array()) {
-    foreach ($data as $key => $value) {
-      $this->$key = $value;
-    }
+    parent::__construct($data);
     // Set logging option
     if (!isset($this->log)) {
       $this->log = variable_get('messaging_log', 0);
@@ -86,7 +85,18 @@ class Messaging_Message {
       $this->created = time();
     }
   }
-  
+  /**
+   * Load from db
+   */
+  public static function load($mqid) {
+    return messaging_store('load', $mqid);
+  }
+  /**
+   * Build from object or array
+   */
+  public static function build($template) {
+    return new Messaging_Message($template);
+  }
   /**
    * Actual message sending
    */
@@ -304,13 +314,7 @@ class Messaging_Message {
       $this->method = $destination->method;
     }
   }
-  /**
-   * Set user account 
-   */
-  function set_user($account) {
-    $this->uid = $account->uid;
-    $this->user = $account;
-  }
+
   /**
    * Add destination to the list
    * 
@@ -445,15 +449,13 @@ class Messaging_Message {
     }
     return $this->sender_account;
   }
-  /**
-   * Get destination user
-   */
-  function get_user() {
-    if (!isset($this->user)) {
-      $user = isset($this->uid) ? messaging_load_user($this->uid) : NULL;
-      $this->user = $user ? $user : FALSE;
-    }
-    return $this->user;
+  // Get table name for storage
+  public static function db_table() {
+    return self::DB_TABLE;
+  }
+  // Get key field name for storage
+  public static function db_key() {
+    return self::DB_KEY;
   }
 }
 

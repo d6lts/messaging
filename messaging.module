@@ -30,6 +30,8 @@ define('MESSAGING_EMPTY', '<none>');
  */
 function messaging_autoload_info() {
   return array(
+    'Messaging_Object' => array('file' => 'includes/messaging_object.class.inc'),
+    'Messaging_Cached_Object' => array('file' => 'includes/messaging_object.class.inc'),
     'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),
     'Messaging_Message' => array('file' => 'includes/messaging_message.class.inc'),
   ); 
