@@ -153,17 +153,24 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
  * 
  * @param $method
  *   Method name or Messaging_Method object
+ * @param $method_info
+ *   Array of properties to build a custom send method
  */
-function messaging_send_method($method) {
+function messaging_send_method($method, $method_info = array()) {
   $send_methods = &messaging_static(__FUNCTION__);
   
   if (is_object($method)) {
     return $method;
   }
   if (!isset($send_methods[$method])) {
-    $info = messaging_method_info($method);
-    $class = !empty($info['class']) ? $info['class'] : 'Messaging_Send_Method';
-    $send_methods[$method] = new $class($method, $info);
+    if ($info = messaging_method_info($method)) {
+      $class = !empty($info['class']) ? $info['class'] : 'Messaging_Send_Method';
+      $send_methods[$method] = new $class($method, $info);
+    }
+    else {
+      // No info available from modules. This is a custom method or a disabled one
+      $send_methods[$method] = new Messaging_Send_Method($method, $method_info);
+    }
   }
   
   return $send_methods[$method];
@@ -231,7 +238,7 @@ function messaging_message_send_destination($destination, $message, $queue = FAL
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
  */
-function messaging_message_send_user($account, $message, $method = NULL, $queue = 0) {
+function messaging_message_send_user($account, $message, $method = NULL, $queue = FALSE) {
   messaging_debug('Sending message to user', array('account' => $account, 'message' => $message, 'method' => $method));
   // Build array of parameters so they can be overridden by callbacks
   $message = messaging_message_build($message);
@@ -362,82 +369,10 @@ function messaging_message_test($message, $destinations = array()) {
 }
 
 /**
- * Invoke callbacks
- */
-function messaging_message_invoke($callback_list, $message, $info) {
-  if (is_string($callback_list)) {
-    $callback_list = array($callback_list);
-  }
-
-  // Any of the functions can 'swallow' the message and stop processing
-  while ($message->process && ($callback = array_shift($callback_list))) {
-    $message = _messaging_callback_invoke($callback, $message, $info);
-  }
-  return $message;  
-}
-
-/**
  * Message default callback: preprocessing
  */
 function messaging_message_prepare($message, $info) {
   Messaging_Send_Method::default_prepare($message, $info);
-}
-
-/**
- * Message default callback: send iterating over all destinations
- */
-function messaging_message_multisend($message, $info) {
-  $success = TRUE;
-  foreach ($message->destinations as $to) {
-    // Be careful with the order of function && value, so they both are evaluated
-    $success = messaging_message_send_out($to, $message, $message->method) && $success;
-  }
-  // If sent, set time. If failed force logging.
-  $success ? ($message->sent = time()) : ($message->log = 1);
-  $message->success = $success;
-  return $message;
-}
-
-/**
- * Queue message for next delivery
- * 
- * @todo Improve storage so we can store only once but multiple rows for destinations
- */
-function messaging_message_queue($message, $info = array()) {
-  $message->queued = 1;
-  $message->store();
-}
-
-/**
- * Store messages, custom delivery
- */
-function messaging_message_store($message, $info = array()) {
-  $message->stored = 1;
-  if (empty($message->mqid)) {
-    $message = messaging_store('save', $message);
-  }
-  return $message;
-}
-
-/**
- * Message default after send callback: store, log, etc..
- */
-function messaging_message_aftersend($message, $info) {
-  // Depending on parameters and what's happened so far we make the final queue/log decision
-  if (empty($message->mqid) && $message->log) {
-    messaging_store('save', $message);
-  }
-  return $message;
-}
-
-/**
- * Message logging callback
- */
-function messaging_message_log($message, $info) {
-  if (empty($message->mqid)) {
-    messaging_store('save', $message);
-  }
-  return $message;
 }
 
 /**
@@ -579,20 +514,19 @@ function messaging_user_setting($name, $account = NULL, $default = NULL) {
  *   Optional default value to return when there's not that property for the method
  */
 function messaging_method_info($method = NULL, $property = NULL, $default = NULL, $refresh = FALSE) {
-  static $info, $properties;
+  $info = &messaging_static(__FUNCTION__);
   
   if (!$info || $refresh) {
     $info = module_invoke_all('messaging', 'send methods');
-    // Merge settings for each enabled method, just default filter if variable not set
-    $default_settings = array('filter' => variable_get('messaging_default_filter', ''));
+    // Merge settings from variable for each enabled method
     foreach (array_keys($info) as $name) {
-      $info[$name] = array_merge($info[$name], variable_get('messaging_method_' . $name, $default_settings));
+      $info[$name] = array_merge($info[$name], variable_get('messaging_method_' . $name, array()));
     }
     // Allow altering by other modules
     drupal_alter('messaging_methods', $info);
   }
 
-  return _messaging_info($info, $method, $property, $default);
+  return messaging_array_info($info, $method, $property, $default);
 }
 
 /**
@@ -674,11 +608,7 @@ function messaging_check_subject($text) {
  * Entry point for the storage API
  */
 function messaging_store() {
-  static $include;
-  if (!isset($include)) {
-    require_once drupal_get_path('module', 'messaging') .'/messaging.store.inc';
-    $include = TRUE;
-  }
+  messaging_include('messaging_store.inc');
   $args = func_get_args();
   $function = 'messaging_store_'. array_shift($args);
   return call_user_func_array($function, $args);
@@ -900,10 +830,9 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
     case 'message':
       if ($message = $object) {
-        $values['message-subject'] = check_plain($message->subject);
-        $values['message-body'] = filter_xss($message->body);
-        $sender = messaging_load_user($message->sender);
-        $values['message-author-name'] = check_plain($sender->name);
+        $values['message-subject'] = check_plain($message->get_subject());
+        $values['message-body'] = filter_xss($message->get_body());
+        $values['message-author-name'] = check_plain($message->get_sender_name());
         $tokens['message-method'] = messaging_method_info($message->method, 'name');
         $tokens['message-date'] = format_date($message->sent);
         return $values;
@@ -912,7 +841,7 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
     case 'destination':
       // Messaging destinations
       if ($destination = $object) {
-        $values['destination-address'] = check_plain($destination->address);
+        $values['destination-address'] = $destination->format_address(FALSE);
         $values['destination-address-name'] = $destination->address_name();
         $values['destination-method-name'] = $destination->method_name();
       }
@@ -974,7 +903,7 @@ function _messaging_callback_get($info, $type, $default = NULL) {
  * 
  * Depending on method and property, returns the full array or a specific property
  */
-function _messaging_info($info, $method = NULL, $property = NULL, $default = NULL) {
+function messaging_array_info($info, $method = NULL, $property = NULL, $default = NULL) {
   if ($method && $property) {
     return isset($info[$method][$property]) ? $info[$method][$property] : $default;
   } elseif ($method) {
@@ -1287,4 +1216,17 @@ function messaging_mail_methods() {
  */
 function messaging_mail_update_user($account) {
   return Messaging_Method_Mail::mail_update_user($account);
+}
+
+/**
+ * Include module files as necessary.
+ * 
+ * The files must be in an 'includes' subfolder inside the module folder. 
+ */
+function messaging_include($file, $module = 'messaging') {
+  static $included = array();
+  if (!isset($included[$module][$file])) {
+    require_once './' . drupal_get_path('module', $module) . '/includes/' . $file;
+    $included[$module][$file] = TRUE;
+  }
 }

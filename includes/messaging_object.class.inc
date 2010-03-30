@@ -105,14 +105,14 @@ abstract class Messaging_Object {
       return $this->update();
     }
     else {
-      $result = $this->insert();
+      return $this->insert();
     }
   }
   /**
    * Create object in database
    */
   public function insert() {
-    $result = drupal_write_record($this->db_table(), $this);
+    return drupal_write_record($this->db_table(), $this);
   }
   /**
    * Update object in database

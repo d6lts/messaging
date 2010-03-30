@@ -71,7 +71,8 @@ class Messaging_Message extends Messaging_Object {
   // Test message, not really for sending
   public $test = FALSE;
   public $success = TRUE;
-  
+  // The message has been updated after being saved, needs to be saved again
+  public $updated = FALSE;
   /**
    * Constructor, with predefined array of data
    */ 
@@ -124,6 +125,7 @@ class Messaging_Message extends Messaging_Object {
       return $this->success;
     }
   }
+
   /**
    * Get send method class
    */
@@ -206,23 +208,21 @@ class Messaging_Message extends Messaging_Object {
     // Processing has stopped because any of the callbacks decided so.
     if (!$this->processed) {
       $this->set_error("Process aborted, operation: $op");
-      if ($this->discard) {
-        $this->discard();
-      }
     }
+    // End message processing store or dispose
+    $this->done();
     return $this->success;
   }
   /**
    * Queue message
    */
-  function queue() {
+  public function queue() {
     if (!$this->processed) {
       $this->queue = 1;
       $this->cron = 1;
       return $this->process('prepare', 'queue');
     }
-    if (!$this->queued) {
-      $this->render();
+    if (!$this->queued && $this->queue) {
       $this->success = TRUE;
       $this->invoke_callbacks('queue', 'afterqueue');
       $this->success = $this->queued = TRUE;
@@ -232,8 +232,19 @@ class Messaging_Message extends Messaging_Object {
    * Discard message
    */
   function discard($reason = '') {
-    messaging_log('Message discarded during process', array('message' => (string)$this));
+    messaging_log('Message discarded during process', array('reason' => $reason, 'message' => (string)$this));
     $this->delete();
+  }
+  /**
+   * After the message has been processed
+   */
+  function done($text = '') {
+    // Depending on parameters and what's happened so far we make the final queue/log decision
+    if ($this->discard) {
+      $this->discard($text);
+    } if ($this->error || $this->log) {
+      $this->store();
+    }    
   }
   /**
    * Get method info
@@ -248,8 +259,7 @@ class Messaging_Message extends Messaging_Object {
    * Save to store if not saved yet
    */
   function store() {
-    if (empty($this->mqid)) {
-      $this->render();
+    if (empty($this->mqid) || $this->updated) {
       $this->save();
     }
   }
@@ -260,6 +270,9 @@ class Messaging_Message extends Messaging_Object {
     if (empty($this->prepared)) {
       $this->send_method()->message_prepare($this);
       $this->prepared = TRUE;
+      // Provides a hook for other modules to modify the message before sending
+      $info = $this->send_method()->get_info();
+      drupal_alter('message', $this, $info);
     }
   }
   /**
@@ -280,6 +293,7 @@ class Messaging_Message extends Messaging_Object {
     $this->prepare();
     $this->render();
     messaging_store('save', $this);
+    $this->updated = FALSE;
   }
   /**
    * Run callbacks on message
@@ -288,7 +302,11 @@ class Messaging_Message extends Messaging_Object {
     $callback_keys = func_get_args();
     $this->process = TRUE;
     $this->success = TRUE;
-    return messaging_message_callbacks($callback_keys, $this, $this->method_info());
+    while (!empty($this->process) && ($method = array_shift($callback_keys))) {
+      // Invoke callback message_callback on send method object
+      call_user_func(array($this->send_method(), 'message_' . $method), $this, $this->method_info());
+    }
+    return $this->success;
   }
   /**
    * Set sender account and related properties
@@ -379,6 +397,7 @@ class Messaging_Message extends Messaging_Object {
     $this->result = FALSE;
     $this->error = $code;
     $this->error_msg = $text;
+    $this->updated = TRUE;
   } 
 
   /**
@@ -455,6 +474,34 @@ class Messaging_Message extends Messaging_Object {
       $this->sender_account = $sender ? $sender : FALSE;
     }
     return $this->sender_account;
+  }
+  /**
+   * Get sender name
+   */
+  function get_sender_name() {
+    if (!empty($this->sender_name)) {
+      return $this->sender_name;
+    }
+    elseif ($sender = $this->get_sender()) {
+      return $sender->name;
+    }
+    else {
+      return variable_get('site_name', 'Drupal');
+    }
+  }
+  /**
+   * Get rendered subject
+   */
+  function get_subject() {
+    $this->render();
+    return $this->subject;
+  }
+  /**
+   * Get rendered body
+   */
+  function get_body() {
+    $this->render();
+    return $this->body;
   }
   // Get table name for storage
   public static function db_table() {

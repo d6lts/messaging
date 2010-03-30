@@ -44,8 +44,9 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       }
       // Try preparing and rendering a message for each
       $message = $this->randomMessage();
-      $send_method->message_prepare($message);
-      $send_method->message_render($message);
+      $message->method = $method;
+      $message->prepare();
+      $message->render();
       $this->assertTrue($message->rendered && $message->prepared, 'A message has been prepared and rendered for method: ' . $method);
     }
     

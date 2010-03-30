@@ -135,7 +135,7 @@ function messaging_template_message_info($group, $key = NULL) {
     $info[$group] = module_invoke_all('messaging', 'messages', $group);
   }
   
-  return _messaging_info($info, $group, $key);
+  return messaging_array_info($info, $group, $key);
 }
 
 /**
@@ -155,7 +155,7 @@ function messaging_template_message_group($group = NULL, $key = NULL) {
     $info = module_invoke_all('messaging', 'message groups');
   }
   
-  return _messaging_info($info, $group, $key);
+  return messaging_array_info($info, $group, $key);
 }
 
 /**
