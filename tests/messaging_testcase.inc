@@ -13,7 +13,8 @@ class MessagingTestCase extends DrupalWebTestCase {
     db_query("DELETE FROM {messaging_store} WHERE mqid > %d", $this->_messaging_status['max_mqid']);
   }
   // Create random message
-  function randomMessage() {
+  function randomMessage($method = 'test') {
+    $message['method'] = $method;
     $message['subject'] = $this->randomName(50, 'Test subject '); 
     $message['body'] = array(
         'header' => $this->randomName(100, 'Test body header '),

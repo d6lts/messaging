@@ -207,6 +207,7 @@ class Messaging_Message extends Messaging_Object {
     }
     // Processing has stopped because any of the callbacks decided so.
     if (!$this->processed) {
+      $this->success = FALSE;
       $this->set_error("Process aborted, operation: $op");
     }
     // End message processing store or dispose
@@ -223,9 +224,9 @@ class Messaging_Message extends Messaging_Object {
       return $this->process('prepare', 'queue');
     }
     if (!$this->queued && $this->queue) {
-      $this->success = TRUE;
-      $this->invoke_callbacks('queue', 'afterqueue');
       $this->success = $this->queued = TRUE;
+      $this->invoke_callbacks('queue', 'afterqueue');
+      return $this->success;
     }
   }
   /**
@@ -244,7 +245,7 @@ class Messaging_Message extends Messaging_Object {
       $this->discard($text);
     } if ($this->error || $this->log) {
       $this->store();
-    }    
+    }
   }
   /**
    * Get method info

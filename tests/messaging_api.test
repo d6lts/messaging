@@ -19,9 +19,9 @@ class Messaging_API_Tests extends MessagingTestCase {
   }
 
   function setUp() {
-    parent::setUp('messaging', 'messaging_debug', 'messaging_simple', 'messaging_debug', 'messaging_mail');
+    parent::setUp('autoload', 'messaging', 'messaging_simple', 'messaging_mail');
     variable_set('messaging_method_simple', array('filter' => 0));
-    variable_set('messaging_method_debug', array('filter' => 0));
+    variable_set('messaging_method_mail', array('filter' => 0));
   }
   
   /**
@@ -75,41 +75,51 @@ class Messaging_API_Tests extends MessagingTestCase {
    * Play with creating, retrieving, deleting a pair messages
    */
   function testMessagingSendingAPI() {
-
-    $test_method = 'debug';
-
+    // Create fake method for testing
+    $test_method = 'test';
+    $info = array(
+      'type' => Messaging_Send_Method::TYPE_PULL, 
+      'glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => 0
+    );
+    $send_method = messaging_send_method($test_method, $info);
     $user = $this->drupalCreateUser();
     $user->messaging_default = $test_method;
     
     // Check messaging settings API
-    $info = messaging_method_info(NULL, NULL, NULL, TRUE);
-    $this->assertEqual(!empty($info[$test_method]), TRUE, 'Messaging method info retrieves information about methods');
-    $this->assertEqual(messaging_method_info($test_method, 'filter') === 0, TRUE, 'Messaging method info retrieves filter information');
+    $info = messaging_send_method($test_method)->get_info();
+    $this->assertEqual(!empty($info), TRUE, 'Messaging method info retrieves information about methods');
+    $this->assertEqual($info['filter'] === 0, TRUE, 'Messaging method info retrieves filter information');
     $this->assertEqual(messaging_method_default($user) === $test_method, TRUE, 'Messaging method default is working for test user');
 
     // Try message composition, a pair simple cases, no filter
-    $message = $this->randomMessage();
-    $info = array('glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => FALSE);
+    $message = $this->randomMessage($test_method);
+    
     // Calculate the rendered body
     $body = implode($info['glue'], array($message->body['header'], $message->body['main'], $info['footer'], $message->body['footer']));
     // The render function now returns a message object
-    $render = messaging_message_render(clone($message), $info);
+    $render = clone $message;
+    $render->render();
     $this->assertEqual(($render->subject == $message->subject && $render->body == $body), TRUE, 'Message successfully rendered, first try');
     
     // Now give it a twist, make subject an array, body a plain text
     $message->subject = array($message->subject, $message->subject);
     $message->body = $body;
-    $render = messaging_message_render(clone($message), $info);
+    $render = clone $message;
+    $render->render();
     $this->assertEqual(($render->subject == implode($info['subject_glue'], $message->subject) && $render->body == $body), TRUE, 'Message successfully rendered, second try');
 
     // Create fake messages and try sending, they'll end up in messaging queue
-    $message1 = $this->randomMessage();
-    $message2 = $this->randomMessage();
+    $message1 = $this->randomMessage($test_method);
+    $message1->queue = 1;
+    $message1->log = 1;
+    $message2 = $this->randomMessage($test_method);
+    $message2->queue = 1;
+    $message2->log = 1;
 
-    $this->assertTrue(messaging_message_send_user($user, $message1), 'Message successfully sent for user');
+    $this->assertTrue(messaging_message_send_user($user, $message1, NULL, 1), 'Message successfully sent for user');
 
     $message2->account = $user;
-    $this->assertTrue(messaging_message_send(array($user->uid, $user->uid), $message2, $test_method), 'Bulk message successfully sent');
+    $this->assertTrue(messaging_message_send(array($user->uid, $user->uid), $message2, $test_method, 1), 'Bulk message successfully sent');
     
     // Now there should be two messages in queue for this user retrieve using two different methods
     $queued = messaging_store('get', array('uid' => $user->uid));
@@ -128,8 +138,8 @@ class Messaging_API_Tests extends MessagingTestCase {
     $user = $this->drupalCreateUser();
     $user->messaging_default = $test_method;
 
-    $message1 = $this->randomMessage();
-    $message2 = $this->randomMessage();
+    $message1 = $this->randomMessage($test_method);
+    $message2 = $this->randomMessage($test_method);
     $this->assertTrue(messaging_message_send_user($user, $message1, NULL, 1), 'Message successfully queued for user');
     $this->assertTrue(messaging_message_send(array($user->mail, $user->mail), $message2, $test_method, 1), 'Bulk message successfully queued for multiple destinations.');
     $queued = messaging_store('get', array('method' => $test_method, 'cron' => 1, 'queue' => 1));
