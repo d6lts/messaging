@@ -92,20 +92,28 @@ class Messaging_Destination extends Messaging_Cached_Object {
    * Validate values to create a destination
    */
   public static function validate($method, $address, $account = 0) {
-    $account = is_object($account) ? $account : messaging_load_user($account);
-    $params = array('method' => $method, 'address' => $address);
-    // First check permission
-    if (messaging_method_permission($method, $account)) {
-      if ($existing = self::get_by_address($method, $address)) {
-        // There's already a destination with these parameters, check user
-        // It will be ok if users match or it was anonymous before
-        return !$existing->uid || $existing->uid == $account->uid;
-      }
-      else {
-        // @todo Check if anonymous destinations match an existing user
-        return TRUE;
-      }
+    // First validate address and check permission
+    $send_method = messaging_send_method($method);
+    if (!$send_method || !$send_method->address_validate($address)) {
+      return FALSE;
     }
+    $account = is_object($account) ? $account : messaging_load_user($account);
+    if (!$account || !$send_method->user_access($account)) {
+      return FALSE;
+    }
+    if ($existing = self::get_by_address($method, $address)) {
+      // There's already a destination with these parameters, check user
+      // It will be ok if users match or it was anonymous before
+      return !$existing->uid || $existing->uid == $account->uid;
+    }
+    elseif ($uid = $send_method->get_address_uid($address)) {
+      // Ok if this address belongs to the same user or to no user 
+      return !$uid || $uid == $account->uid;
+    }
+    else {
+      return TRUE;
+    }
+
   }
   /**
    * Create with parameters
@@ -150,11 +158,16 @@ class Messaging_Destination extends Messaging_Cached_Object {
     return $this->uid . ':' . $this->method . ':' . $this->address;
   }
   /**
+   * Get send method object
+   */
+  function send_method() {
+    return messaging_send_method($this->method);
+  }
+  /**
    * Get address name
    */
   function address_name() {
-    $name = messaging_method_info($this->method, 'address_name');
-    return $name ? $name : t('Address');
+    return $this->send_method()->address_name();
   }
   /**
    * Get method name
@@ -180,7 +193,10 @@ class Messaging_Destination extends Messaging_Cached_Object {
   function get_account() {
     return $this->get_user();
   }
-
+  /**
+   * Delete from db and cache
+   */
+  
   /**
    * Delete messaging destination object/s
    */
@@ -210,10 +226,15 @@ class Messaging_Destination extends Messaging_Cached_Object {
    * Save object to cache
    */
   public function cache_save() {
-    if ($this->key()) {
-      $this->cache_set($this->key(), $this);
-      $this->cache_by_address($this->method, $this->address, $this);
-    }
+    parent::cache_save();
+    $this->cache_by_address($this->method, $this->address, $this);
+  }
+  /**
+   * Save object to cache
+   */
+  public function cache_delete() {
+    parent::cache_delete();
+    $this->cache_by_address($this->method, $this->address, FALSE);
   }
   // Store into cache
   public static function cache_set($key, $object) {

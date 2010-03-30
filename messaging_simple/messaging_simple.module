@@ -13,6 +13,29 @@
 define('MESSAGING_SIMPLE_PAGER', 20);
 
 /**
+ * Implementation of hook_messaging
+ */
+function messaging_simple_messaging($op = 'info') {
+  switch($op) {
+    case 'send methods':
+      $info['simple'] = array(
+        'title' => t('Simple'),
+        'name' => t('Web'),
+        'group' => 'web',
+        'type' => MESSAGING_TYPE_SEND,
+        'glue' => '<br />',
+        'description' => t('Don\'t send messages but display them on a user account tab'),
+        'send callback' => 'messaging_simple_send_msg',
+        'destination' => 'uid',
+        'format' => 'HTML',
+        'address_name' => t('User name'), // Name of the address for this method
+        'format address callback' => 'messaging_simple_format_address',
+      );
+      return $info;  
+  }
+}
+
+/**
  * Implementation of hook_menu().
  */
 function messaging_simple_menu() {
@@ -113,30 +136,6 @@ function messaging_simple_user_message_submit($form, &$form_state) {
   drupal_set_message(t('The message has been deleted'));
 }
 
-
-/**
- * Implementation of hook_messaging
- */
-function messaging_simple_messaging($op = 'info') {
-  switch($op) {
-    case 'send methods':
-      $info['simple'] = array(
-        'title' => t('Simple'),
-        'name' => t('Web'),
-        'group' => 'web',
-        'type' => MESSAGING_TYPE_SEND,
-        'glue' => '<br />',
-        'description' => t('Don\'t send messages but display them on a user account tab'),
-        'send callback' => 'messaging_simple_send_msg',
-        'destination' => 'uid',
-        'format' => 'HTML',
-        'address_name' => t('User name'), // Name of the address for this method
-        'format address callback' => 'messaging_simple_format_address',
-      );
-      return $info;  
-  }
-}
-
 /**
  * Callback for address formatting
  */
@@ -177,9 +176,9 @@ function messaging_simple_get_messages($params, $pager = MESSAGING_SIMPLE_PAGER)
 function messaging_simple_send_msg($uid, $message) {
   // Store without changing the original message
   $store = clone $message;
-  $message->uid = $uid;
+  $store->uid = $uid;
   $store->sent = time();
-  drupal_write_record('messaging_simple', $message);
+  drupal_write_record('messaging_simple', $store);
   return TRUE;
 }
 

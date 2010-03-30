@@ -45,27 +45,36 @@ class Messaging_API_Tests extends MessagingTestCase {
     
     // Try messaging store functions, build foo method info for rendering
     $message = $this->randomMessage();
-    $method = array(
+    $send_method = new Messaging_Send_Method('test', array(
       'type' => MESSAGING_TYPE_PULL,
-    );
+    ));
     $message->uid = $message->sender = 0;
     $message->method = 'test';
     $message->queue = 1;    
-    $message = messaging_message_prepare($message, $method);
-    $message = messaging_message_render($message, $method);
+    $send_method->message_prepare($message);
+    $send_method->message_render($message);
     $message = messaging_store('save', $message);
     $this->assertTrue($message->mqid, 'The message has been stored successfully');
     $load = messaging_message_load($message->mqid);
     $this->assertTrue($message->mqid == $load->mqid && $message->subject == $load->subject , 'The message has been retrieved successfully');
-    $list = messaging_pull_pending('test', 0);
-    $this->assertTrue(count($list) == 1 && !empty($list[$message->mqid]), 'The message has been retrieved from queue');
+  
+    // Try destination API
+    $user = $this->drupalCreateUser();
+    $this->assertTrue(Messaging_Destination::validate('mail', $user->mail, $user->uid), 'Mail destination for user is OK.');
+    $this->assertFalse(Messaging_Destination::validate('mail', $user->mail, 0), 'Mail destination is not valid for anonymous user.');
+    $destination = Messaging_Destination::create('mail', $user->mail, $user->uid);
+    $this->assertTrue($destination->mdid, 'A mail destination can be created for user.');
+    $destination = Messaging_Destination::get_by_address('mail', $user->mail);
+    $this->assertTrue($destination, 'The destination for user can be retrieved.');
+    $destination->delete();
+    $saved = Messaging_Destination::get_by_address('mail', $user->mail);
+    $this->assertFalse($saved, 'The mail destination has been deleted.');
   }
   
   /**
    * Play with creating, retrieving, deleting a pair messages
    */
   function testMessagingSendingAPI() {
-    $this->messagingStartTest();
 
     $test_method = 'debug';
 

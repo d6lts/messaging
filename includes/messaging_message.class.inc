@@ -120,9 +120,15 @@ class Messaging_Message extends Messaging_Object {
       return $this->process('prepare', 'presend', 'send', 'aftersend');
     }
     else {
-      $this->success = messaging_message_send_out($this->destination, $this, $this->method);
+      $this->success = $this->send_method()->send_address($this->destination, $this);
       return $this->success;
     }
+  }
+  /**
+   * Get send method class
+   */
+  function send_method() {
+    return messaging_send_method($this->method);
   }
   /**
    * Send to multiple destinations, same method
@@ -252,16 +258,17 @@ class Messaging_Message extends Messaging_Object {
    */
   function prepare() {
     if (empty($this->prepared)) {
-      $this->invoke_callbacks('prepare');
+      $this->send_method()->message_prepare($this);
       $this->prepared = TRUE;
     }
   }
   /**
-   * Render for method
+   * Render through sending method
    */
   function render() {
     if (empty($this->rendered)) {
-      $this->invoke_callbacks('render');
+      $this->process = TRUE;
+      $this->send_method()->message_render($this);
       $this->rendered = TRUE;
     }
   }

@@ -21,6 +21,7 @@ function messaging_sms_messaging($op = 'info') {
         'send callback' => 'messaging_sms_send_msg',
         'destination callback' => 'messaging_sms_user_destination',
         'address_name' => t('Phone number'), // Name of the address for this method
+        'anonymous' => TRUE, // Allow anonymous destinations
       );
       return $info;  
   }
@@ -42,7 +43,7 @@ function messaging_sms_render($message, $info) {
 /**
  * Map user account to SMS destination (phone number)
  */
-function messaging_sms_user_destination($account, $message) {
+function messaging_sms_user_destination($account) {
   // Check for active mobile infomation. Simply return it so that the send
   // callback has a destination array and access everything.
   if (!empty($account->sms_user) && $account->sms_user[0]['status'] == 2 && !empty($account->sms_user[0]['number'])) {

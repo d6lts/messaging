@@ -195,7 +195,7 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
    */ 
   function delete() {
     if ($this->key()) {
-      $this->cache_set($this->key(), FALSE);
+      $this->cache_delete();
       return parent::delete();
     }
   }
@@ -203,9 +203,13 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
    * Save object to cache
    */
   public function cache_save() {
-    if ($this->key()) {
-      $this->cache_set($this->key(), $this);
-    }
+    $this->cache_set($this->key(), $this);
+  }
+  /**
+   * Delete object from cache
+   */
+  function cache_delete() {
+    $this->cache_set($this->key(), FALSE);
   }
   /**
    * Set static cache

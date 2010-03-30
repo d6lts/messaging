@@ -7,10 +7,7 @@
 
 class MessagingTestCase extends DrupalWebTestCase {
   var $_messaging_status;
-  // Store current status for clean up
-  function messagingStartTest() {
-    $this->_messaging_status['max_mqid'] = db_result(db_query("SELECT max(mqid) FROM {messaging_store}"));
-  }
+
   // Clean up operations
   function messagingCleanUp() {
     db_query("DELETE FROM {messaging_store} WHERE mqid > %d", $this->_messaging_status['max_mqid']);
