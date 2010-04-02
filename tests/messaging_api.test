@@ -79,12 +79,13 @@ class Messaging_API_Tests extends MessagingTestCase {
     $test_method = 'test';
     $info = array(
       'type' => Messaging_Send_Method::TYPE_PULL, 
-      'glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => 0
+      'glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => 0,
+      'destination' => 'uid',
     );
     $send_method = messaging_send_method($test_method, $info);
     $user = $this->drupalCreateUser();
     $user->messaging_default = $test_method;
-    
+   
     // Check messaging settings API
     $info = messaging_send_method($test_method)->get_info();
     $this->assertEqual(!empty($info), TRUE, 'Messaging method info retrieves information about methods');
