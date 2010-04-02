@@ -93,30 +93,82 @@ function messaging_template_menu() {
  *   Assembled text of a message part.
  */
 function messaging_template_message_part($group, $key, $method = 'default', $getdefault = TRUE) {
-  static $cache;
-  if (isset($cache[$group][$key][$method])) {
-    $text_part = $cache[$group][$key][$method];
-  } else {
-    if ($method && ($text = db_result(db_query("SELECT message FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method)))){
+  $cache = &messaging_static(__FUNCTION__);
+
+  if (!isset($cache[$group][$key][$method])) {
+    if ($text = db_result(db_query("SELECT message FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method))){
       $text_part = $text;
-    } elseif ($method == 'default' && ($text = messaging_template_message_info($group, $key))) {
-      // Retry with default but also set the cache for this method
-      $text_part = $text;
-    } elseif ($method != 'default' && $getdefault && ($text = messaging_template_message_part($group, $key, 'default'))) {
-      $text_part = $text;
-    } else {
-      $text_part = FALSE;
     }
-    // Convert array into plain text
-    if ($text_part && is_array($text_part)) {
-      $text_part = implode("\n", $text_part);
+    elseif ($getdefault && ($fallback = messaging_template_method_fallback($method))) {
+      // Go for method fallback
+      $text_part = messaging_template_message_part($group, $key, $fallback);
+    }
+    elseif ($method == 'default' && ($text = messaging_template_message_info($group, $key))) {
+      // Get default from template definitions, convert array into plain text
+      $text_part = is_array($text) ? implode("\n", $text) : $text;
+    }
+    else {
+      // Not found, set a FALSE value in the cache so we don't search again
+      $text_part = FALSE;
     }
     $cache[$group][$key][$method] = $text_part;
   }
 
-  return $text_part ? $text_part : '';
+  return $cache[$group][$key][$method];
 }
 
+/**
+ * Get text part with group and method fallback
+ * 
+ * @return string
+ *   Or NULL if not found
+ */
+function messaging_template_text_part($group, $key, $method) {
+  while ($group) {
+    if ($text = messaging_template_message_part($group, $key, $method)) {
+      // Found template text, check for empty marker and return
+      return $text === MESSAGING_TEMPLATE_EMPTY ? '' : $text;
+    }
+    else {
+      $group = messaging_template_group_fallback($group);
+    }
+  }
+  // If not found, we return Nothing
+}
+
+/**
+ * Get template type information. It will try to retrieve just this type
+ * 
+ * @param $type
+ *   Template type name
+ * @param $property
+ *   Optional property to retrieve
+ * @param $getall
+ *   
+ */
+function messaging_template_type_info($type = NULL, $property = NULL) {
+  $info = &messaging_static(__FUNCTION__);
+  if (!isset($info)) {
+    $info = module_invoke_all('messaging', 'message groups');
+  }
+  return messaging_array_info($info, $type, $property);
+}
+
+/**
+ * Get template fallback
+ */
+function messaging_template_group_fallback($group) {
+  return messaging_template_message_group($group, 'fallback');
+}
+
+/**
+ * Get method fallback
+ * 
+ * @todo To be extended. For now it will just return 'default' for any other method
+ */
+function messaging_template_method_fallback($method) {
+  return $method == 'default' ? NULL : 'default';
+}
 
 /**
  * Returns parts of messages, that may be formatted for each sending method
@@ -125,16 +177,12 @@ function messaging_template_message_part($group, $key, $method = 'default', $get
  *   Message group.
  * @param $key
  *   Optional message key inside the group. Returns all keys if null.
- * @return array()
- *   Depending on parameters, may be all message groups and keys or only a specific one.
  */
 function messaging_template_message_info($group, $key = NULL) {
-  static $info;
-  
+  $info = &messaging_static(__FUNCTION__);
   if (!isset($info[$group])) {
     $info[$group] = module_invoke_all('messaging', 'messages', $group);
   }
-  
   return messaging_array_info($info, $group, $key);
 }
 
@@ -158,6 +206,27 @@ function messaging_template_message_group($group = NULL, $key = NULL) {
   return messaging_array_info($info, $group, $key);
 }
 
+/**
+ * Extract a group of templates from an array of them (including all fallbacks for selected)
+ * 
+ * @param $filter
+ *   Array of template names
+ */
+function messaging_template_extract_group($filter, $templates) {
+  $filter = is_array($filter) ? $filter : array($filter);
+  $selected = array();
+  foreach ($templates as $key => &$template) {
+    if (in_array($key, $filter)) {
+      $selected[$key] = $template;
+      // Add fallbacks for selected templates too
+      while (!empty($template['fallback']) && ($fallback = $template['fallback']) && !isset($selected[$fallback])) { 
+        $template = $templates[$fallback];
+        $selected[$fallback] = $template;
+      }
+    }    
+  }
+  return $selected;
+}
 /**
  * Do token replacement. 
  * 

@@ -11,19 +11,12 @@
 function messaging_template_admin_template() {
   $output = '';
   // List message groups
-  $groups = module_invoke_all('messaging', 'message groups');
+  $templates = module_invoke_all('messaging', 'message groups');
   // Check fallbacks and get root templates for tree-like display
-  $root = array();
-  foreach ($groups as $group => $group_info) {
-    if (empty($group_info['fallback'])) {
-      $root[] = $group;
-    } else {
-      $groups[$group_info['fallback']]['children'][] = $group;
-    }
-  }
+  $tree = messaging_template_build_tree($templates);
   // Now build table which will have some indentation
-  $rows = messaging_template_admin_template_tree($root, $groups);
-  $header = array(t('Message groups'), t('Description'), t('Parts'));
+  $rows = messaging_template_format_tree($tree);
+  $header = array(t('Message groups'), t('Parts')); //t('Description'), t('Parts'));
   $output .= theme('table', $header, $rows);
 
   // List sending methods
@@ -40,22 +33,37 @@ function messaging_template_admin_template() {
 }
 
 /**
- * Recursively build a table tree for fallback methods
+ * Format template tree as table rows
  */
-function messaging_template_admin_template_tree($parents, $groups, $depth = 0) {
+function messaging_template_format_tree($tree, $depth = 0) {
   $rows = array();
-  foreach ($parents as $key) {
-    $info = $groups[$key];    
+  foreach ($tree as $key => $template) {
+    $options['attributes'] = !empty($template['description']) ? array('title' => $template['description']) : array();
     $rows[] = array(
-      theme('indentation', $depth) . l($info['name'], 'admin/messaging/template/edit/'.$key),
-      !empty($info['description']) ? $info['description'] : '',
+      theme('indentation', $depth) . l($template['name'], 'admin/messaging/template/edit/'.$key, $options),
       ($parts = module_invoke_all('messaging', 'message keys', $key)) ? implode(', ', $parts) : '',
     );
-    if (!empty($info['children'])) {
-      $rows = array_merge($rows, messaging_template_admin_template_tree($info['children'], $groups, $depth + 1));
+    if (!empty($template['children'])) {
+      $rows = array_merge($rows, messaging_template_format_tree($template['children'], $depth + 1));
     }
   }
   return $rows;
+}
+
+/**
+ * Build fallback tree
+ */
+function messaging_template_build_tree($templates) {
+  $tree = array();
+  foreach ($templates as $key => &$template) {
+    if (empty($template['fallback'])) {
+      $tree[$key] = &$template;
+    }
+    else {
+      $templates[$template['fallback']]['children'][$key] = &$template;
+    }
+  }
+  return $tree;
 }
 
 /**
