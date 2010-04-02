@@ -33,6 +33,10 @@ abstract class Messaging_Object {
     if ($this->key()) {
       $this->unserialize();
     }
+    // Make sure all objects have language
+    if (!isset($this->language)) {
+      $this->set_language();
+    }
   }
   /**
    * Build object from template
@@ -81,15 +85,25 @@ abstract class Messaging_Object {
    */
   public function get_language() {
     if (!isset($this->_language)) {
-      if (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
-        $this->_language = $languages[$this->language];
-      }
-      else {
-        $this->_language = user_preferred_language($this->get_account());
-        $this->language = $this->_language->language;
-      }
+      $this->set_language();
     }
     return $this->_language;
+  }
+  /**
+   * Set language object / property
+   */
+  public function set_language($language = NULL) {
+    if ($language) {
+      $this->language = $language->language;
+      $this->_language = $language;
+    }
+    elseif (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
+      $this->_language = $languages[$this->language];
+    }
+    else {
+      // Fallback to default language
+      $this->set_language(language_default());
+    }
   }
   /**
    * Get unike id key
