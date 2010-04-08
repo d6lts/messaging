@@ -61,6 +61,26 @@ abstract class Messaging_Object {
     return $this->_user;
   }
   /**
+   * Get destination user name, either from user object or from a user_name property.
+   * 
+   * When loading a listing of objects, we can save some queries by setting the user_name property
+   */
+  public function get_user_name() {
+    if (!empty($this->_user)) {
+      $user = $this->_user;
+    }
+    elseif (!empty($this->user_name)) {
+      $user = new Stdclass();
+      $user->uid = $this->uid;
+      $user->name = $this->user_name;
+    }
+    else {
+      // Last resource, we do user loading
+      $user = $this->get_user();
+    }
+    return $user ? theme('username', $user) : t('none');
+  }
+  /**
    * Set user account
    * 
    * @param $account
