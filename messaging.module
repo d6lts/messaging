@@ -1154,6 +1154,13 @@ function messaging_theme() {
   );
 }
 
+/**   
+ * Wrapper function for 1i8nstrings() if i18nstrings enabled.   
+ */   
+function messaging_translate($name, $string, $langcode = NULL, $textgroup = 'messaging') {
+  return function_exists('i18nstrings') ? i18nstrings($textgroup . ':' . $name, $string, $langcode) : $string;  
+}
+
 /**
  * Add a callback to a callback collection
  * 
