@@ -227,3 +227,11 @@ function messaging_phpmailer_drupal_mail($message) {
 function theme_messaging_phpmailer($mail) {
   return array($mail['subject'], $mail['body']);
 }
+
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_phpmailer_disable() {
+  messaging_method_disable('phpmailer');
+}

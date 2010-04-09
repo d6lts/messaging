@@ -2,6 +2,8 @@
 
 6.x-2.2 to ...
 ------------------------
+- Removed obsoleted messaging_get_log() function, #717852
+- Fixing issue: Unsupported operand types (method disabled), #451638
 - Improved logging system so it needs to be enabled, see #733176
 - Updated translation function to work with latest i18nstrings. New messaging_translate()
 

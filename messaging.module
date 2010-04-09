@@ -203,14 +203,18 @@ function messaging_message_send_user($account, &$message, $method = NULL, $queue
   } elseif (!empty($params['log'])) {
     // Save the message, let it there for further reference
     messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
-    $message->destination = 'ERROR';
-    $info = messaging_method_info($method);
-    $message = messaging_message_prepare($message, $info);
-    $message = messaging_message_render($message, $info);
+    $message->destination = 'ERROR';    
+    if ($info = messaging_method_info($method)) {
+      $message = messaging_message_prepare($message, $info);
+      $message = messaging_message_render($message, $info);
+    }
+    else {
+      $message->subject = $message->body = '';
+    }
     $message->cron = $message->queue = 0;
     $message->log = 1;
     $message->success = FALSE;
-    $message = messaging_store('save', $message);    
+    $message = messaging_store('save', $message);
   }
   return FALSE;
 }
@@ -1288,18 +1292,6 @@ function messaging_debug($txt = NULL, $variables = NULL) {
   if (function_exists('messaging_debug_log')) {
     return messaging_debug_log($txt, $variables);
   }  
-}
-
-/**
- * Print formatted logs as table
- */
-function messaging_get_log() {
-  if ($logs = _messaging_log()) {
-    messsaging_log_format($logs);
-  }
-  else {
-    return '';
-  }
 }
 
 /**
