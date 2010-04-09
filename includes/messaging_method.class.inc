@@ -193,8 +193,14 @@ class Messaging_Send_Method extends Messaging_Method {
    */
   function send_address($address, $message) {
     $message->render();
-    return call_user_func($this->get_info('send callback'), $address, $message, $message->get_params($this->method));
+    if ($send_callback = $this->get_info('send callback')) {
+      return call_user_func($send_callback, $address, $message, $message->get_params($this->method));
+    }
+    else {
+      watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $this->method), WATCHDOG_ERROR);
+    }
   }
+
   /**
    * Send message to destination, use sending callback
    */

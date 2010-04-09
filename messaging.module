@@ -991,18 +991,6 @@ function messaging_debug($txt = NULL, $variables = NULL) {
 }
 
 /**
- * Print formatted logs as table
- */
-function messaging_get_log() {
-  if ($logs = _messaging_log()) {
-    messsaging_log_format($logs);
-  }
-  else {
-    return '';
-  }
-}
-
-/**
  * Format logs
  */
 function messaging_log_format($logs) {

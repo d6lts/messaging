@@ -119,7 +119,7 @@ function messaging_admin_method_settings() {
 /**
  * Theme method settings
  */
-function theme_messaging_admin_method_settings(&$form) {
+function theme_messaging_admin_method_settings($form) {
   $header = array(t('Method'), t('Name for display'), t('Message body filter'));
   $rows = array();
   foreach (element_children($form) as $key) {

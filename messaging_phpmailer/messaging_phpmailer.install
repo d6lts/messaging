@@ -15,13 +15,6 @@ function messaging_phpmailer_uninstall() {
 }
 
 /**
- * Implementation of hook_disable()
- */
-function messaging_phpmailer_disable() {
-  messaging_method_disable('phpmailer');
-}
-
-/**
  * Implementation of hook_requirements().
  */
 function messaging_phpmailer_requirements($phase) {
