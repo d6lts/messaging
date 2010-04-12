@@ -14,10 +14,10 @@ abstract class Messaging_Object {
   const DB_TABLE = '';
   const DB_KEY = '';
   // User id and user object
-  public $uid;
+  protected $uid;
   protected $_user;
   // Language and language object
-  public $language;
+  protected $language;
   protected $_language;
   
   /**
@@ -183,7 +183,45 @@ abstract class Messaging_Object {
   public static function db_load($table, $key, $value) {
     return db_fetch_object(db_query("SELECT * FROM {" . $table . "} WHERE $key = %d", $value));
   }
-  
+
+  /**
+   * Magic method, set protected properties
+   * 
+   * Warning: This also runs for unsnset properties
+   */
+  public function __set($name, $value) {
+    switch ($name) {
+      case 'language':
+        $this->language = $value;
+        unset($this->_language);
+        break;
+      case 'uid':
+      case 'user':
+        $this->set_user($value);
+        break;
+      default:
+        $this->$name = $value;
+    }
+  }
+  /**
+   * Magic method, get protected properties
+   */
+  public function __get($name) {
+    switch ($name) {
+      case 'language':
+        $this->set_language();
+        return $this->language;
+      default:
+        return isset($this->$name) ? $this->$name : NULL;
+    }
+  }
+  /**
+   * Magic method, isset protected properties
+   */
+  public function __isset($name) {
+    return isset($this->$name);
+  }
+
   // Get table name for storage
   abstract public static function db_table();
   // Get key field name for storage
@@ -259,8 +297,7 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
     $cache = &messaging_static($cache_name);
     return $cache && array_key_exists($key, $cache) ? $cache[$key] : NULL;
   }
-  
-  
+ 
   abstract public static function cache_set($key, $object);
   abstract public static function cache_get($key);
 }

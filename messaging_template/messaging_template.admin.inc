@@ -69,13 +69,13 @@ function messaging_template_build_tree($templates) {
 /**
  * Message groups edit page
  */
-function messaging_template_admin_template_edit($group) {
+function messaging_template_admin_template_edit($group, $langcode = NULL) {
+  $language_list = language_list();
+  $language = $language_list[$langcode];
   $output = '';
-  $groups = module_invoke_all('messaging', 'message groups');
-  if (isset($groups[$group])) {
-    drupal_set_title(t('Message template for %name', array('%name' => $groups[$group]['name'])));
-    $output .= drupal_get_form('messaging_template_admin_message_form', $group, $groups[$group]);
-
+  if ($group && $language) {
+    drupal_set_title(t('Template for %name', array('%name' => $group['name'])));
+    $output .= drupal_get_form('messaging_template_admin_message_form', $group, $language);
   }
   return $output;
 }
@@ -83,9 +83,12 @@ function messaging_template_admin_template_edit($group) {
 /**
  * Edit message formats
  */
-function messaging_template_admin_message_form($form_state, $group, $group_info) {
+function messaging_template_admin_message_form($form_state, $group_info, $language) {
+  $group = $group_info['group'];
   $form['group'] = array('#type' => 'value', '#value' => $group);
-  $keylist = module_invoke_all('messaging', 'message keys', $group);
+  $form['language'] = array('#type' => 'value', '#value' => $language);
+  $form['module'] = array('#type' => 'value', '#value' => isset($group_info['module']) ? $group_info['module'] : '');
+  $keylist = module_invoke_all('messaging', 'message keys', $group, $language);
   $send_methods = array('default' => t('Default'));
   $send_methods += messaging_method_list();
   $form['messages'] = array('#tree' => TRUE);
@@ -97,15 +100,14 @@ function messaging_template_admin_message_form($form_state, $group, $group_info)
       '#collapsed' => TRUE,
     );
     foreach ($send_methods as $method => $methodname) {
-      $text = messaging_template_message_part($group, $key, $method, FALSE);
+      $text = messaging_template_message_part($group, $key, $method, $language, FALSE);
       $form['messages'][$key][$method] = array(
         '#title' => $methodname,
         '#type' => 'textarea',
         '#default_value' => $text,
         // Adjust size to actual number of lines
         '#rows' => count(explode("\n", $text)),        
-      );
-      
+      );    
     }
   }
   // Tokens for text replacement
@@ -132,6 +134,10 @@ function messaging_template_admin_message_form($form_state, $group, $group_info)
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save'),
+  );
+  $form['reset'] = array(
+    '#type' => 'submit',
+    '#value' => t('Reset to defaults'),
   );
   return $form;
 }
@@ -175,13 +181,24 @@ function messaging_template_tokens_get_list($group) {
  */
 function messaging_template_admin_message_form_submit($form, &$form_state) {
   $group = $form_state['values']['group'];
-  foreach ($form_state['values']['messages'] as $key => $messages) {
-    foreach ($messages as $method => $text) {
-      db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
-      if (trim($text)) {
-        db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, module, message) VALUES('%s', '%s', '%s', '', '%s')", $group, $key, $method, $text);
+  $language = $form_state['values']['language'];
+  $module = $form_state['values']['module'];
+  switch ($form_state['values']['op']) {
+    case t('Reset to defaults'):
+      db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND language = '%s'", $group, $language->language);
+      drupal_set_message('The message templates have been reset to default values.');
+      break;
+    case t('Save'):
+      foreach ($form_state['values']['messages'] as $key => $messages) {
+        foreach ($messages as $method => $text) {
+          db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s' AND language = '%s'", $group, $key, $method, $language->language);
+          if (trim($text)) {
+            db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, language, module, message) VALUES('%s', '%s', '%s', '%s', '%s' '', '%s')", $group, $key, $method, $language->language, $module, $text);
+          }
+        }
       }
-    }
+      drupal_set_message('The message templates have been updated.');
+      break;
   }
-  drupal_set_message('The message templates have been updated');
+ 
 }

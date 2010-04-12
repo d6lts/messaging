@@ -8,6 +8,10 @@ function messaging_template_schema() {
   $schema['messaging_message_parts'] = array(
     'description' => 'Templates for message composition.',
     'fields' => array(
+      'tpid'    => array(      
+        'type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,
+        'description' => 'Unique template part id.',
+      ),
       'type'    => array(
         'type' => 'varchar', 'length' => 100, 'not null' => TRUE, 'default' => '',
         'description' => 'Message group key.',
@@ -28,11 +32,17 @@ function messaging_template_schema() {
         'type' => 'text', 'not null' => TRUE, 'size' => 'big',
         'description' => 'Message template, multiline text with tokens for replacement.',
       ),
+      'language' => array(
+        'type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => '',
+        'description' => 'Language code.',
+      ),
     ),
+    'primary key' => array('tpid'),
     'indexes' => array(
       'type'    => array('type'),
       'method' => array('method'),
       'msgkey' => array('msgkey'),
+      'language' => array('language'),
     ),
   );
   return $schema;  
@@ -52,4 +62,16 @@ function messaging_template_install() {
  */
 function messaging_template_uninstall() {
   drupal_uninstall_schema('messaging_template');
+}
+
+/**
+ * Add primary index and language field
+ */
+function messaging_template_update_6001() {
+  $ret = array();
+  db_add_field($ret, 'messaging_message_parts', 'tpid',  array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE), array('primary key' => array('tpid')));
+  db_add_field($ret, 'messaging_message_parts', 'language', array('type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => ''), array('indexes' => array('language' => array('language'))));
+  $lang = language_default('language');
+  $ret[] = update_sql("UPDATE {messaging_message_parts} SET language = '$lang'");  
+  return $ret;
 }

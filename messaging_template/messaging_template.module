@@ -57,17 +57,53 @@ function messaging_template_menu() {
     'title' => 'Message templates',
     'description' => 'Configuration of message templates',
     'page callback' => 'messaging_template_admin_template',
-    'access arguments' => array('administer messaging'),
+    'access callback' => 'messaging_template_access',
     'file' => 'messaging_template.admin.inc',
   );
-  $items['admin/messaging/template/edit'] = array(
+  $default = language_default();
+  $items['admin/messaging/template/edit/%messaging_template'] = array(
     'title' => 'Message templates',
     'page callback' => 'messaging_template_admin_template_edit',
+    'page arguments' => array(4, $default->language),
     'type' => MENU_CALLBACK,
-    'access arguments' => array('administer messaging'),
+    'access callback' => 'messaging_template_access',
     'file' => 'messaging_template.admin.inc',
   );
+  foreach (messaging_template_language_list() as $langcode => $name) {
+    $items['admin/messaging/template/edit/%messaging_template/' . $langcode] = array(
+      'title' => check_plain($name),
+      'page callback' => 'messaging_template_admin_template_edit',
+      'page arguments' => array(4, 5),
+      // Default language will be the default tab
+      'type' => $default->language == $langcode ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
+      'access callback' => 'messaging_template_access',
+      'file' => 'messaging_template.admin.inc',
+    );
+  }
   return $items;
+}
+
+/**
+ * Access control to edit templates
+ */
+function messaging_template_access() {
+  return user_access('administer messaging') || user_access('edit message templates');
+}
+/**
+ * Load template data. Menu loading callback
+ */
+function messaging_template_load($key) {
+  $groups = module_invoke_all('messaging', 'message groups');
+  if (isset($groups[$key])) {
+    return $groups[$key] + array('group' => $key);
+  }  
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function messaging_template_perm() {
+  return array('edit message templates');
 }
 
 /**
@@ -84,6 +120,8 @@ function messaging_template_menu() {
  *   String, specified by the module where the message originates. ie 'subscriptions-event'.
  * @param $key
  *   String, key for the desired message part.
+ * @param $language
+ *   Language object
  * @param $method
  *   String the mailing method that should be used. OPTIONAL
  * @param $getdefault
@@ -92,29 +130,42 @@ function messaging_template_menu() {
  * @return
  *   Assembled text of a message part.
  */
-function messaging_template_message_part($group, $key, $method = 'default', $getdefault = TRUE) {
+function messaging_template_message_part($group, $key, $method, $language, $getdefault = TRUE) {
   $cache = &messaging_static(__FUNCTION__);
-
-  if (!isset($cache[$group][$key][$method])) {
-    if ($text = db_result(db_query("SELECT message FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method))){
-      $text_part = $text;
-    }
-    elseif ($getdefault && ($fallback = messaging_template_method_fallback($method))) {
+  $langcode = $language->language;
+  if (!isset($cache[$langcode][$group][$method])) {
+    $cache[$langcode][$group][$method] = _messaging_template_message_part($group, $method, $language);
+  }
+  if (!isset($cache[$langcode][$group][$method][$key])) {
+    if ($getdefault && ($fallback = messaging_template_method_fallback($method))) {
       // Go for method fallback
-      $text_part = messaging_template_message_part($group, $key, $fallback);
-    }
-    elseif ($method == 'default' && ($text = messaging_template_message_info($group, $key))) {
-      // Get default from template definitions, convert array into plain text
-      $text_part = is_array($text) ? implode("\n", $text) : $text;
+      $cache[$langcode][$group][$method][$key] = messaging_template_message_part($group, $key, $fallback, $language);
     }
     else {
       // Not found, set a FALSE value in the cache so we don't search again
-      $text_part = FALSE;
+      $cache[$langcode][$group][$method][$key] = FALSE;
     }
-    $cache[$group][$key][$method] = $text_part;
   }
 
-  return $cache[$group][$key][$method];
+  return $cache[$langcode][$group][$method][$key];
+}
+
+/**
+ * Load message parts from db or get defaults from module
+ */
+function _messaging_template_message_part($group, $method, $language) {
+  $templates = array();
+  $result = db_query("SELECT msgkey, message FROM {messaging_message_parts} WHERE type = '%s' AND method = '%s' AND language = '%s'", $group, $method, $language->language);
+  while ($part = db_fetch_object($result)) {
+    $templates[$part->msgkey] = $part->message;
+  }
+  // If not in db and method is default, get values from modules
+  if (empty($templates) && $method == 'default') {
+    foreach (messaging_template_message_defaults($group, $language) as $key => $text) {
+      $templates[$key] = is_array($text) ? implode("\n", $text) : $text;
+    }
+  }
+  return $templates;
 }
 
 /**
@@ -123,9 +174,10 @@ function messaging_template_message_part($group, $key, $method = 'default', $get
  * @return string
  *   Or NULL if not found
  */
-function messaging_template_text_part($group, $key, $method) {
+function messaging_template_text_part($group, $key, $method, $language) {
+  $original_group = $group;
   while ($group) {
-    if ($text = messaging_template_message_part($group, $key, $method)) {
+    if ($text = messaging_template_message_part($group, $key, $method, $language)) {
       // Found template text, check for empty marker and return
       return $text === MESSAGING_TEMPLATE_EMPTY ? '' : $text;
     }
@@ -133,7 +185,10 @@ function messaging_template_text_part($group, $key, $method) {
       $group = messaging_template_group_fallback($group);
     }
   }
-  // If not found, we return Nothing
+  // Try language fallback if language is not default
+  if ($language_fallback = messaging_template_language_fallback($language)) {
+    return messaging_template_text_part($original_group, $key, $method, $language_fallback);
+  }
 }
 
 /**
@@ -171,19 +226,27 @@ function messaging_template_method_fallback($method) {
 }
 
 /**
+ * Get language fallback, that will be default language if this is not the default
+ */
+function messaging_template_language_fallback($language) {
+  $default = language_default();
+  return $language->language != $default->language ? $default : NULL;
+}
+
+/**
  * Returns parts of messages, that may be formatted for each sending method
  *
  * @param $group
  *   Message group.
- * @param $key
- *   Optional message key inside the group. Returns all keys if null.
+ * @param $language
+ *   Language to localize defaults
  */
-function messaging_template_message_info($group, $key = NULL) {
+function messaging_template_message_defaults($group, $language) {
   $info = &messaging_static(__FUNCTION__);
-  if (!isset($info[$group])) {
-    $info[$group] = module_invoke_all('messaging', 'messages', $group);
+  if (!isset($info[$language->language][$group])) {
+    $info[$language->language][$group] = module_invoke_all('messaging', 'messages', $group, $language);
   }
-  return messaging_array_info($info, $group, $key);
+  return $info[$language->language][$group];
 }
 
 /**
@@ -243,5 +306,18 @@ function messaging_template_text_replace($text, $objects) {
   }
   else {
     return token_replace_multiple($text, $objects);
+  }
+}
+
+/**
+ * Get list of available languages
+ */
+function messaging_template_language_list() {
+  if (function_exists('locale_language_list')) {
+    return locale_language_list();
+  }
+  else {
+    $default = language_default();
+    return array($default->language => $default->name);
   }
 }
