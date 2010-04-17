@@ -6,7 +6,7 @@
  * Tests basic API functions
  */
  
-require_once 'messaging_testcase.inc';
+require_once 'messaging_test_case.inc';
 
 class Messaging_Methods_Tests extends MessagingTestCase {
   
@@ -20,7 +20,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
 
   function setUp() {
     // We can only test the plugins that don't require other modules
-    parent::setUp('autoload', 'messaging', 'messaging_simple', 'messaging_mail', 'messaging_mime_mail', 'messaging_phpmailer', 'messaging_privatemsg', 'messaging_sms');
+    parent::setUp('messaging_simple', 'messaging_mail', 'messaging_mime_mail', 'messaging_phpmailer', 'messaging_privatemsg', 'messaging_sms');
   }
 
   /**

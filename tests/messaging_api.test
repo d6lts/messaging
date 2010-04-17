@@ -6,7 +6,7 @@
  * Tests basic API functions
  */
 
-require_once 'messaging_testcase.inc';
+require_once 'messaging_test_case.inc';
 
 class Messaging_API_Tests extends MessagingTestCase {
   
@@ -19,7 +19,7 @@ class Messaging_API_Tests extends MessagingTestCase {
   }
 
   function setUp() {
-    parent::setUp('autoload', 'messaging', 'messaging_simple', 'messaging_mail');
+    parent::setUp('messaging_simple', 'messaging_mail');
     variable_set('messaging_method_simple', array('filter' => 0));
     variable_set('messaging_method_mail', array('filter' => 0));
   }

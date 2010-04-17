@@ -6,12 +6,16 @@
  */
 
 class MessagingTestCase extends DrupalWebTestCase {
-  var $_messaging_status;
 
-  // Clean up operations
-  function messagingCleanUp() {
-    db_query("DELETE FROM {messaging_store} WHERE mqid > %d", $this->_messaging_status['max_mqid']);
+  /**
+   * Set up some required modules
+   */
+  function setUp() {
+    $modules = func_get_args();
+    $modules = array_unique(array_merge(array('autoload', 'messaging'), $modules));
+    call_user_func_array(array('parent', 'setUp'), $modules);
   }
+
   // Create random message
   function randomMessage($method = 'test') {
     $message['method'] = $method;
@@ -75,7 +79,7 @@ class MessagingTestCase extends DrupalWebTestCase {
     }
     $this->printDebug($output, "Table dump: $table");
   }
-  // Dump Notifications log
+  // Dump Messaging log
   function dumpLogs() {
     if ($logs = messaging_log_get()) {
       $rows = array();
@@ -85,6 +89,33 @@ class MessagingTestCase extends DrupalWebTestCase {
       }
       $this->printDebug(theme_table(array(), $rows), 'Notifications Log');
     }
+  }
+  // Assert number of rows in table
+  function assertTableRows($table, $target, $conditions = NULL, $message = NULL) {
+    $sql = 'SELECT COUNT(*) FROM {' . $table . '}';
+    $print = $where = array();
+    if ($conditions) {
+      foreach ($conditions as $field => $value) {
+        $where[] = "$field = '%s'";
+        $print[] = "$field=$value";
+      }
+    }
+    if (!empty($where)) {
+      $sql .= ' WHERE ' . implode(' AND ', $where);
+    }
+    $count = db_result(db_query($sql, $conditions));
+    $message = $message ? $message : 'Right number of rows in table ' . $table .'[' . implode(', ', $print) . ']=' . $target;
+    $message .= " ($count)";
+    $this->assertEqual($count, $target, $message);
+  }
+  // Assert number of rows in table for a user
+  function assertUserRows($table, $target, $uid, $message = NULL) {
+    $message = $message ? $message : "There are $target rows in table $table for user $uid";
+    $this->assertTableRows($table, $target, array('uid' => $uid), $message);
+  }
+  // Display latest page requested
+  function printPage() {
+    $this->assertTrue(TRUE, $this->drupalGetContent());
   }
 }
 
