@@ -30,6 +30,7 @@ function messaging_simple_messaging($op = 'info') {
         'format' => 'HTML',
         'address_name' => t('User name'), // Name of the address for this method
         'format address callback' => 'messaging_simple_format_address',
+        'filter' => 'messaging_filter',
       );
       return $info;  
   }

@@ -1,7 +1,19 @@
 // $Id$
 
-6.x-2.2 to ...
+6.x-4.x-beta1 to ......
 ------------------------
+- Reworked message filtering, now it uses module's own filters, WIP.
+- Added format and data field (not used yet) for message templates.
+
+6.x-2.2 to 6.x-4.x-beta1
+------------------------
+- Extended templates with language and translations
+- Major OOP rework: Message, Destination, Send_Method
+- Reworked messaging_simple, now it uses its own table
+- Support for Anonymous destinations / subscriptions.
+- Reorganized modules: new template module, moved debug module to notifications_extra, etc..
+- Implemented 7.x like API for static variables,
+- API and storage improvements for upcoming multilingual support.
 - Added Messaging_Destination class, new dependency on autoload module
 - Added messaging_destination table and basic API, see #743008
 - Added messaging_static(), Drupal 7 API backport, see #742884

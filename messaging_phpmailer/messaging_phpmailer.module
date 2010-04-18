@@ -16,7 +16,8 @@ function messaging_phpmailer_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('messaging_phpmailer_settings_form'),
     'access arguments' => array('administer messaging'),
-    'type' => MENU_LOCAL_TASK,   
+    'type' => MENU_LOCAL_TASK,
+    'filter' => 'messaging_html', // Default filter for this format
   );
 
   return $items;

@@ -18,6 +18,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'footer' => "<br><br>--",  // Separator for message footer
         'send callback' => 'messaging_mime_mail_send_msg',  // Sending callback
         'class' => 'Messaging_Method_Mail',
+        'filter' => 'messaging_html', // Default filter for this format
       );
       return $info;  
   }

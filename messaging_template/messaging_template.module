@@ -30,20 +30,8 @@ function messaging_template_help($path, $arg) {
     default:
       // Edit template groups
       if ($arg[0] == 'admin' && $arg[1] == 'messaging' && $arg[2] == 'template' && $arg[3] == 'edit' && ($group = $arg[4])) {
-        $info = messaging_template_message_group($group);
-        $output = '<p>'. t('These are the message parts for %group.', array('%group' => messaging_template_message_group($group, 'name')));
-        if (!empty($info['description'])) {
-          $output .= ' ' . $info['description'];
-        }
-        $output .= '</p>';
-        if (!empty($info['help'])) {
-          $output .= '<p>'. $info['help'] .'</p>';
-        }
-        $output .= '<p>' . t('Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%empty' => MESSAGING_TEMPLATE_EMPTY));
-        if (!empty($info['fallback'])) {
-          $output .= ' ' . t('The fallback template from which message parts will be taken if left blank is <a href="@template_edit">%template_name</a>', array('@template_edit' => url('admin/messaging/template/edit/' . $info['fallback']), '%template_name' => messaging_template_message_group($info['fallback'], 'name') ));
-        }
-        $output .= '</p>';
+        $output = messaging_template_admin_info($group);
+        $output .= '<p>' . t('Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%empty' => MESSAGING_TEMPLATE_EMPTY)) . '</p>';
         return $output;
       }
   }

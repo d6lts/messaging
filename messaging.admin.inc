@@ -77,13 +77,23 @@ function messaging_admin_settings() {
  * Default sending methods settings
  */
 function messaging_admin_method_settings() {
+  // Add information about input formats
+  messaging_include('text.inc');
+  $format_options = array();
+  $format_info = array();
+  foreach (messaging_text_filter_info() as $key => $filter) {
+    $format_options[$key] = $filter['name'];
+    $format_info[] = array($filter['name'], $filter['description']);
+  }
+  // We add this last for it not bo be default
+  $format_options[''] = t('No filtering (Insecure)');
+  $form['filter_info'] = array(
+    '#title' => t('Text filters'),
+    '#type' => 'item',
+    '#value' => theme('table', array(), $format_info),
+  );
   // Sending methods settings
   if ($info = messaging_method_info()) {
-    foreach (filter_formats() as $format) {
-      $format_options[$format->format] = $format->name;
-    }
-    // We add this last for it not bo be default
-    $format_options[0] = t('None (Insecure)');
     $form['methods'] = array('#theme' => 'messaging_admin_method_settings');
     foreach ($info as $method => $options) {
       $key = 'messaging_method_'.$method;
@@ -101,7 +111,7 @@ function messaging_admin_method_settings() {
       // Output filter applied to message body
       $form['methods'][$key]['filter'] = array(
         '#type' => 'select',
-        '#default_value' => isset($options['filter']) ? $options['filter'] : variable_get('messaging_default_filter', ''),
+        '#default_value' => messaging_text_method_filter($method, FALSE),
         '#options' => $format_options,
       );
     }

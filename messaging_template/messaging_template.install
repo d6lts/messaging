@@ -36,6 +36,14 @@ function messaging_template_schema() {
         'type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => '',
         'description' => 'Language code.',
       ),
+      'format' => array(
+        'type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => 'The input format used by this text.',
+      ),
+      'data' => array(
+        'type' => 'text', 'not null' => TRUE, 'size' => 'big', 'default' => '', 'serialize' => TRUE,
+        'description' => 'Additional serialized parameters.',  
+      ),
     ),
     'primary key' => array('tpid'),
     'indexes' => array(
@@ -73,5 +81,15 @@ function messaging_template_update_6001() {
   db_add_field($ret, 'messaging_message_parts', 'language', array('type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => ''), array('indexes' => array('language' => array('language'))));
   $lang = language_default('language');
   $ret[] = update_sql("UPDATE {messaging_message_parts} SET language = '$lang'");  
+  return $ret;
+}
+
+/**
+ * Add format and data field
+ */
+function messaging_template_update_6002() {
+  $ret = array();
+  db_add_field($ret, 'messaging_message_parts', 'format', array('type' => 'int', 'not null' => TRUE, 'default' => 0));
+  db_add_field($ret, 'messaging_message_parts', 'data', array('type' => 'text', 'not null' => TRUE, 'size' => 'big', 'default' => '', 'serialize' => TRUE));
   return $ret;
 }

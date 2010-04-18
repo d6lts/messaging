@@ -36,6 +36,7 @@ function messaging_mail_messaging($op, $type = NULL) {
         'address_name' => t('E-mail address'), // Name of the address for this method
         'anonymous' => TRUE, // Allow anonymous destinations
         'class' => 'Messaging_Method_Mail',
+        'filter' => 'messaging_plaintext', // Default filter for this format
       );
       return $info;  
   }

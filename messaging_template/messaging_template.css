@@ -1,0 +1,13 @@
+/* $Id$ */
+
+#messaging-template-info #template-description{
+  padding-right:2em;
+  margin-right:2em;
+}
+
+#messaging-template-info #template-tree {
+  float:left;
+  border:1px solid gray;
+  margin-right:1em;
+  padding-right:1em;
+}

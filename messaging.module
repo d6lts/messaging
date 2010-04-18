@@ -530,6 +530,17 @@ function messaging_method_info($method = NULL, $property = NULL, $default = NULL
 }
 
 /**
+ * Implementation of hook_messaging()
+ */
+function messaging_messaging($op, $type = NULL) {
+  switch ($op) {
+    case 'text filters':
+      messaging_include('text.inc');
+      return _messaging_text_filter_info();
+
+  }
+}
+/**
  * Implementation of hook_filter(). Contains a basic set of essential filters.
  * - Plain text:
  *     Strips out all html
@@ -569,39 +580,6 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     default:
       return $text;
   }
-}
-
-/**
- * HTML to text simple filtering.
- * - Replace some tags with line endings: p, br, hr, li, h1, h2, h3, h4
- * Strip out all HTML tags and decode entities
- * 
- * @param $text
- *   Text to clean up
- * @param $break
- *   Optional character to replace tags for line breaks
- */
-function messaging_check_plain($text, $break = NULL) {
-  // This have to be done before the filtering because tag markers may have been previously parsed with check_plain
-  $text = str_replace(array('&lt;', '&gt;'), array('<', '>'), $text);
-  // Clean up the HTML and replace some tags with line endings
-  if (isset($break)) {
-    $text = _filter_htmlcorrector($text);
-    $text = str_replace(array('</p>', '<br />', '<hr />', '</li>', '</h1>', '</h2>', '</h3>', '</h4>'), $break, $text);
-  }
-  // Final text clean up
-  return messaging_text_clean($text);
-}
-
-/**
- * Converts strings to plain utf-8 single line
- */
-function messaging_check_subject($text) {
-  return Messaging_Send_Method::check_subject($text);
-  $text = messaging_check_plain($text);
-  // taken from _sanitizeHeaders() in PEAR mail() : http://pear.php.net/package/Mail
-  $text = preg_replace('=((0x0A/%0A|0x0D/%0D|\\n|\\r)\S).*=i', NULL, $text);
-  return $text;
 }
 
 /**
@@ -650,33 +628,6 @@ function messaging_message_load($mqid, $refresh = FALSE) {
  */
 function messaging_message_render($message, $info) {
   return Messaging_Send_Method::default_render($message, $info);
-}
-/**
- * Composes message from different parts, recursively and applies filter
- */
-function messaging_text_render($text, $glue = '', $filter = NULL) {
-  return Messaging_Send_Method::text_render($text, $glue, $filter);  
-}
-
-/**
- * Build a simple text with message subject and body
- */
-function messaging_text_build($message, $glue = ' ') {
-  return Messaging_Send_Method::text_build($message, $glue);
-}
-
-/**
- * Clean text of HTML stuff and optionally of line endings
- */
-function messaging_text_clean($text, $newline= NULL) {
-  return Messaging_Send_Method::text_clean($text, $newline);
-}
-
-/**
- * Truncate messages to given length.  Adapted from node_teaser() in node.module
- */
-function messaging_text_truncate($text, $length) {
-  return Messaging_Send_Method::text_truncate($text, $length);
 }
 
 /**

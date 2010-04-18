@@ -22,6 +22,7 @@ function messaging_sms_messaging($op = 'info') {
         'destination callback' => 'messaging_sms_user_destination',
         'address_name' => t('Phone number'), // Name of the address for this method
         'anonymous' => TRUE, // Allow anonymous destinations
+        'filter' => 'messaging_plaintext', // Default filter for this format
       );
       return $info;  
   }

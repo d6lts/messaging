@@ -5,19 +5,41 @@
  * Messaging Framework - Admin UI
  */
 
+/**
+ * Build template description for admin pages
+ */
+function messaging_template_admin_info($template) {
+  drupal_add_css(drupal_get_path('module', 'messaging_template') . '/messaging_template.css');
+  $info = messaging_template_message_group($template);
+  $output = '<div id="messaging-template-info" class="clear-block">';
+  $output .= '<div id="template-tree">';
+  $output .= messaging_template_format_tree(messaging_template_get_branch($template));
+  $output .= '</div>';
+  $output .= '<div id="template-description">';
+  $description = t('These are the message parts for %group.', array('%group' => $info['name']));
+  if (!empty($info['description'])) {
+    $description .= ' ' . $info['description'];
+  }
+  $output .= '<p>' . $description . '</p>';
+  if (!empty($info['help'])) {
+    $output .= '<p>' . $info['help'] . '</p>';
+  }
+  if (!empty($info['fallback'])) {
+    $output .= '<p>' . t('The fallback template from which message parts will be taken if left blank is <a href="@template_edit">%template_name</a>', array('@template_edit' => url('admin/messaging/template/edit/' . $info['fallback']), '%template_name' => messaging_template_message_group($info['fallback'], 'name'))) . '</p>';
+  }
+  $output .= '</div></div>';
+
+  return $output;
+}
+
 /*
  * Overview of message parts and sending methods
  */
 function messaging_template_admin_template() {
   $output = '';
-  // List message groups
-  $templates = module_invoke_all('messaging', 'message groups');
-  // Check fallbacks and get root templates for tree-like display
-  $tree = messaging_template_build_tree($templates);
+
   // Now build table which will have some indentation
-  $rows = messaging_template_format_tree($tree);
-  $header = array(t('Message groups'), t('Parts')); //t('Description'), t('Parts'));
-  $output .= theme('table', $header, $rows);
+  $output .= messaging_template_format_table(messaging_template_get_tree());
 
   // List sending methods
   $rows = array();
@@ -35,7 +57,7 @@ function messaging_template_admin_template() {
 /**
  * Format template tree as table rows
  */
-function messaging_template_format_tree($tree, $depth = 0) {
+function messaging_template_format_table($tree, $depth = 0) {
   $rows = array();
   foreach ($tree as $key => $template) {
     $options['attributes'] = !empty($template['description']) ? array('title' => $template['description']) : array();
@@ -44,16 +66,41 @@ function messaging_template_format_tree($tree, $depth = 0) {
       ($parts = module_invoke_all('messaging', 'message keys', $key)) ? implode(', ', $parts) : '',
     );
     if (!empty($template['children'])) {
-      $rows = array_merge($rows, messaging_template_format_tree($template['children'], $depth + 1));
+      $rows = array_merge($rows, messaging_template_format_table($template['children'], $depth + 1));
     }
   }
-  return $rows;
+  if ($depth) {
+    return $rows;
+  }
+  else {
+    $header = array(t('Message groups'), t('Parts')); 
+    return theme('table', $header, $rows);    
+  }
+}
+
+/**
+ * Format template tree small tree
+ */
+function messaging_template_format_tree($tree, $depth = 0) {
+  $items = array();
+  foreach ($tree as $key => $template) {
+    $item = array();
+    $options['attributes'] = !empty($template['description']) ? array('title' => $template['description']) : array();
+    $item['data'] = l($template['name'], 'admin/messaging/template/edit/'.$key, $options);
+    if (!empty($template['children'])) {
+      $item['children'] = messaging_template_format_tree($template['children'], $depth + 1);
+    }
+    $items[] = $item;
+  }
+  return $depth ? $items : theme('item_list', $items);
 }
 
 /**
  * Build fallback tree
  */
-function messaging_template_build_tree($templates) {
+function messaging_template_get_tree() {
+  // List message groups from all modules
+  $templates = module_invoke_all('messaging', 'message groups');
   $tree = array();
   foreach ($templates as $key => &$template) {
     if (empty($template['fallback'])) {
@@ -67,14 +114,44 @@ function messaging_template_build_tree($templates) {
 }
 
 /**
+ * Build fallback sub-tree (only parents and children of given template)
+ */
+function messaging_template_get_branch($find, $tree = NULL) {
+  $tree = $tree ? $tree : messaging_template_get_tree();
+  if ($find && isset($tree[$find])) {
+    $template = $tree[$find];
+    if (!empty($template['children'])) {
+      $template['children'] = messaging_template_get_branch(NULL, $template['children']);
+    }
+    return array($find => $template);
+  }
+  // Not in this set, explore children
+  foreach ($tree as $key => &$template) {
+    if (!$find) {
+      // Already found, we are just removing sub-chilren
+      $template['children'] = NULL;
+    }
+    elseif (!empty($template['children']) && ($subtree = messaging_template_get_branch($find, $template['children']))) {
+      $template['children'] = $subtree;
+      return array($key => $template);
+    }
+  }
+  return $tree;
+}
+
+/**
  * Message groups edit page
  */
 function messaging_template_admin_template_edit($group, $langcode = NULL) {
+  $breadcrumb[] = l(t('Home'), '<front>');
+  $breadcrumb[] = l(t('Message templates'), 'admin/messaging/template');
+  drupal_set_breadcrumb($breadcrumb);
   $language_list = language_list();
   $language = $language_list[$langcode];
   $output = '';
   if ($group && $language) {
     drupal_set_title(t('Template for %name', array('%name' => $group['name'])));
+    // Build navigation tree
     $output .= drupal_get_form('messaging_template_admin_message_form', $group, $language);
   }
   return $output;

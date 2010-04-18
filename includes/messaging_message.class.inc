@@ -504,6 +504,18 @@ class Messaging_Message extends Messaging_Object {
     $this->render();
     return $this->body;
   }
+  /**
+   * Build a simple text with message subject and body
+   * 
+   * @param $glue
+   *   Separator to glue subject and body together
+   */
+  function get_text($glue = ' ') {
+    $parts = array(trim($this->get_subject()), trim($this->get_body()));
+    $parts = array_filter($parts);
+    $text = $parts ? implode($glue, $parts) : '';
+    return $text;
+  }
   // Get table name for storage
   public static function db_table() {
     return self::DB_TABLE;

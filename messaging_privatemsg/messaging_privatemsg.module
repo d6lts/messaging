@@ -23,6 +23,7 @@ function messaging_privatemsg_messaging($op) {
         'send callback' => 'messaging_privatemsg_send_msg', // Sending callback
         'destination' => 'uid',
         'address_name' => t('User name'), // Name of the address for this method
+        'filter' => 'messaging_filter', // Default filter for this format
       );
       return $info;  
   }

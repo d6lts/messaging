@@ -27,6 +27,44 @@ abstract class Messaging_Method {
   public $name;
   public $group;
 
+  
+  /** Message composition and rendering **/
+  
+  /**
+   * Renders full message with header and body
+   * 
+   * @param $message
+   *   Message object
+   * @param $info
+   *   Sending method info for rendering (glue and filter options)
+   */
+  static function default_render($message, $info) {
+    messaging_include('text.inc');
+    messaging_debug('Rendering message', array('message' => $message, 'info' => $info));
+    // Apply footer prefix if provided and the message has a footer element. 
+    // Note: If message body is a string the final isset($message['body']['footer']) will be true
+    if (!empty($info['footer']) && is_array($message->body) && isset($message->body['footer'])) {
+      $message->body['footer'] = array('#prefix' => $info['footer'], '#text' => $message->body['footer']);
+    }
+    // Render separately subject and body info, adding default parameters
+    $info += array('glue' => '', 'subject_glue' => '', 'filter' => NULL);
+    $message->subject = self::check_subject(self::text_render($message->subject, $info['subject_glue']));
+    $message->body = self::text_render($message->body, $info['glue'], $info['filter']); 
+    $message->rendered = 1;  
+    messaging_debug('Rendered message', array('message' => array('subject' => $message->subject, 'body' => $message->body), 'info' => $info));
+    return $message;
+  }
+
+  /**
+   * Converts strings to plain utf-8 single line
+   */
+  static function check_subject($text) {
+    $text = messaging_text_check_plain($text, NULL);
+    // taken from _sanitizeHeaders() in PEAR mail() : http://pear.php.net/package/Mail
+    $text = preg_replace('=((0x0A/%0A|0x0D/%0D|\\n|\\r)\S).*=i', NULL, $text);
+    return $text;
+  }
+  
   /**
    * Composes message from different parts, recursively and applies filter
    * 
@@ -42,47 +80,7 @@ abstract class Messaging_Method {
    *   Input format to apply to the results
    */
   static function text_render($text, $glue = '', $filter = NULL) {
-    $output = '';
-  
-    if (is_array($text)) {
-      if (isset($text['#prefix'])) {
-        $output .= $text['#prefix'].$glue;
-        unset($text['#prefix']);
-      }
-      if (isset($text['#text'])) {
-        $output .= $text['#text'];
-        return $output;
-      }
-      foreach (element_children($text) as $key) {
-        // The filter is not passed along
-        $text[$key] = self::text_render($text[$key], $glue);
-      }
-      $output .= implode($glue, $text);
-    } else {
-      $output .= $text;
-    }
-    // The filter is applied now only once
-    if ($filter) {
-      $output = check_markup($output, $filter, FALSE);
-    }
-    return $output;
-  }
-  
-  /**
-   * Build a simple text with message subject and body
-   * 
-   * This is useful for methods requiring a simple text instead of header and subject
-   * 
-   * @param $message
-   *   Message object
-   * @param $glue
-   *   Separator to glue subject and body together
-   */
-  static function text_build($message, $glue = ' ') {
-    $parts = array(trim($message->subject), trim($message->body));
-    $parts = array_filter($parts);
-    $text = $parts ? implode($glue, $parts) : '';
-    return $text;
+    return messaging_text_render($text, $glue, $filter);
   }
   
   /**
@@ -94,55 +92,15 @@ abstract class Messaging_Method {
    *   Optional string to be used as line ending
    */
   static function text_clean($text, $newline = NULL) {
-    // HTML entities to plain text conversion.
-    $text = decode_entities($text);  
-    // Filters out all remaining HTML tags
-    $text = filter_xss($text, array());
-    // Optionally, replace new lines
-    if (!is_null($newline)) {
-      $text = str_replace("\n", $newline, $text);
-    }
-    // Trim out remaining beginning/ending spaces
-    $text = trim($text);
-    return $text;
+    return messaging_text_clean($text, $newline);
   }
   
   /**
    * Truncate messages to given length.  Adapted from node_teaser() in node.module
    */
   static function text_truncate($text, $length) {
-    // If we have a short message, return the message
-    if (drupal_strlen($text) < $length) {
-      return $text;
-    }  
-    // Initial slice.
-    $teaser = truncate_utf8($text, $length);
-    $position = 0;
-    // Cache the reverse of the message.
-    $reversed = strrev($teaser); 
-    // split at paragraph boundaries.
-    $breakpoints = array('</p>' => 0, '<br />' => 6, '<br>' => 4, "\n" => 1);
-    // We use strpos on the reversed needle and haystack for speed.
-    foreach ($breakpoints as $point => $offset) {
-      $length = strpos($reversed, strrev($point));
-      if ($length !== FALSE) {
-        $position = - $length - $offset;
-        return ($position == 0) ? $teaser : substr($teaser, 0, $position);
-      }
-    } 
-    // When even the first paragraph is too long, we try to split at the end of
-    // the last full sentence.
-    $breakpoints = array('. ' => 1, '! ' => 1, '? ' => 1, ' ' => 0);
-    $min_length = strlen($reversed);
-    foreach ($breakpoints as $point => $offset) {
-      $length = strpos($reversed, strrev($point));
-      if ($length !== FALSE) {
-        $min_length = min($length, $min_length);
-        $position = 0 - $length - $offset;
-      }
-    }
-    return ($position == 0) ? $teaser : substr($teaser, 0, $position);
-  }  
+    return messaging_text_truncate($text, $length);
+  }
 }
 
 /**
@@ -357,42 +315,6 @@ class Messaging_Send_Method extends Messaging_Method {
       $message->cron = 0;
     }
     return $message;
-  }
-  
-  /** Message composition and rendering **/
-  
-  /**
-   * Renders full message with header and body
-   * 
-   * @param $message
-   *   Message object
-   * @param $info
-   *   Sending method info for rendering (glue and filter options)
-   */
-  static function default_render($message, $info) {
-    messaging_debug('Rendering message', array('message' => $message, 'info' => $info));
-    // Apply footer prefix if provided and the message has a footer element. 
-    // Note: If message body is a string the final isset($message['body']['footer']) will be true
-    if (!empty($info['footer']) && is_array($message->body) && isset($message->body['footer'])) {
-      $message->body['footer'] = array('#prefix' => $info['footer'], '#text' => $message->body['footer']);
-    }
-    // Render separately subject and body info, adding default parameters
-    $info += array('glue' => '', 'subject_glue' => '', 'filter' => NULL);
-    $message->subject = self::check_subject(self::text_render($message->subject, $info['subject_glue']));
-    $message->body = self::text_render($message->body, $info['glue'], $info['filter']); 
-    $message->rendered = 1;  
-    messaging_debug('Rendered message', array('message' => array('subject' => $message->subject, 'body' => $message->body), 'info' => $info));
-    return $message;
-  }
-
-  /**
-   * Converts strings to plain utf-8 single line
-   */
-  static function check_subject($text) {
-    $text = messaging_check_plain($text);
-    // taken from _sanitizeHeaders() in PEAR mail() : http://pear.php.net/package/Mail
-    $text = preg_replace('=((0x0A/%0A|0x0D/%0D|\\n|\\r)\S).*=i', NULL, $text);
-    return $text;
   }
   
 }
