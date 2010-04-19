@@ -14,14 +14,19 @@
  *   Text to clean up
  * @param $break
  *   Optional character to replace tags for line breaks
+ * @param $list
+ *   Optional item list marker, may be a dash '-' or an asterisk '*'
  */
-function messaging_text_check_plain($text, $break = "\n") {
+function messaging_text_check_plain($text, $break = "\n", $list = '- ') {
   // This have to be done before the filtering because tag markers may have been previously parsed with check_plain
   $text = str_replace(array('&lt;', '&gt;'), array('<', '>'), $text);
   // Clean up the HTML and replace some tags with line endings
   if (isset($break)) {
     $text = _filter_htmlcorrector($text);
     $text = str_replace(array('</p>', '<br />', '<hr />', '</li>', '</h1>', '</h2>', '</h3>', '</h4>'), $break, $text);
+    if (isset($list)) {
+      $text = str_replace('<li>', $list, $text);
+    }
   }
   // Final text clean up
   return messaging_text_clean($text);
@@ -116,27 +121,45 @@ function _messaging_text_filter_info() {
     'filter callback' => 'messaging_text_check_plain',
   );
   $filters['messaging_html'] = array(
-    'name' => t('HTML text'),
-    'description' => t('Filters out dangerous HTML tags, fixes faulty HTML, converts line breaks into HTML, and turns web and e-mail addresses into clickable links. '),
+    'name' => t('Safe HTML'),
+    'description' => t('Filters out dangerous HTML tags, fixes faulty HTML, converts line breaks into HTML, and turns web and e-mail addresses into clickable links.'),
     'filter callback' => 'messaging_text_format_html',
   );
+  $filters['messaging_htmlfast'] = array(
+    'name' => t('Fast HTML'),
+    'description' => t('Converts line breaks into HTML. Use this one in case your templates are already formatted and filtered and you are possitive you don\'t need further filtering.'),
+    'filter callback' => 'messaging_text_format_htmlfast',
+  ); 
   $filters['drupal_html2text'] = array(
     'name' => t('HTML to text'),
-    'description' => t('Replaces HTML tags and entities with plain text formatting, moving links at the end.'),
+    'description' => t('Replaces HTML tags and entities with plain text formatting, moving links at the end. This one is only advised for plain text emails.'),
     'filter callback' => 'drupal_html_to_text',
   );
   // Add the default input format too so we can have some configurable filter
-  $format = filter_formats(_messaging_text_filter_default());
-  $filters['messaging_filter'] = array(
-    'name' => $format->name,
-    'description' => theme('filter_tips', _filter_tips($format->format, FALSE)),
-    'filter callback' => 'check_markup',
-  );       
+  // It is possible that current user don't have access to this one
+  if ($format = filter_formats(_messaging_text_filter_default())) {
+    $filters['messaging_filter'] = array(
+      'name' => $format->name,
+      'description' => t('This is the default Input format in case you need some more formatting.') . '<br />' . theme('filter_tips', _filter_tips($format->format, FALSE)),
+      'filter callback' => 'messaging_text_format_default',
+    );
+  }      
   return $filters;  
 }
 
 /**
- * Get input format available for messaging. Hidden variable that can be set
+ * Run default filter on text
+ */
+function messaging_text_format_default($text) {
+  return messaging_text_check_markup($text, _messaging_text_filter_default());
+}
+
+/**
+ * Get input format available for messaging. 
+ * 
+ * It uses a hidden variable that can be set manually if you want to change the format available.
+ * 
+ * Note that any user with 'administer messaging' permission will be able to use this filter.
  */
 function _messaging_text_filter_default() {
   return variable_get('messaging_default_filter', filter_resolve_format(FILTER_FORMAT_DEFAULT));
@@ -160,6 +183,16 @@ function messaging_text_format_html($text, $format = 'messaging') {
   // Fix faulty HTML
   $text = _filter_htmlcorrector($text);
   return $text;
+}
+
+/**
+ * HTML quick filter
+ * 
+ * This one only fixes line endings when everything else is already formatted and filtered. 
+ */
+function messaging_text_format_htmlfast($text) {
+  // Convert line breaks
+  return _filter_autop($text);
 }
 
 /**
@@ -242,6 +275,56 @@ function messaging_text_truncate($text, $length) {
   return ($position == 0) ? $teaser : substr($teaser, 0, $position);
 }
 
+/**
+ * This is a fast version of check_markup
+ * 
+ * The differences with regular check_markup are:
+ * - It uses a static cache instead of querying the database
+ * - It doesn't check for permissions
+ * 
+ * @see check_markup()
+ * 
+ * @param $text
+ * @param $format
+ */
+function messaging_text_check_markup($text, $format = FILTER_FORMAT_DEFAULT) {
+  $cache = &messaging_static(__FUNCTION__);
+  // When $check = TRUE, do an access check on $format.
+  if (isset($text)) {
+    $format = filter_resolve_format($format);
+
+    // Check for a cached version of this piece of text.
+    $cache_id = $format .':'. md5($text);
+
+    if (!isset($cache[$cache_id])) {
+      // Convert all Windows and Mac newlines to a single newline,
+      // so filters only need to deal with one possibility.
+      $text = str_replace(array("\r\n", "\r"), "\n", $text);
+  
+      // Get a complete list of filters, ordered properly.
+      $filters = filter_list_format($format);
+  
+      // Give filters the chance to escape HTML-like data such as code or formulas.
+      foreach ($filters as $filter) {
+        $text = module_invoke($filter->module, 'filter', 'prepare', $filter->delta, $format, $text, $cache_id);
+      }
+  
+      // Perform filtering.
+      foreach ($filters as $filter) {
+        $text = module_invoke($filter->module, 'filter', 'process', $filter->delta, $format, $text, $cache_id);
+      }
+  
+      $cache[$cache_id] = $text;
+    }
+
+    return $cache[$cache_id];
+  }
+  else {
+    $text = t('n/a');
+  }
+
+  return $text;
+}
 
 // Some other function wrappers, for backwards compatibility with old sending methods
 

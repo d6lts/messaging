@@ -49,7 +49,11 @@ function messaging_help($path, $arg) {
       $output .= '<p>' . t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') . '</p>';
       return $output;
     case 'admin/messaging/settings/method':
-      $output = '<p>' . t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body. Set up the filters you need using the <a href="@input_formats">Input formats</a> page', array('@input_formats' => url('admin/settings/filters'))) . '</p>';
+      $output = '<p>' . t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body.') . '</p>';
+      $items[] = t('You can use the default Input format. Set up the filters you need using the <a href="@input_formats">Input formats</a> page', array('@input_formats' => url('admin/settings/filters')));
+      $items[] = t('If using raw tokens for templates, possibly you\'ll need some additional formatting here.');
+      $items[] = t('You can also set up Input formats for specific message parts on the Message templates pages.');
+      $output .= theme('item_list', $items);
       return $output;
   }
 }
@@ -567,7 +571,8 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     case 'process':
       switch ($delta) {
         case 0:
-          return messaging_check_plain($text, "\n");       
+          messaging_include('text.inc');
+          return messaging_text_check_plain($text, "\n");       
         case 1:
           return drupal_html_to_text($text);
         default:

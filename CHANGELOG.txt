@@ -2,7 +2,8 @@
 
 6.x-4.x-beta1 to ......
 ------------------------
-- Reworked message filtering, now it uses module's own filters, WIP.
+- Allow specific Input formats for template parts.
+- Reworked message filtering, now it uses module's own filters.
 - Added format and data field (not used yet) for message templates.
 
 6.x-2.2 to 6.x-4.x-beta1

@@ -169,25 +169,64 @@ function messaging_template_admin_message_form($form_state, $group_info, $langua
   $send_methods = array('default' => t('Default'));
   $send_methods += messaging_method_list();
   $form['messages'] = array('#tree' => TRUE);
+  // Get list of allowed filter formats for this user
+  $formats_all = _messaging_template_filter_formats(TRUE);
+  $formats_allowed = _messaging_template_filter_formats(FALSE);
   foreach ($send_methods as $method => $methodname) {
+    // Get all texts for this group/method/language
     $texts = messaging_template_message_part($group, NULL, $method, $language, FALSE);
     $form['messages'][$method] = array(
       '#type' => 'fieldset',
       '#title' => $methodname,
       '#collapsible' => TRUE,
       '#collapsed' => $texts ? FALSE : TRUE,
-      '#theme' => 'messaging_template_admin_texts',
-    );
-    
+      //'#theme' => 'messaging_template_admin_texts',
+      
+    );   
     foreach ($keylist as $key => $keyname) {
-      $text = isset($texts[$key]) ? $texts[$key] : '';
-      $form['messages'][$method][$key]['title']['#value'] = $keyname;
-      $form['messages'][$method][$key]['message'] = array(
+      $elements = array(
+        '#title' => $keyname,
+        '#type' => 'fieldset',
+        '#attributes' => array('class' => 'messaging-template-part'),
+        //'#theme' => 'messaging_template_part_text',
+      );
+      $part = isset($texts[$key]) ? $texts[$key] : NULL;
+      $text = $part ? $part->message : '';
+      $format = $part && !empty($part->format) ? $part->format : 0;
+      // Check access to input format and format the form accordingly
+      $enabled = isset($formats_allowed[$format]);
+      $elements['enabled'] = array('#type' => 'value', '#value' => $enabled);    
+      $elements['tpid'] = array('#type' => 'value', '#value' => $part && isset($part->tpid) ? $part->tpid : 0);
+      //$elements['title']['#value'] = $keyname;
+      // Filter format, if disabled just show this one
+      
+      $elements['format'] = array(
+        '#title' => t('Format'),
+        '#type' => 'select',
+        '#default_value' => $format,
+        '#options' => $enabled ? $formats_allowed : $formats_all,
+        '#disabled' => !$enabled,
+        //'#prefix' => '<div class="text-part-header">',
+        '#prefix' => '<div class="format-select">',
+        '#suffix' => '</div>',
+        //'#attributes' => array('class' => 'messaging-template-part-format-select'),
+      );
+      /*
+      $elements['title'] = array(
+        //'#prefix' => '<div class="text-part-header">',
+        '#value' => '<span><strong>' . $keyname . '</strong></span>',
+        '#suffix' => '</div>',
+      );
+      */
+
+      $elements['message'] = array(
         '#type' => 'textarea',
         '#default_value' => $text,
         // Adjust size to actual number of lines
-        '#rows' => count(explode("\n", $text)),        
-      );      
+        '#rows' => count(explode("\n", $text)),
+        '#disabled' => !$enabled,  
+      );   
+      $form['messages'][$method][$key] = $elements; 
     }
   }
 
@@ -221,6 +260,25 @@ function messaging_template_admin_message_form($form_state, $group_info, $langua
     '#value' => t('Reset to defaults'),
   );
   return $form;
+}
+
+/**
+ * Get list of all filter formats for this user
+ */
+function _messaging_template_filter_formats($all = FALSE) {
+  $list[0] = t('None');
+  if ($all) {
+    $result = db_query("SELECT format, name FROM {filter_formats}");
+    while($format = db_fetch_object($result)) {
+      $list[$format->format] = $format->name;
+    }
+  }
+  else {
+    foreach (filter_formats() as $format) {
+      $list[$format->format] = $format->name;
+    }
+  }
+  return $list;
 }
 
 /**
@@ -272,10 +330,16 @@ function messaging_template_admin_message_form_submit($form, &$form_state) {
     case t('Save'):
       foreach ($form_state['values']['messages'] as $method => $messages) {
         foreach ($messages as $key => $part) {
-          db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s' AND language = '%s'", $group, $key, $method, $language->language);
-          if (trim($part['message'])) {
-            $part += array('type' => $group, 'msgkey' => $key, 'method' => $method, 'language' => $language->language, 'module' => $module);
-            drupal_write_record('messaging_message_parts', $part);
+          if (!empty($part['enabled'])) {
+            if (trim($part['message'])) {
+              $part += array('type' => $group, 'msgkey' => $key, 'method' => $method, 'language' => $language->language, 'module' => $module);
+              $update = !empty($part['tpid']) ? 'tpid' : array();
+              drupal_write_record('messaging_message_parts', $part, $update);
+            }
+            elseif (!empty($part['tpid'])) {
+              // There was a part now empty, delete it
+              db_query("DELETE FROM {messaging_message_parts} WHERE tpid = %d", $part['tpid']);
+            }
           }
         }
       }
@@ -288,16 +352,15 @@ function messaging_template_admin_message_form_submit($form, &$form_state) {
 /**
  * Theme admin texts form
  */
-function theme_messaging_template_admin_texts($elements) {
-  $output = '';
-  $rows = array();
-  foreach (element_children($elements) as $key) {
-    $rows[] = array(
-      drupal_render($elements[$key]['title']),
-      drupal_render($elements[$key]['message'])
-    );
-  }
-  $output .= theme('table', array(), $rows);
+function theme_messaging_template_part_text($elements) {
+  $output = '';var_dump($elements);
+  //$output = '<div class="messaging-template-part>';
+  $output .= drupal_render($elements['#title']);
+  $output .= '<div class="format-select">';
+  $output .= drupal_render($elements['format']);
+  $output .= '</div>';
+  $output .= drupal_render($elements['message']);
+  //$output .= '</div>';
   $output .= drupal_render($elements);
   return $output;
 }
