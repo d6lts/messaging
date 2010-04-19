@@ -169,24 +169,28 @@ function messaging_template_admin_message_form($form_state, $group_info, $langua
   $send_methods = array('default' => t('Default'));
   $send_methods += messaging_method_list();
   $form['messages'] = array('#tree' => TRUE);
-  foreach ($keylist as $key => $keyname) {
-    $form['messages'][$key] = array(
+  foreach ($send_methods as $method => $methodname) {
+    $texts = messaging_template_message_part($group, NULL, $method, $language, FALSE);
+    $form['messages'][$method] = array(
       '#type' => 'fieldset',
-      '#title' => $keyname,
+      '#title' => $methodname,
       '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
+      '#collapsed' => $texts ? FALSE : TRUE,
+      '#theme' => 'messaging_template_admin_texts',
     );
-    foreach ($send_methods as $method => $methodname) {
-      $text = messaging_template_message_part($group, $key, $method, $language, FALSE);
-      $form['messages'][$key][$method] = array(
-        '#title' => $methodname,
+    
+    foreach ($keylist as $key => $keyname) {
+      $text = isset($texts[$key]) ? $texts[$key] : '';
+      $form['messages'][$method][$key]['title']['#value'] = $keyname;
+      $form['messages'][$method][$key]['message'] = array(
         '#type' => 'textarea',
         '#default_value' => $text,
         // Adjust size to actual number of lines
         '#rows' => count(explode("\n", $text)),        
-      );    
+      );      
     }
   }
+
   // Tokens for text replacement
   if ($tokens = messaging_template_tokens_get_list($group)) {
     $headers = array(t('Token'), t('Replacement value'));
@@ -266,11 +270,12 @@ function messaging_template_admin_message_form_submit($form, &$form_state) {
       drupal_set_message('The message templates have been reset to default values.');
       break;
     case t('Save'):
-      foreach ($form_state['values']['messages'] as $key => $messages) {
-        foreach ($messages as $method => $text) {
+      foreach ($form_state['values']['messages'] as $method => $messages) {
+        foreach ($messages as $key => $part) {
           db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s' AND language = '%s'", $group, $key, $method, $language->language);
-          if (trim($text)) {
-            db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, language, module, message) VALUES('%s', '%s', '%s', '%s', '%s' '', '%s')", $group, $key, $method, $language->language, $module, $text);
+          if (trim($part['message'])) {
+            $part += array('type' => $group, 'msgkey' => $key, 'method' => $method, 'language' => $language->language, 'module' => $module);
+            drupal_write_record('messaging_message_parts', $part);
           }
         }
       }
@@ -278,4 +283,21 @@ function messaging_template_admin_message_form_submit($form, &$form_state) {
       break;
   }
  
+}
+
+/**
+ * Theme admin texts form
+ */
+function theme_messaging_template_admin_texts($elements) {
+  $output = '';
+  $rows = array();
+  foreach (element_children($elements) as $key) {
+    $rows[] = array(
+      drupal_render($elements[$key]['title']),
+      drupal_render($elements[$key]['message'])
+    );
+  }
+  $output .= theme('table', array(), $rows);
+  $output .= drupal_render($elements);
+  return $output;
 }

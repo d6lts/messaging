@@ -124,6 +124,9 @@ function messaging_template_message_part($group, $key, $method, $language, $getd
   if (!isset($cache[$langcode][$group][$method])) {
     $cache[$langcode][$group][$method] = _messaging_template_message_part($group, $method, $language);
   }
+  if (!$key) {
+    return $cache[$langcode][$group][$method];
+  }
   if (!isset($cache[$langcode][$group][$method][$key])) {
     if ($getdefault && ($fallback = messaging_template_method_fallback($method))) {
       // Go for method fallback
@@ -308,4 +311,16 @@ function messaging_template_language_list() {
     $default = language_default();
     return array($default->language => $default->name);
   }
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function messaging_template_theme() {
+  return array(
+    'messaging_template_admin_texts' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'messaging_template.admin.inc',
+    ),
+  );
 }
