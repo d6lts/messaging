@@ -3,6 +3,17 @@
 /**
  * @file
  * Drupal Messaging Framework - Message class file
+ * 
+ * The steps the message follows are
+ * - prepare
+ *   Parameters are prepared, alter hook is invoked, etc
+ *   The sending method may change at this stage 
+ * - presend, send, aftersend
+ *   If the message is to be sent right away
+ * - queue, afterqueue
+ *   If the message is to be queued
+ * 
+ * The message will be rendered right before sending or before being stored
  */
 
 /**
@@ -358,23 +369,13 @@ class Messaging_Message extends Messaging_Object {
     // First get specific parameters for this sending method
     $params = isset($this->params[$method]) ? $this->params[$method] : array();
     // Check for specific parameters for this method group
-    $group = messaging_method_info($method, 'group');
+    $group = $this->send_method()->get_info('group');
     if ($group && !empty($this->params[$group])) {
       $params += $this->params[$group];
     }
     return $params;
   }
-  /**
-   * Get language as object
-   */
-  function get_language() {
-    if (isset($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
-      return $languages[$this->language];
-    }
-    else {
-      return language_default();
-    }
-  }
+
   /**
    * Delete if already on store
    */
@@ -484,7 +485,7 @@ class Messaging_Message extends Messaging_Object {
       return $this->sender_name;
     }
     elseif ($sender = $this->get_sender()) {
-      return $sender->name;
+      return check_plain($sender->name);
     }
     else {
       return variable_get('site_name', 'Drupal');
@@ -503,6 +504,12 @@ class Messaging_Message extends Messaging_Object {
   function get_body() {
     $this->render();
     return $this->body;
+  }
+  /**
+   * Get message files
+   */
+  function get_files() {
+    return !empty($this->files) ? $this->files : array();
   }
   /**
    * Build a simple text with message subject and body

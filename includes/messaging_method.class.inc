@@ -304,7 +304,6 @@ class Messaging_Send_Method extends Messaging_Method {
    */
   static function default_prepare($message, $info) {
     messaging_debug('Preparing message for sending', array('message' => $message, 'info' => $info));
-    // Set some default values if not already set
     // If the messaging method is of type push, cron processing will be enabled
     if ($message->queue && ($info['type'] & MESSAGING_TYPE_PUSH)) {
       $message->cron = 1;

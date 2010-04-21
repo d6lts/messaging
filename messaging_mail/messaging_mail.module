@@ -24,17 +24,12 @@ function messaging_mail_messaging($op, $type = NULL) {
       $info['mail'] = array(
         'title' => 'Drupal mail',
         'name' => t('Mail'), // Name for display
-        //'group' => 'mail', // Class of sending method
-        //'destination' => 'mail', // Account property to use as destination
+        'description' => t('Send e-mails using the default Drupal mail library.'),
+        'group' => 'mail', // Class of sending method
         'type' => MESSAGING_TYPE_SEND,  // Method type: push || pull
         'glue' => "\n", // Glue for message body lines
         'footer' => "\n--",  // Separator for message footer
-        'description' => t('Send e-mails using the default Drupal mail library.'),
         'send callback' => 'messaging_mail_send_msg', // Sending callback
-        'system accounts' => TRUE, // Supports multiple sending accounts
-        'account type' => 'mail', // The type of system account to use
-        'address_name' => t('E-mail address'), // Name of the address for this method
-        'anonymous' => TRUE, // Allow anonymous destinations
         'class' => 'Messaging_Method_Mail',
         'filter' => 'messaging_plaintext', // Default filter for this format
       );
@@ -60,7 +55,8 @@ function messaging_mail_messaging($op, $type = NULL) {
  *   Optional parameters for this method type
  */
 function messaging_mail_send_msg($address, $message, $params = array()) {
-  $mail = messaging_mail_prepare($address, $message, $params);
+  // Build the message in drupal mail format
+  $mail = $message->send_method()->mail_build($address, $message, $params);
   return drupal_mail_send($mail);
 }
 
@@ -68,5 +64,5 @@ function messaging_mail_send_msg($address, $message, $params = array()) {
  * Implementation of hook_disable()
  */
 function messaging_mail_disable() {
-  messaging_method_disable('mail');
+  messaging_method_disable('mail', 'mail');
 }

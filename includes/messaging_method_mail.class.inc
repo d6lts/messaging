@@ -40,11 +40,31 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
       'address_name' => t('E-mail address'),
       'group' => 'mail',
       'type' => MESSAGING_TYPE_SEND,
+      'anonymous' => TRUE, // Mail methods work with anonymous subscriptions
     );
+  }
+
+  /**
+   * Message default callback: prepare
+   * 
+   * Decide on queue, log, cron and send options, prepare parameters
+   */
+  function message_prepare($message) {
+    // First, decide on queue, log, cron and send options
+    parent::message_prepare($message, $this->get_info());
+    // Build specific mail parameters and store them into the message
+    $params = $message->get_params('mail');
+    $message->params[$this->method] = $this->mail_params($message, $params);
   }
   
   /**
-   * Rebuild message in Drupal mail format
+   * Get default from address. 
+   */
+  static function default_from() {
+    return variable_get('site_mail', ini_get('sendmail_from'));
+  }
+  /**
+   * Rebuild message in Drupal mail format, right before sending
    * 
    * @param $destination
    *   Email destination
@@ -55,37 +75,23 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
    * @param $alter
    *   Whether to run the mail_alter hook
    */
-  static function mail_prepare($destination, $message, $params, $alter = TRUE) {
-  
-    // The message 'from' will depend on message sender if present, otherwise default to site mail
-    $default_from = variable_get('site_mail', ini_get('sendmail_from'));
-    
-    if (empty($params['from'])) {
-      if (!empty($message->sender_account) && !empty($message->sender_account->mail)) {
-        $from = check_plain($message->sender_account->name) . ' <'.$message->sender_account->mail.'>';
-      } elseif(!empty($message->sender_name) && $default_from) {
-        $from = check_plain($message->sender_name) . ' <'.$default_from.'>';
-      } else {
-        $from = $default_from;
-      }
-      $params['from'] = $from;
-    } else {
-      $from = $params['from'];
+  static function mail_build($destination, $message, $params = array(), $alter = TRUE) {
+    // Build parameters and headers if not previously built
+    if (!$params || empty($params['headers'])) {
+      $params = self::mail_params($message, $params);
     }
-  
     // Build the mail object, mimic drupal_mail() format
     $mail = array(
-      'id'       => 'messaging_'. (!empty($message->type) ? 'message-'.$message->type : 'message'),
+      'id'       => $params['id'],
       'to'       => $destination,
-      'from'     => $from,
-      'language' => !empty($message->language) ? $message->language : language_default(),
+      'from'     => $params['from'],
+      'language' => $message->get_language(),
+      'subject'  => $message->get_subject(),
+      'body'     => $message->get_body(),
+      'headers'  => $params['headers'],
+      'attachments' => $message->get_files(),
       'params'   => $params,
-      'subject'  => $message->subject,
-      'body'     => $message->body,
-      'headers'  => messaging_mail_headers($message, $params),
-      'attachments' => !empty($message->files) ? $message->files : array(),
-    );  
-  
+    );
     // Invoke hook_mail_alter() to allow all modules to alter the resulting e-mail.
     if ($alter) {
       drupal_alter('mail', $mail);
@@ -94,11 +100,49 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
   }
   
   /**
+   * Prepare from address and mail headers
+   */
+  static function mail_params($message, $params = array()) {
+    // The message 'from' will depend on message sender if present, otherwise default to site mail    
+    $params += array('default_from' => self::default_from());
+    if (empty($params['from'])) {
+      $sender_name = $message->get_sender_name();
+      $sender_account = $message->get_sender();
+      if ($sender_name && $sender_account && !empty($sender_account->mail)) {
+        $from = $sender_name . ' <'.$sender_account->mail.'>';
+      } elseif($sender_name) {
+        $from = $sender_name . ' <'. $params['default_from'].'>';
+      } else {
+        $from = $params['default_from'];
+      }
+      $params['from'] = $from;
+    } else {
+      $from = $params['from'];
+    }
+  
+    // Set headers, or add to existing ones. Pre-existing ones should not be overridden.
+    $headers = self::mail_headers($params);
+    $params += array(
+      'id'       => 'messaging_'. (!empty($message->type) ? 'message-'.$message->type : 'message'),
+      'from'     => $from,
+      'headers'  => array(),
+    );
+    $params['headers'] += $headers;  
+  
+    return $params;
+  }
+  
+  /**
    * Get mail headers. Helper function for mail methods
    * 
+   * @param $params
+   *   Array of parameters with the following elements
+   *   - 'from', Mail from address
+   *   - 'default_from', Default from address
+   *   - 'headers', Predefined headers to be added to this one
    */
-  static function mail_headers($message, $params) {
-    
+  static function mail_headers($params) {
+    $params += array('default_from' => self::default_from());
     $headers = !empty($params['headers']) ? $params['headers'] : array();
     
     // Add some default headers
@@ -109,7 +153,7 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
       'X-Mailer'                  => 'Drupal'
     );
     
-    $default_from = variable_get('site_mail', ini_get('sendmail_from'));
+    $default_from = $params['default_from'];
     $from = !empty($params['from']) ? $params['from'] : $default_from;
   
     // Set default headers depending on data
@@ -127,33 +171,6 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
     }  
   
     return $headers;
-  }
-  
-  /**
-   * Get list of mail methods
-   */
-  static function mail_methods() {
-    $mail_methods = array();
-    foreach (messaging_method_info() as $method => $info) {
-      if (!empty($method['group']) && $method['group'] == 'mail') {
-        $mail_methods[] = $method;
-      }
-    }
-    return $mail_methods;
-  }
-  
-  /**
-   * Update destinations when a user account is updated, created
-   * 
-   * The destinations for that mail account will be assigned to the user
-   */
-  static function mail_update_user($account) {
-    if ($account->status) {
-      // Update mail for destinations of this user
-      db_query("UPDATE {messaging_destination} SET address = '%s' WHERE uid = %d AND type = 'mail'", $account->mail, $account->uid);
-      // Update uid for destinations with this mail
-      db_query("UPDATE {messaging_destination} SET uid = %d WHERE uid = 0 AND type = 'mail' AND address = '%s'", $account->uid, $account->mail);
-    }
   }
   
 }

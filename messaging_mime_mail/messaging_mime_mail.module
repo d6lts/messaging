@@ -13,6 +13,7 @@ function messaging_mime_mail_messaging($op = 'info') {
       $info['mimemail'] = array(
         'title' => 'Mime Mail',
         'name' => t('Mime Mail'), // Name for display
+        'description' => t('Send e-mails using Mime Mail module.'),
         'group' => 'mail', // Class of send method
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
         'footer' => "<br><br>--",  // Separator for message footer
@@ -32,11 +33,9 @@ function messaging_mime_mail_messaging($op = 'info') {
  * @param $message
  *   Message array
  */
-function messaging_mime_mail_send_msg($destination, $message, $params = array()) {
-  // Get parameters without invoking hook_mail_alter()
-  $mail = messaging_mail_prepare($destination, $message, $params, FALSE);
+function messaging_mime_mail_send_msg($destination, $message, $params) {
   // mimemail($sender, $recipient, $subject, $body, $plaintext = NULL, $headers = array(), $text = NULL, $attachments = array(), $mailkey = '')  
-  return mimemail($mail['from'], $mail['to'], $mail['subject'], $mail['body'], NULL, $mail['headers'], NULL, $mail['attachments'], '');
+  return mimemail($params['from'], $destination, $message->get_subject(), $message->get_body(), NULL, $params['headers'], NULL, $message->get_files(), '');
 }
 
 /**

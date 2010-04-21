@@ -105,8 +105,8 @@ function messaging_phpmailer_theme() {
  *   Message array
  */
 function messaging_phpmailer_send_msg($destination, $message, $params = array()) {
-  $mail = messaging_mail_prepare($destination, $message, $params);
-  
+  // Build the message in drupal mail format
+  $mail = $message->send_method()->mail_build($destination, $message, $params);
   return messaging_phpmailer_drupal_mail($mail);
 }
 

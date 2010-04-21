@@ -124,9 +124,8 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
       break;
     case 'update':
       // Claim user mail address if in destinations table
-      if (function_exists('messaging_mail_update_user')) {
-        messaging_mail_update_user($user);
-      }
+      messaging_include('mail.inc');
+      messaging_mail_update_user($user);
       break;
     case 'form':
       if ($category == 'account' && ($list = messaging_method_list($user))) {
@@ -1122,44 +1121,6 @@ function messaging_static_reset($name = NULL) {
  */
 function messaging_destination_load($mdid) {
   return Messaging_Destination::load($mdid);  
-}
-
-/**
- * Common library for mail methods
- * 
- * This is the only non method agnostic functionality in this module. As there are several plug-ins
- * for mail sending, we add this helper function here so its available for all them.
- */
-
-/**
- * Rebuild message in Drupal mail format
- */
-function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) {
-  return Messaging_Method_Mail::mail_prepare($destination, $message, $params, $alter);
-}
-
-/**
- * Get mail headers. Helper function for mail methods
- * 
- */
-function messaging_mail_headers($message, $params) {
-  return Messaging_Method_Mail::mail_headers($message, $params);
-}
-
-/**
- * Get list of mail methods
- */
-function messaging_mail_methods() {
-  return Messaging_Method_Mail::mail_methods();
-}
-
-/**
- * Update destinations when a user account is updated, created
- * 
- * The destinations for that mail account will be assigned to the user
- */
-function messaging_mail_update_user($account) {
-  return Messaging_Method_Mail::mail_update_user($account);
 }
 
 /**
