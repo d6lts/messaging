@@ -27,9 +27,9 @@ function messaging_simple_messaging($op = 'info') {
         'glue' => '<br />',
         'description' => t('Don\'t send messages but display them on a user account tab'),
         'send callback' => 'messaging_simple_send_msg',
-        'destination' => 'uid',
         'format' => 'HTML',
         'filter' => 'messaging_filter',
+        'anonymous' => FALSE, // This method is not valid for anonymous users
       );
       return $info;  
   }

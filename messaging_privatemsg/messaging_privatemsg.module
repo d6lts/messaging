@@ -23,6 +23,7 @@ function messaging_privatemsg_messaging($op) {
         'description' => t('Send messages through Privatemsg'),
         'send callback' => 'messaging_privatemsg_send_msg', // Sending callback
         'filter' => 'messaging_filter', // Default filter for this format
+        'anonymous' => FALSE, // This method is not valid for anonymous users
       );
       return $info;  
   }

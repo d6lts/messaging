@@ -18,6 +18,7 @@ function messaging_phpmailer_menu() {
     'access arguments' => array('administer messaging'),
     'type' => MENU_LOCAL_TASK,
     'filter' => 'messaging_html', // Default filter for this format
+    'anonymous' => TRUE, // This method supports anonymous destinations
   );
 
   return $items;

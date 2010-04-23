@@ -21,6 +21,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'send callback' => 'messaging_mime_mail_send_msg',  // Sending callback
         'class' => 'Messaging_Method_Mail',
         'filter' => 'messaging_html', // Default filter for this format
+        'anonymous' => TRUE, // This method supports anonymous destinations
       );
       return $info;  
   }
