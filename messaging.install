@@ -374,7 +374,6 @@ function messaging_update_6009() {
   if (!variable_get('messaging_update_6006', 0)) {
     db_drop_unique_key(&$ret, 'messaging_destination', 'destination');
   }
-  variable_del('messaging_update_6006');
   return $ret;
 }
 
@@ -383,10 +382,32 @@ function messaging_update_6009() {
  */
 function messaging_update_6010() {
   $ret = array();
-  foreach (messaging_method_info() as $method => $info) {
-    $type = isset($info['address_type']) ? $info['address_type'] : $info['group']; // Best guess, will work for most cases
-    $ret[] = update_sql("UPDATE {messaging_destination} SET type = '$type' WHERE method = '$method'");
+  if (!variable_get('messaging_update_6006', 0)) {
+    foreach (messaging_method_info() as $method => $info) {
+      $type = isset($info['address_type']) ? $info['address_type'] : $info['group']; // Best guess, will work for most cases
+      $ret[] = update_sql("UPDATE {messaging_destination} SET type = '$type' WHERE method = '$method'");
+    }
   }
   return $ret;  
 }
+
+/**
+ * Delete duplicated destinations
+ */
+function messaging_update_6011() {
+  return _messaging_update_duplicate_destinations();
+}
+
 // Pending, preserve data for now: db_drop_field(&$ret, 'messaging_destination', 'method');
+
+/**
+ * Reusable update, delete duplicate destinations
+ */
+function _messaging_update_duplicate_destinations() {
+  $ret = array();
+  // Mark all rows that have a previous with the same type, address
+  $ret[] = update_sql("UPDATE {messaging_destination} d INNER JOIN {messaging_destination} d2 ON d.uid = d2.uid AND d.address = d2.address AND d.type = d2.type AND d.mdid > d2.mdid SET d.type = ''");
+  // Now delete marked rows
+  $ret[] = update_sql("DELETE FROM messaging_destination WHERE type = ''");
+  return $ret;
+}

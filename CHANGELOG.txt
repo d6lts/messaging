@@ -2,6 +2,7 @@
 
 6.x-4.x-beta1 to ......
 ------------------------
+- Added hook_messaging('address types') for send methods to share address information
 - Improved Destinations, dropping method field, a destination is now an address.
 - Allow specific Input formats for template parts.
 - Reworked message filtering, now it uses module's own filters.
