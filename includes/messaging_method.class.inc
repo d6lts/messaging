@@ -26,7 +26,6 @@ abstract class Messaging_Method {
   public $title;
   public $name;
   public $group;
-
   
   /** Message composition and rendering **/
   
@@ -111,6 +110,10 @@ abstract class Messaging_Method {
  * - destination
  */
 class Messaging_Send_Method extends Messaging_Method {
+  // Default type is send (Outgoing + Push)
+  public $type = Messaging_Method::TYPE_SEND;
+  // Address type for this method
+  public $address_type = 'user';
   public $destination;
   public $glue;
   public $footer;
@@ -124,7 +127,6 @@ class Messaging_Send_Method extends Messaging_Method {
   
   function __construct($method, $info = array()) {
     $this->method = $method;
-    $info += $this->get_defaults();
     foreach (array('title', 'name', 'group', 'destination', 'type', 'glue', 'footer', 'description', 'address_name', 'anonymous', 'filter') as $key) {
       if (isset($info[$key])) {
         $this->$key = $info[$key];
@@ -145,7 +147,12 @@ class Messaging_Send_Method extends Messaging_Method {
       return $this->info;
     }
   }
-  
+  /**
+   * Get address info property
+   */
+  function get_address_info($property = NULL) {
+    return messaging_address_info($this->address_type, $property);
+  }
   /**
    * Send message to address, use sending callback
    */
@@ -167,15 +174,22 @@ class Messaging_Send_Method extends Messaging_Method {
   }
   /**
    * Get address for user account
+   * 
+   * @param $account
+   *   User account object or uid
    */
   function get_user_address($account) {
-    if (isset($this->destination) && !empty($account->{$this->destination})) {
-      return $account->{$this->destination};
-    }
-    elseif ($function = $this->get_info('destination callback')) {
+    if ($function = $this->get_address_info('user2address callback')) {
       return $function($account);
     }
+    elseif ($property = $this->get_address_info('account_property')) {        
+      return messaging_user_property($account, $property);
+    }
+    elseif ($function = $this->get_info('destination callback')) {
+      return $function(messaging_user_object($account));
+    }
   }
+
   /**
    * Check user access to this method
    */
@@ -194,34 +208,50 @@ class Messaging_Send_Method extends Messaging_Method {
    * Get address name
    */
   function address_name() {
-    return isset($this->address_name) ? $this->address_name : t('Address');
+    if (empty($this->address_name)) {
+      if ($name = $this->get_address_info('name')) {
+        $this->address_name = $name;
+      }
+      else {
+        $this->address_name = t('Address');
+      }
+    } 
+    return $this->address_name; 
   }
+
   /**
    * Get uid for address
    */
   function get_address_uid($address) {
+    if ($this->address_type == 'user') {
+      return (int)$address;
+    }
+    elseif ($function = $this->get_address_info('address2uid callback')) {
+      return $function($address);
+    }
   }
   /**
    * Validate address
    */
   function address_validate($address) {
-    // The default address will be valid if not empty
-    return !empty($address);
+    if ($function = $this->get_address_info('validate callback')) {
+      return $function($address);
+    }
+    else {
+      // The default address will be valid if not empty
+      return !empty($address);
+    }
   }
   /**
    * Format address for display
    */
   function format_address($address, $html = FALSE) {
-    return check_plain($address);
-  }
-  /**
-   * Get default properties
-   */
-  function get_defaults() {
-    return array(
-      'address_name' => t('Address'),
-      'filter' => variable_get('messaging_default_filter', ''),
-    );
+    if ($function = $this->get_address_info('format callback')) {
+      return $function($address, $html);
+    }
+    else {
+      return check_plain($address);
+    }
   }
 
   /**
@@ -234,7 +264,7 @@ class Messaging_Send_Method extends Messaging_Method {
       return $function($message, $this->get_info());
     }
     else {
-      return $this->default_prepare($message, $this->get_info());
+      return $this->default_prepare($message, $this->type);
     }    
   }
   /**
@@ -302,14 +332,14 @@ class Messaging_Send_Method extends Messaging_Method {
    * 
    * Decide on queue, log, cron and send options, prepare parameters
    */
-  static function default_prepare($message, $info) {
-    messaging_debug('Preparing message for sending', array('message' => $message, 'info' => $info));
+  static function default_prepare($message, $type) {
+    messaging_debug('Preparing message for sending', array('message' => $message));
     // If the messaging method is of type push, cron processing will be enabled
-    if ($message->queue && ($info['type'] & MESSAGING_TYPE_PUSH)) {
+    if ($message->queue && ($type & MESSAGING_TYPE_PUSH)) {
       $message->cron = 1;
     }
     // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-    if (!$message->queue && ($info['type'] & MESSAGING_TYPE_PULL)) {
+    if (!$message->queue && ($type & MESSAGING_TYPE_PULL)) {
       $message->queue = 1;
       $message->cron = 0;
     }

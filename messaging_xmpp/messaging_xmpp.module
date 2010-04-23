@@ -85,14 +85,18 @@ function messaging_xmpp_messaging($op) {
         'type' => MESSAGING_TYPE_PUSH,
         'glue' => "\n",
         'description' => t('Send XMPP using XMPP Framework.'),
-      
+        'address_type' => 'xmpp',
         'send callback' => 'messaging_xmpp_send_msg',
-        'destination callback' => 'messaging_xmpp_user_destination',
         'render callback' => 'messaging_xmpp_render',
         'user callback' => 'messaging_xmpp_user_check',
-   
-        'address_name' => t('XMPP account'), // Name of the address for this method
         'anonymous' => TRUE, // Allow anonymous destinations
+      );
+      return $info;
+    case 'address types':
+      $info['xmpp'] = array(
+        'name' => t('XMPP account'), // Name of the address for this method
+        'user2address callback' => 'messaging_xmpp_user_destination', // Mapping user account to address
+        'validate callback' => 'valid_email_address', // We can use email validation for these ones 
       );
       return $info;
   }

@@ -351,6 +351,19 @@ class Messaging_Message extends Messaging_Object {
       $this->method = $destination->method;
     }
   }
+  /**
+   * Set user object
+   */
+  function set_user($account) {
+    // If not method, try default method for this account
+    if (empty($this->method)) {
+      $this->method = messaging_method_default($account);
+    }
+    if ($this->method && empty($this->destination)) {
+      $this->destination = $this->send_method()->get_user_address($account);
+    }
+    parent::set_user($account);
+  }
 
   /**
    * Add destination to the list

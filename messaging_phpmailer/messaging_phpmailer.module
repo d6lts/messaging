@@ -38,6 +38,7 @@ function messaging_phpmailer_messaging($op = 'info') {
         'footer' => "<br><br>--",
         'description' => t('Send HTML e-mails using PHPMailer'),
         'class' => 'Messaging_Method_Mail',
+        'address_type' => 'mail',
       );
       return $info;
   }

@@ -173,6 +173,9 @@ function messaging_send_method($method, $method_info = array()) {
     else {
       // No info available from modules. This is a custom method or a disabled one
       $send_methods[$method] = new Messaging_Send_Method($method, $method_info);
+      // Add to static cache so it can be found later
+      $info = &messaging_static('messaging_info_method info');
+      $info[$method] = $method_info;
     }
   }
   
@@ -204,12 +207,12 @@ function messaging_message_build($message) {
  * @param $queue
  *   Optional send method. Defaults to the user account predefined method
  */
-function messaging_message_send_destination($destination, $message, $queue = FALSE) {
+function messaging_message_send_destination($method, $destination, $message, $queue = FALSE) {
   messaging_debug('Sending message to destination', array('destination' => $destination, 'message' => $message));
   // Build array of parameters so they can be overridden by callbacks
   $message = messaging_message_build($message);
   $message->uid = $destination->uid;
-  $message->method = $destination->method;
+  $message->method = $method;
   $message->destination = $destination->address;
   $message->acccount = $destination->get_account();
   if ($queue) {
@@ -245,7 +248,9 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
   messaging_debug('Sending message to user', array('account' => $account, 'message' => $message, 'method' => $method));
   // Build array of parameters so they can be overridden by callbacks
   $message = messaging_message_build($message);
-  $message->method = $method ? $method : messaging_method_default($account);
+  if (isset($method)) {
+    $message->method = $method;
+  }
   $message->queue = $queue ? 1 : 0;
   // Log in case it cannot be delivered. This can be overridden by user callback
   //$message->log = TRUE;
@@ -256,14 +261,11 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
   $message->discard = FALSE;
   // This can go through multiple redirections, when done $process should be FALSE
   while (!$message->queue && $message->method && !$message->discard && $message->process && ($callback = messaging_method_info($message->method, 'user callback'))) {
-    $params = _messaging_callback_invoke($callback, $message);
+    _messaging_callback_invoke($callback, $message);
   }
   // The sending method may have decided the message is to be discarded.
   if ($message->discard) {
     return FALSE;
-  }
-  if ($message->method && empty($message->destination)) {
-    $message->destination = messaging_user_destination($account, $message->method, $message);
   }
   // Now check that we have a destination for this user account. If set to FALSE we just don't try anymore
   // Send the message or, if no destination, abort the message sending
@@ -369,13 +371,6 @@ function messaging_message_test($message, $destinations = array()) {
   $message->render();
   messaging_log('Emulating message sending (test run)', array('summary' => (string)$message, 'message' => $message, 'destinations' => $destinations));
   return $message->success = TRUE;
-}
-
-/**
- * Message default callback: preprocessing
- */
-function messaging_message_prepare($message, $info) {
-  Messaging_Send_Method::default_prepare($message, $info);
 }
 
 /**
@@ -516,20 +511,28 @@ function messaging_user_setting($name, $account = NULL, $default = NULL) {
  * @param $default
  *   Optional default value to return when there's not that property for the method
  */
-function messaging_method_info($method = NULL, $property = NULL, $default = NULL, $refresh = FALSE) {
-  $info = &messaging_static(__FUNCTION__);
+function messaging_method_info($method = NULL, $property = NULL, $default = NULL) {
+  $info = &messaging_static('messaging_info_method info');
   
-  if (!$info || $refresh) {
-    $info = module_invoke_all('messaging', 'send methods');
+  if (!$info) {
+    $info = messaging_info('send methods', NULL, FALSE, FALSE);
     // Merge settings from variable for each enabled method
     foreach (array_keys($info) as $name) {
       $info[$name] = array_merge($info[$name], variable_get('messaging_method_' . $name, array()));
     }
     // Allow altering by other modules
-    drupal_alter('messaging_methods', $info);
+    drupal_alter('messaging_send_methods', $info);
   }
 
   return messaging_array_info($info, $method, $property, $default);
+}
+
+/**
+ * Returns messaging address properties
+ */
+function messaging_address_info($type = NULL, $property = NULL, $default = NULL) {
+  $info = &messaging_info('address types');
+  return messaging_array_info($info, $type, $property, $default);
 }
 
 /**
@@ -541,8 +544,38 @@ function messaging_messaging($op, $type = NULL) {
       messaging_include('text.inc');
       return _messaging_text_filter_info();
 
+    case 'address types':
+      // Get some built in address types
+      $types['mail'] = array(
+        'name' => t('E-mail address'), // Name for display
+        'validate callback' => 'valid_email_address', // Validation callback
+        'account_property' => 'mail', // Property on user account
+        'address2uid callback' => 'messaging_address_get_uid',
+        'field_name' => 'mail', // Field on which this address is stored
+        'field_table' => 'users', // Table on which this address is stored
+      );
+      $types['user'] = array(
+        'name' => t('User name'), // Name of the address for this method
+        'format callback' => 'messaging_user_format_name', // Format address for display
+        'account_property' => 'uid', // Property on user account
+        'field_name' => 'uid', // Field on which this address is stored
+        'field_table' => 'users', // Table on which this address is stored
+      );
+      return $types;
   }
 }
+
+/**
+ * Map mail to uid
+ */
+function messaging_address_get_uid($address, $property = 'mail') {
+  return db_result(db_query("SELECT uid FROM {users} WHERE $property = '%s'", $address));
+}
+
+/**
+ * Format user name
+ */
+
 /**
  * Implementation of hook_filter(). Contains a basic set of essential filters.
  * - Plain text:
@@ -628,13 +661,6 @@ function messaging_message_load($mqid, $refresh = FALSE) {
 }
 
 /**
- * Renders full message with header and body
- */
-function messaging_message_render($message, $info) {
-  return Messaging_Send_Method::default_render($message, $info);
-}
-
-/**
  * Implementation of hook_requirements()
  */
 function messaging_requirements($phase) {
@@ -671,12 +697,18 @@ function messaging_message_in($method, $channel, $message, $params = array()) {
 /**
  * Update messaging method.
  * 
- * When a messaging method is disabled, we need to update current settings for this and other modues 
+ * When a messaging method is disabled, we need to update current settings for this and other modues
+ * 
+ * @param $method
+ *   Method to disable
+ * @param $replace
+ *   Optional replacement method suggested by the disabled one.
  */
-function messaging_method_disable($method) {
+function messaging_method_disable($method, $replace = NULL) {
   module_load_include('install', 'messaging');
-  if ($replace = messaging_update_method_replace($method)) {
-    messaging_update_method_disable($method, $replace);
+  $replace = isset($replace) ? $replace : messaging_update_method_replace($method, TRUE);
+  messaging_update_method_disable($method, $replace);
+  if ($replace) {
     drupal_set_message(t('Disabled messaging sending method %method and replaced by %replace', array('%method' => messaging_method_info($method, 'title'), '%replace' => messaging_method_info($replace, 'title'))));
   } else {
     // It seems all methods are disabled, print warning
@@ -773,7 +805,6 @@ function messaging_token_list($type = 'all') {
   if ($type == 'destination' || $type == 'all') {
     $tokens['destination']['destination-address'] = t('Destination address.');
     $tokens['destination']['destination-address-name'] = t('Destination address name.');
-    $tokens['destination']['destination-method-name'] = t('Destination method name.');
   }
   return $tokens;
 }
@@ -798,7 +829,6 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
       if ($destination = $object) {
         $values['destination-address'] = $destination->format_address(FALSE);
         $values['destination-address-name'] = $destination->address_name();
-        $values['destination-method-name'] = $destination->method_name();
       }
       break;
   }
@@ -1134,4 +1164,64 @@ function messaging_include($file, $module = 'messaging') {
     require_once './' . drupal_get_path('module', $module) . '/includes/' . $file;
     $included[$module][$file] = TRUE;
   }
+}
+
+/**
+ * Invoke hook_notifications($name) on all modules
+ * 
+ * This is like module_invoke all with some differences:
+ * - The results are just merged (not recursively)
+ * - The module name is added to each resulting array
+ * - We cache all the results 
+ */
+function &messaging_info($name, $param = NULL, $refresh = FALSE, $alter = TRUE) {
+  $info = &messaging_static('messaging_info_' . $name);
+  if (!isset($info) || $refresh) {
+    $info = array();
+    foreach (module_implements('messaging') as $module) {
+      $function = $module .'_messaging';
+      if ($return = $function($name, $param)) {
+        // Add module name to each result if it is an info array
+        foreach ($return as $key => &$value) {
+          if (is_array($value)) {
+            $value += array('module' => $module);
+          }
+        }
+        // Note we use array_merge instead of array_merge_recursive()
+        $info = array_merge($info, $return);
+      }
+    }
+    // Provide alter hook
+    if ($alter) {
+      drupal_alter('messaging_' . strtr(' ', '_', $name), $info);
+    }
+  }      
+  return $info;
+}
+
+/**
+ * Helper function, get uid from account parameter (object or uid)
+ */
+function messaging_user_uid($account) {
+  return is_object($account) ? $account->uid : $account;
+}
+/**
+ * Helper function, get object from account parameter (object or uid)
+ */
+function messaging_user_object($account) {
+  return is_object($account) ? $account : messaging_load_user($account);
+}
+/**
+ * Helper function, get user object property from account parameter (object or uid)
+ */
+function messaging_user_property($account, $property) {
+  $account = messaging_user_object($account);
+  return $account && isset($account->$property) ? $account->$property : NULL;
+}
+/**
+ * Callback for printing user names
+ */
+function messaging_user_format_name($account, $html = FALSE) {
+  $account = messaging_user_object($account);
+  return $html ? theme('username', $account) : check_plain($account->name);
 }

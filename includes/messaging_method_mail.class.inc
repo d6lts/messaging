@@ -9,7 +9,9 @@
  * Base class for mail sending methods
  */
 class Messaging_Method_Mail extends Messaging_Send_Method {
+  // Default group and address type
   public $group = 'mail';
+  public $address_type = 'mail';
   public $type = MESSAGING_TYPE_SEND;
   public $anonymous = TRUE;
   
@@ -30,18 +32,6 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
    */
   function address_validate($address) {
     return valid_email_address($address);
-  }
-  /**
-   * Get defaults for mail methods
-   */
-  function get_defaults() {
-    return array(
-      'name' => t('Mail'),
-      'address_name' => t('E-mail address'),
-      'group' => 'mail',
-      'type' => MESSAGING_TYPE_SEND,
-      'anonymous' => TRUE, // Mail methods work with anonymous subscriptions
-    );
   }
 
   /**

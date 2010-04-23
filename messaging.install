@@ -96,10 +96,6 @@ function messaging_schema() {
         'type' => 'varchar', 'length' => 60, 'not null' => TRUE, 'default' => '',
         'description' => 'Destination type: mail, xmpp, etc.',
       ),
-      'method' => array(
-        'type' => 'varchar', 'length' => 60, 'not null' => TRUE, 'default' => '',
-        'description' => 'Messaging send method key.',
-      ),
       'address' => array(
         'type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '',
         'description' => 'Destination identifier, it may be an email address.',
@@ -114,12 +110,8 @@ function messaging_schema() {
       ),
     ),
     'primary key' => array('mdid'),
-    'unique keys' => array(
-      'destination' => array('method', 'address'),
-    ),
     'indexes' => array(
       'uid' => array('uid'),
-      'method' => array('method'),
       'address' => array('address'),
     ),
   );
@@ -169,8 +161,14 @@ function messaging_update_method_disable($method, $replace) {
 
 /**
  * Find a suitable replacement for a sending method
+ * 
+ * @param $method
+ *   Method key, the one to find a replacement for
+ * @param $default
+ *   Whether to try default remaining method if we cannot find one of the same type
  */
-function messaging_update_method_replace($method) {
+function messaging_update_method_replace($method, $default = TRUE) {
+  $replace = NULL;
   // Find an alternative one within the same group, i.e. 'mail'
   if ($method_group = messaging_method_info($method, 'group')) {
     foreach (messaging_method_info(NULL, 'group') as $index => $group) {
@@ -181,7 +179,7 @@ function messaging_update_method_replace($method) {
     }
   }
   // If still not replacement, go for the default
-  if (empty($replace)) {
+  if (empty($replace) && $default) {
     if ($method == messaging_method_default()) {
       $info = messaging_method_info();
       unset($info[$method]);
@@ -199,9 +197,46 @@ function messaging_update_method_replace($method) {
 function messaging_update_method_update($old, $new) {
   // Replace some variables
   if ($old ==  variable_get('messaging_default_method', NULL)) {
-    variable_set('messaging_default_method', $new);
+    if ($new) {
+      variable_set('messaging_default_method', $new);
+    }
+    else {
+      variable_del('messaging_default_method');
+    }
   }
+  // Create new destinations if needed for users that had an old one, but only if the address type is different
+  // It is possible to create new bulk destinations when we know the field and the table it comes from
+  if ($new) {
+    $old_type = messaging_method_info($old, 'address_type');
+    $new_type = messaging_method_info($new, 'address_type');
+    if ($old_type && $new_type && $old_type != $new_type && 
+      ($field = messaging_address_info($new_type, 'field_name')) && 
+      ($table= messaging_address_info($new_type, 'field_table')))
+    {
+      $sql = "INSERT INTO {messaging_destination} (uid, type, address)";
+      $where = " WHERE d1.uid > 0 AND d1.type = '%s' AND d2.uid IS NULL";
+      $join = " LEFT JOIN {messaging_destination} d2 ON d1.uid = d2.uid AND d2.type = '%s'" ; // Don't have already a destination of this type
+      if ($new_type == 'user') {
+        // Special case, destination is uid, it is much more straight forward
+        $sql .= " SELECT d1.uid, '%s', d1.uid FROM {messaging_destination} d1";
+        
+      }
+      else {
+        $sql .= " SELECT d1.uid, '%s', t.$field FROM {messaging_destination} d1";
+        $sql .= " INNER JOIN {" . $table . "} t ON d1.uid = t.uid"; // Have destination data on the other table
+      }
+      
+      db_query($sql . $join . $where, $new_type, $new_type, $old_type);
+      if ($created = db_affected_rows()) {
+        drupal_set_message(t("Created @count user destinations for new sending method.", array('@count' => $created)));         
+      }
+    }
+    
+  }
+  // Inform all modules this method is being replaced
   module_invoke_all('messaging', 'method update', $old, $new);
+  // Delete all stored messages for this method
+  messaging_store('del', array('method' => $old));
 }
 
 /**
@@ -300,7 +335,9 @@ function messaging_update_6005() {
 function messaging_update_6006() {
   $ret = array();
   $table = drupal_get_schema('messaging_destination', TRUE);
-  db_create_table($table, 'messaging_destination', $table);
+  db_create_table($ret, 'messaging_destination', $table);
+  // Mark this update so we know we don't have to update this table
+  variable_set('messaging_update_6006', 1);
   return $ret; 
 }
 
@@ -328,3 +365,28 @@ function messaging_update_6008() {
   variable_del('messaging_default_filter');
   return array();
 }
+
+/**
+ * Drop unique key for method, address and update table
+ */
+function messaging_update_6009() {
+  $ret = array();
+  if (!variable_get('messaging_update_6006', 0)) {
+    db_drop_unique_key(&$ret, 'messaging_destination', 'destination');
+  }
+  variable_del('messaging_update_6006');
+  return $ret;
+}
+
+/**
+ * Update destination type
+ */
+function messaging_update_6010() {
+  $ret = array();
+  foreach (messaging_method_info() as $method => $info) {
+    $type = isset($info['address_type']) ? $info['address_type'] : $info['group']; // Best guess, will work for most cases
+    $ret[] = update_sql("UPDATE {messaging_destination} SET type = '$type' WHERE method = '$method'");
+  }
+  return $ret;  
+}
+// Pending, preserve data for now: db_drop_field(&$ret, 'messaging_destination', 'method');

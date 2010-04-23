@@ -80,7 +80,7 @@ class Messaging_API_Tests extends MessagingTestCase {
     $info = array(
       'type' => Messaging_Send_Method::TYPE_PULL, 
       'glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => 0,
-      'destination' => 'uid',
+      'address_type' => 'user',
     );
     $send_method = messaging_send_method($test_method, $info);
     $user = $this->drupalCreateUser();
@@ -116,7 +116,7 @@ class Messaging_API_Tests extends MessagingTestCase {
     $message2 = $this->randomMessage($test_method);
     $message2->queue = 1;
     $message2->log = 1;
-
+    $this->assertTrue(messaging_user_destination($user, $test_method), 'Destination can be found for user');
     $this->assertTrue(messaging_message_send_user($user, $message1, NULL, 1), 'Message successfully sent for user');
 
     $message2->account = $user;

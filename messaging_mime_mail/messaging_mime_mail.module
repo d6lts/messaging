@@ -14,6 +14,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'title' => 'Mime Mail',
         'name' => t('Mime Mail'), // Name for display
         'description' => t('Send e-mails using Mime Mail module.'),
+        'address_type' => 'mail', // Type of address 
         'group' => 'mail', // Class of send method
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
         'footer' => "<br><br>--",  // Separator for message footer

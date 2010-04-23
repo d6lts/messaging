@@ -76,14 +76,7 @@ function messaging_text_filter($text, $filter) {
  * Get information of available filters for message texts
  */
 function messaging_text_filter_info($name = NULL, $property = NULL) {
-  $info = &messaging_static(__FUNCTION__);
-  
-  if (!$info) {
-    $info = module_invoke_all('messaging', 'text filters');
-    // Allow altering by other modules
-    drupal_alter('messaging_filters', $info);
-  }
-
+  $info = messaging_info('text filters');
   return messaging_array_info($info, $name, $property);
 }
 

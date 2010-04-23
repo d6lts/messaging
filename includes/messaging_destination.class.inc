@@ -22,7 +22,7 @@ class Messaging_Destination extends Messaging_Cached_Object {
   // Destination type
   public $type;
   // Sending method
-  public $method;
+  //public $method;
   // Address for this sending method
   public $address;
   // Date sent
@@ -35,10 +35,6 @@ class Messaging_Destination extends Messaging_Cached_Object {
    */
   function __construct($template = NULL) {
     parent::__construct($template);
-    // Set destination type if missing
-    if (empty($this->type) && !empty($this->method)) {
-      $this->type = messaging_method_info($this->method, 'group');
-    }
   }
 
   /**
@@ -59,23 +55,23 @@ class Messaging_Destination extends Messaging_Cached_Object {
    * Build destination with partial parameters
    * 
    * @param $template
-   *   Object template or messaging method
+   *   Object template or address type
    */
   public static function build($template) {
     if (is_array($template)) {
-      $method = NULL;
+      $type = NULL;
       $template = (object)$template;
     }
     if (is_object($template)) {
       $object = $template;
-      $method = $template->method;
+      $type = $template->type;
     }
     else {
-      $method = $template;
-      $object = array('method' => $method);
+      $type = $template;
+      $object = array('type' => $type);
     }
     // The type may define its own class
-    if ($method && ($class = messaging_method_info($method, 'destination_class'))) {
+    if ($type && ($class = messaging_address_info($type, 'destination_class'))) {
       return new $class($object);
     }
     else {
@@ -88,6 +84,7 @@ class Messaging_Destination extends Messaging_Cached_Object {
   public static function load($key) {
     return self::object_load(self::DB_TABLE, self::DB_KEY, $key, 'Messaging_Destination');
   }
+
   /**
    * Validate values to create a destination
    */
@@ -97,29 +94,57 @@ class Messaging_Destination extends Messaging_Cached_Object {
     if (!$send_method || !$send_method->address_validate($address)) {
       return FALSE;
     }
-    $account = is_object($account) ? $account : messaging_load_user($account);
+    $account = messaging_user_object($account);
     if (!$account || !$send_method->user_access($account)) {
       return FALSE;
     }
-    if ($existing = self::get_by_address($method, $address)) {
+    if ($type = messaging_method_info($method, 'address_type')) {
+      return self::validate_type($type, $address, $account);
+    }
+  }
+  /**
+   * Validate values to create a destination
+   */
+  public static function validate_type($type, $address, $account = 0) {
+    $uid = messaging_user_uid($account);
+    if ($existing = self::get_by_address($type, $address)) {
       // There's already a destination with these parameters, check user
       // It will be ok if users match or it was anonymous before
-      return !$existing->uid || $existing->uid == $account->uid;
+      return !$existing->uid || $existing->uid == $uid;
     }
-    elseif ($uid = $send_method->get_address_uid($address)) {
+    elseif ($address_uid = self::address2uid($type, $address)) {
       // Ok if this address belongs to the same user or to no user 
-      return !$uid || $uid == $account->uid;
+      return !$address_uid || $address_uid == $uid;
     }
     else {
       return TRUE;
     }
-
+  }
+  /**
+   * Map address to uid
+   */
+  public static function address2uid($type, $address) {
+    if ($type == 'user') {
+      return (int)$address;
+    }
+    elseif ($function = messaging_address_info($type, 'address2uid callback')) {
+      return $function($address);
+    }    
+  }
+  
+  /**
+   * Create for sending method
+   */
+  public static function create($send_method, $address, $uid) {
+    if ($type = messaging_method_info($send_method, 'address_type')) {
+      return self::create_type($type, $address, $uid);
+    }
   }
   /**
    * Create with parameters
    */
-  public static function create($method, $address, $uid) {
-    if ($existing = self::get_by_address($method, $address)) {
+  public static function create_type($type, $address, $uid) {
+    if ($existing = self::get_by_address($type, $address)) {
       if ($existing->uid != $uid) {
         $existing->uid = $uid;
         $existing->save();
@@ -127,13 +152,13 @@ class Messaging_Destination extends Messaging_Cached_Object {
       return $existing;
     }
     // Transitional case, row for user with no address, update it
-    elseif ($uid && ($existing = self::get(array('uid' => $uid, 'method' => $method, 'address' => '')))) {
+    elseif ($uid && ($existing = self::get(array('uid' => $uid, 'type' => $type, 'address' => '')))) {
       $existing->address = $address;
       $existing->save();
       return $existing;
     }
     else {
-      $destination = self::build(array('method' => $method, 'address' => $address, 'uid' => $uid));
+      $destination = self::build(array('type' => $type, 'address' => $address, 'uid' => $uid));
       $destination->save();
       return $destination;
     }
@@ -141,13 +166,13 @@ class Messaging_Destination extends Messaging_Cached_Object {
   /**
    * Get destination by method and address. This allows advanced caching.
    */
-  public static function get_by_address($method, $address) {
-    $cached = self::cache_by_address($method, $address);
+  public static function get_by_address($type, $address) {
+    $cached = self::cache_by_address($type, $address);
     if (isset($cached)) {
       return $cached;
     }
     else {
-      return self::get(array('method' => $method, 'address' => $address));
+      return self::get(array('type' => $type, 'address' => $address));
     }
   }
 
@@ -155,31 +180,29 @@ class Messaging_Destination extends Messaging_Cached_Object {
    * Get unique index for this destination
    */
   function index() {
-    return $this->uid . ':' . $this->method . ':' . $this->address;
+    return $this->uid . ':' . $this->type . ':' . $this->address;
   }
+
   /**
-   * Get send method object
+   * Get address type information
    */
-  function send_method() {
-    return messaging_send_method($this->method);
+  function address_info($property = NULL) {
+    if (!empty($this->type)) {
+      return messaging_address_info($this->type, $property);
+    }
   }
   /**
    * Get address name
    */
   function address_name() {
-    return $this->send_method()->address_name();
+    return $this->address_info('name');
   }
-  /**
-   * Get method name
-   */
-  function method_name() {
-    return messaging_method_info($this->method, 'name');
-  }
+
   /**
    * Format address
    */
   function format_address($html = FALSE) {
-    if ($callback = messaging_method_info($this->method, 'format address callback')) {
+    if ($callback = $this->address_info('format callback')) {
       $address = $callback($this->address, $html);
       return $address ? $address : t('Unknown');
     }
@@ -227,14 +250,14 @@ class Messaging_Destination extends Messaging_Cached_Object {
    */
   public function cache_save() {
     parent::cache_save();
-    $this->cache_by_address($this->method, $this->address, $this);
+    $this->cache_by_address($this->type, $this->address, $this);
   }
   /**
    * Save object to cache
    */
   public function cache_delete() {
     parent::cache_delete();
-    $this->cache_by_address($this->method, $this->address, FALSE);
+    $this->cache_by_address($this->type, $this->address, FALSE);
   }
   // Store into cache
   public static function cache_set($key, $object) {
@@ -247,12 +270,12 @@ class Messaging_Destination extends Messaging_Cached_Object {
   /**
    * Cache get/set by method and address
    */
-  public static function cache_by_address($method, $address, $object = NULL) {
+  public static function cache_by_address($type, $address, $object = NULL) {
     if (isset($object)) {
-      return self::cache_set("$method:$address", $object);
+      return self::cache_set("$type:$address", $object);
     }
     else {
-      return self::cache_get("$method:$address");
+      return self::cache_get("$type:$address");
     }
   }
 }
