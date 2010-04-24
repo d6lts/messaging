@@ -1177,26 +1177,52 @@ function messaging_include($file, $module = 'messaging') {
 function &messaging_info($name, $param = NULL, $refresh = FALSE, $alter = TRUE) {
   $info = &messaging_static('messaging_info_' . $name);
   if (!isset($info) || $refresh) {
-    $info = array();
-    foreach (module_implements('messaging') as $module) {
-      $function = $module .'_messaging';
-      if ($return = $function($name, $param)) {
-        // Add module name to each result if it is an info array
-        foreach ($return as $key => &$value) {
-          if (is_array($value)) {
-            $value += array('module' => $module);
-          }
-        }
-        // Note we use array_merge instead of array_merge_recursive()
-        $info = array_merge($info, $return);
-      }
-    }
+    $info = messaging_module_invoke_all('messaging', $name, $param);
     // Provide alter hook
     if ($alter) {
       drupal_alter('messaging_' . strtr(' ', '_', $name), $info);
     }
   }      
   return $info;
+}
+
+/**
+ * Invoke hook on all modules
+ * 
+ * This is like module_invoke_all with some differences:
+ * - The results are just merged (not recursively)
+ * - The module name is added to each resulting array
+ * 
+ * @param $hook
+ *   The name of the hook to invoke.
+ * @param ...
+ *   Arguments to pass to the hook.
+ * @return
+ *   An array of return values of the hook implementations. If modules return
+ *   arrays from their implementations, those are merged into one array.
+ */
+function messaging_module_invoke_all() {
+  $args = func_get_args();
+  $hook = $args[0];
+  unset($args[0]);
+  $return = array();
+  foreach (module_implements($hook) as $module) {
+    $function = $module .'_'. $hook;
+    $result = call_user_func_array($function, $args);
+    if (isset($result) && is_array($result)) {
+      foreach ($result as $key => &$value) {
+        if (is_array($value)) {
+          $value += array('module' => $module);
+        }        
+      }
+      $return = array_merge($return, $result);
+    }
+    else if (isset($result)) {
+      $return[] = $result;
+    }
+  }
+
+  return $return;
 }
 
 /**
