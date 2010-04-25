@@ -293,7 +293,7 @@ function messaging_account_build_destination($account, $method = NULL, $address 
       $address = messaging_user_destination($account, $method);
     }
     if ($method && $address) {
-      return Messaging_Destination::create($method, $address, $account->uid);
+      return Messaging_Destination::create_method($method, $address, $account->uid);
     }
     elseif (($fallback = messaging_method_default($account)) && $fallback != $method) {
       // Retry with new method
@@ -302,7 +302,7 @@ function messaging_account_build_destination($account, $method = NULL, $address 
   }
   elseif ($method && $address) { // Anonymous users
     // @todo check the address doesn't belong to any user ???
-    return Messaging_Destination::create($method, $address, 0);
+    return Messaging_Destination::create_method($method, $address, 0);
   }
 }
 

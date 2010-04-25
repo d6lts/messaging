@@ -60,9 +60,9 @@ class Messaging_API_Tests extends MessagingTestCase {
   
     // Try destination API
     $user = $this->drupalCreateUser();
-    $this->assertTrue(Messaging_Destination::validate('mail', $user->mail, $user->uid), 'Mail destination for user is OK.');
-    $this->assertFalse(Messaging_Destination::validate('mail', $user->mail, 0), 'Mail destination is not valid for anonymous user.');
-    $destination = Messaging_Destination::create('mail', $user->mail, $user->uid);
+    $this->assertTrue(Messaging_Destination::validate_method('mail', $user->mail, $user->uid), 'Mail destination for user is OK.');
+    $this->assertFalse(Messaging_Destination::validate_method('mail', $user->mail, 0), 'Mail destination is not valid for anonymous user.');
+    $destination = Messaging_Destination::create_method('mail', $user->mail, $user->uid);
     $this->assertTrue($destination->mdid, 'A mail destination can be created for user.');
     $destination = Messaging_Destination::get_by_address('mail', $user->mail);
     $this->assertTrue($destination, 'The destination for user can be retrieved.');

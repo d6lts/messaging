@@ -88,7 +88,7 @@ class Messaging_Destination extends Messaging_Cached_Object {
   /**
    * Validate values to create a destination
    */
-  public static function validate($method, $address, $account = 0) {
+  public static function validate_method($method, $address, $account = 0) {
     // First validate address and check permission
     $send_method = messaging_send_method($method);
     if (!$send_method || !$send_method->address_validate($address)) {
@@ -135,7 +135,7 @@ class Messaging_Destination extends Messaging_Cached_Object {
   /**
    * Create for sending method
    */
-  public static function create($send_method, $address, $uid) {
+  public static function create_method($send_method, $address, $uid) {
     if ($type = messaging_method_info($send_method, 'address_type')) {
       return self::create_type($type, $address, $uid);
     }
