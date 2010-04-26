@@ -77,21 +77,6 @@ function messaging_admin_settings() {
  * Default sending methods settings
  */
 function messaging_admin_method_settings() {
-  // Add information about input formats
-  messaging_include('text.inc');
-  $format_options = array();
-  $format_info = array();
-  foreach (messaging_text_filter_info() as $key => $filter) {
-    $format_options[$key] = $filter['name'];
-    $format_info[] = array($filter['name'], $filter['description']);
-  }
-  // We add this last for it not bo be default
-  $format_options[''] = t('No filtering (Insecure)');
-  $form['filter_info'] = array(
-    '#title' => t('Text filters'),
-    '#type' => 'item',
-    '#value' => theme('table', array(), $format_info),
-  );
   // Sending methods settings
   if ($info = messaging_method_info()) {
     $form['methods'] = array('#theme' => 'messaging_admin_method_settings');
@@ -106,13 +91,13 @@ function messaging_admin_method_settings() {
       $form['methods'][$key]['name'] = array(
         '#type' => 'textfield',
         '#default_value' => $options['name'],
-        '#size'          => 40,
+        '#size'          => 20,
       );      
       // Output filter applied to message body
-      $form['methods'][$key]['filter'] = array(
-        '#type' => 'select',
-        '#default_value' => messaging_text_method_filter($method, FALSE),
-        '#options' => $format_options,
+      $form['methods'][$key]['description'] = array(
+        '#type' => 'textfield',
+        '#default_value' => $options['description'],
+        '#size' => 40,
       );
     }
   } else {
@@ -127,16 +112,93 @@ function messaging_admin_method_settings() {
 }
 
 /**
+ * Settings for filter and formatting for each sending method
+ * 
+ * This page requires 'administer filters' permission so it doesn't need further checking
+ */
+function messaging_admin_method_filters() {
+  // Add information about input formats
+  messaging_include('text.inc');
+  // List of Input formats
+  $format_options = $filter_options = array();
+  foreach (filter_formats() as $format) {
+    $format_options[$format->format] = $format->name;
+  }
+  $format_default = filter_resolve_format(FILTER_FORMAT_DEFAULT);
+  // List of messaging filters
+  $filter_info = array();
+  foreach (messaging_text_filter_info() as $key => $filter) {
+    $filter_options[$key] = $filter['name'];
+    $filter_info[] = array($filter['name'], $filter['description']);
+  }
+  // We add this last for it not bo be default
+  $filter_options[''] = t('No filter (Insecure)');
+  $format_options[''] = t('No filter (Insecure)');
+  $form['filter_info'] = array(
+    '#title' => t('Available filters'),
+    '#type' => 'item',
+    '#value' => theme('table', array(), $filter_info),
+  );
+  // Sending methods settings
+  if ($info = messaging_method_info()) {
+    $form['methods'] = array('#theme' => 'messaging_admin_method_filters');
+    foreach ($info as $method => $options) {
+      $key = 'messaging_filters_'.$method;
+      // This will preserve settings for disabled modules
+      $form['methods'][$key]['#tree'] = TRUE;
+      $form['methods'][$key]['title'] = array(
+        '#value' => $options['title'],
+      );
+      // Output filter applied to message body
+      $form['methods'][$key]['body_format'] = array(
+        '#type' => 'select',
+        '#default_value' => isset($options['body_format']) ? $options['body_format'] : $format_default,
+        '#options' => $format_options,
+      );
+      // Final filter applied to message body
+      $form['methods'][$key]['filter'] = array(
+        '#type' => 'select',
+        '#default_value' => $options['filter'],
+        '#options' => $filter_options,
+      );
+    }
+  } else {
+    $form['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
+  }
+  $form = system_settings_form($form);
+
+  return $form;
+}
+
+/**
  * Theme method settings
  */
 function theme_messaging_admin_method_settings($form) {
-  $header = array(t('Method'), t('Name for display'), t('Message body filter'));
+  $header = array(t('Method'), t('Name for display'), t('Description'));
   $rows = array();
   foreach (element_children($form) as $key) {
     $rows[] = array(
       drupal_render($form[$key]['title']),
       drupal_render($form[$key]['name']),
-      drupal_render($form[$key]),
+      drupal_render($form[$key]['description']),
+    );
+  }
+  $output = theme('table', $header, $rows);
+  $output .= drupal_render($form);
+  return $output;
+}
+
+/**
+ * Theme method settings
+ */
+function theme_messaging_admin_method_filters($form) {
+  $header = array(t('Method'), t('Format filter'), t('Final filter'));
+  $rows = array();
+  foreach (element_children($form) as $key) {
+    $rows[] = array(
+      drupal_render($form[$key]['title']),
+      drupal_render($form[$key]['body_format']),
+      drupal_render($form[$key]['filter']),
     );
   }
   $output = theme('table', $header, $rows);

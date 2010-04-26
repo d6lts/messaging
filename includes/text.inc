@@ -81,31 +81,7 @@ function messaging_text_filter_info($name = NULL, $property = NULL) {
 }
 
 /**
- * Get filter information for a method
- * 
- * @param $method
- *   Send method key
- * @param $get_info
- *   Whether to get full filter info array or just filter key
- */
-function messaging_text_method_filter($method, $get_info = TRUE) {
-  $info = messaging_method_info($method);
-  if (!empty($info['filter']) && ($filter_info = messaging_text_filter_info($info['filter']))) {
-    // We have a valid filter for this method
-    return $get_info ? $filter_info : $info['filter'];
-  }
-  elseif (isset($info['filter']) && empty($info['filter'])) {
-    // This method has no filtering
-    return 0;
-  }
-  else {
-    // Invalid filter or no filter set, return the default one
-    return $get_info ? messaging_text_filter_info('messaging_plaintext') : 'messaging_plaintext';
-  }
-}
-
-/**
- * Get built in filters info
+ * Get built in filters info, will be provided on messaging_messaging('filter info')
  */
 function _messaging_text_filter_info() {
   $filters['messaging_plaintext'] = array(
@@ -128,34 +104,8 @@ function _messaging_text_filter_info() {
     'description' => t('Replaces HTML tags and entities with plain text formatting, moving links at the end. This one is only advised for plain text emails.'),
     'filter callback' => 'drupal_html_to_text',
   );
-  // Add the default input format too so we can have some configurable filter
-  // It is possible that current user don't have access to this one
-  if ($format = filter_formats(_messaging_text_filter_default())) {
-    $filters['messaging_filter'] = array(
-      'name' => $format->name,
-      'description' => t('This is the default Input format in case you need some more formatting.') . '<br />' . theme('filter_tips', _filter_tips($format->format, FALSE)),
-      'filter callback' => 'messaging_text_format_default',
-    );
-  }      
+     
   return $filters;  
-}
-
-/**
- * Run default filter on text
- */
-function messaging_text_format_default($text) {
-  return messaging_text_check_markup($text, _messaging_text_filter_default());
-}
-
-/**
- * Get input format available for messaging. 
- * 
- * It uses a hidden variable that can be set manually if you want to change the format available.
- * 
- * Note that any user with 'administer messaging' permission will be able to use this filter.
- */
-function _messaging_text_filter_default() {
-  return variable_get('messaging_default_filter', filter_resolve_format(FILTER_FORMAT_DEFAULT));
 }
 
 /**
@@ -202,7 +152,7 @@ function messaging_text_format_htmlfast($text) {
  * @param $filter
  *   Input format to apply to the results
  */
-function messaging_text_render($text, $glue = '', $filter = NULL) {
+function messaging_text_render($text, $glue = '', $format = NULL, $filter = NULL) {
   $output = '';
 
   if (is_array($text)) {
@@ -222,13 +172,15 @@ function messaging_text_render($text, $glue = '', $filter = NULL) {
   } else {
     $output .= $text;
   }
-  // The filter is applied now only once
+  
+  // The format and the final filter are applied now only once
+  if (isset($format)) {
+    $output = messaging_text_check_markup($output, $format);
+  }
   if (isset($filter)) {
-    return messaging_text_filter($output, $filter);
+    $output = messaging_text_filter($output, $filter);
   }
-  else {
-    return $output;
-  }
+  return $output;
 }
 
 /**

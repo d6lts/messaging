@@ -48,11 +48,12 @@ function messaging_help($path, $arg) {
       $output = '<p>' . t('The messaging module is the engine that handles outgoing messages and message queueing for different sending methods.') . '</p>';
       $output .= '<p>' . t('You need to enable one or more of the included plug-ins to be able to actually take advantage of it.') . '</p>';
       return $output;
-    case 'admin/messaging/settings/method':
-      $output = '<p>' . t('Depending on your content format and the tokens you are using for messages it is important that you use the right filtering for the message body.') . '</p>';
-      $items[] = t('You can use the default Input format. Set up the filters you need using the <a href="@input_formats">Input formats</a> page', array('@input_formats' => url('admin/settings/filters')));
-      $items[] = t('If using raw tokens for templates, possibly you\'ll need some additional formatting here.');
-      $items[] = t('You can also set up Input formats for specific message parts on the Message templates pages.');
+    case 'admin/messaging/settings/method/filters':
+      $output = '<p>' . t('These are the filters for the message body. They should depend on the content and the tokens you are using for messages. This is important for getting the right formatting and also for security.') . '</p>';
+      $oubput .= t('If using raw tokens for templates, possibly you\'ll need some additional formatting here.');
+      $items[] = t('You can set up Input formats for specific message parts on the <a href="@message_templates">Message templates pages</a>. These will be run first on each piece of text.', array('@message_templates' => url('admin/messaging/template')));     
+      $items[] = t('Once the message body is built you can set a <strong>Format filter</strong> on this page to format and filter it. Set up the filters you need using the <a href="@input_formats">Input formats</a> page', array('@input_formats' => url('admin/settings/filters')));
+      $items[] = t('Last, the <strong>Final filter</strong> will be run for adjusting the text to the format required by each Send method.');
       $output .= theme('item_list', $items);
       return $output;
   }
@@ -99,6 +100,15 @@ function messaging_menu() {
     'description' => 'General settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
+  );
+  $items['admin/messaging/settings/method/filters'] = array(
+    'title' => 'Filters',
+    'description' => 'Filters and formatting',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('messaging_admin_method_filters'),
+    'access arguments' => array('administer filters'),
+    'file' => 'messaging.admin.inc',
+    'type' => MENU_LOCAL_TASK,
   );
   return $items;
 }
@@ -518,7 +528,11 @@ function messaging_method_info($method = NULL, $property = NULL, $default = NULL
     $info = messaging_info('send methods', NULL, FALSE, FALSE);
     // Merge settings from variable for each enabled method
     foreach (array_keys($info) as $name) {
-      $info[$name] = array_merge($info[$name], variable_get('messaging_method_' . $name, array()));
+      $info[$name] = array_merge(
+        $info[$name],
+        variable_get('messaging_method_' . $name, array()), 
+        variable_get('messaging_filters_' . $name, array())
+      );
     }
     // Allow altering by other modules
     drupal_alter('messaging_send_methods', $info);
@@ -570,53 +584,6 @@ function messaging_messaging($op, $type = NULL) {
  */
 function messaging_address_get_uid($address, $property = 'mail') {
   return db_result(db_query("SELECT uid FROM {users} WHERE $property = '%s'", $address));
-}
-
-/**
- * Format user name
- */
-
-/**
- * Implementation of hook_filter(). Contains a basic set of essential filters.
- * - Plain text:
- *     Strips out all html
- *     Replaces html entities
- * - HTML to text
- *     Same with some text formatting
- *     Relies on html_to_text module
- */
-function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
-  switch ($op) {
-    case 'list':
-      $info[0] = t('Plain text');
-      $info[1] = t('HTML to text');
-      return $info;
-
-    case 'description':
-      switch ($delta) {
-        case 0:
-          return t('Filters out all HTML tags and replaces HTML entities by characters, respects HTML line breaks.');
-        case 1:
-          return t('Replaces HTML tags and entities with plain text formatting, moving links at the end. This filter is just for text messages and it isn\'t safe for rendering content on a web page.');
-      }
-
-    case 'process':
-      switch ($delta) {
-        case 0:
-          messaging_include('text.inc');
-          return messaging_text_check_plain($text, "\n");       
-        case 1:
-          return drupal_html_to_text($text);
-        default:
-          return $text;
-      }
-
-    case 'settings':
-      return;
-
-    default:
-      return $text;
-  }
 }
 
 /**
@@ -840,6 +807,10 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
 function messaging_theme() {
   return array(
     'messaging_admin_method_settings' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'messaging.admin.inc',
+    ),
+    'messaging_admin_method_filters' => array(
       'arguments' => array('element' => NULL),
       'file' => 'messaging.admin.inc',
     ),

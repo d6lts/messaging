@@ -37,7 +37,7 @@ abstract class Messaging_Method {
    * @param $info
    *   Sending method info for rendering (glue and filter options)
    */
-  static function default_render($message, $info) {
+  static function default_render($message, $info = array()) {
     messaging_include('text.inc');
     messaging_debug('Rendering message', array('message' => $message, 'info' => $info));
     // Apply footer prefix if provided and the message has a footer element. 
@@ -46,9 +46,9 @@ abstract class Messaging_Method {
       $message->body['footer'] = array('#prefix' => $info['footer'], '#text' => $message->body['footer']);
     }
     // Render separately subject and body info, adding default parameters
-    $info += array('glue' => '', 'subject_glue' => '', 'filter' => NULL);
+    $info += array('glue' => ' ', 'subject_glue' => ' ', 'body_format' => NULL, 'filter' => NULL);
     $message->subject = self::check_subject(self::text_render($message->subject, $info['subject_glue']));
-    $message->body = self::text_render($message->body, $info['glue'], $info['filter']); 
+    $message->body = self::text_render($message->body, $info['glue'], $info['body_format'], $info['filter']); 
     $message->rendered = 1;  
     messaging_debug('Rendered message', array('message' => array('subject' => $message->subject, 'body' => $message->body), 'info' => $info));
     return $message;
@@ -78,8 +78,8 @@ abstract class Messaging_Method {
    * @param $filter
    *   Input format to apply to the results
    */
-  static function text_render($text, $glue = '', $filter = NULL) {
-    return messaging_text_render($text, $glue, $filter);
+  static function text_render($text, $glue = '', $format = NULL, $filter = NULL) {
+    return messaging_text_render($text, $glue, $format, $filter);
   }
   
   /**

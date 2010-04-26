@@ -359,8 +359,8 @@ function messaging_update_6008() {
   messaging_include('text.inc');
   foreach (module_invoke_all('messaging', 'send methods') as $method => $info) {
     $properties = variable_get('messaging_method_' . $method, array()) + array('name' => $info['name']);
-    $properties['filter'] = isset($info['filter']) ? $info['filter'] : messaging_text_method_filter($method, FALSE);
-    variable_set('messaging_method_' . $method, $properties);
+    $properties['filter'] = isset($info['filter']) ? $info['filter'] : 'messaging_plaintext';
+    variable_set('messaging_filters_' . $method, $properties);
   }
   variable_del('messaging_default_filter');
   return array();
