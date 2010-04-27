@@ -196,13 +196,9 @@ function messaging_send_method($method, $method_info = array()) {
  * Build message object from object or array
  */
 function messaging_message_build($message) {
-  if(is_object($message) && is_a($message, 'Messaging_Message')) {
-    return $message;
-  }
-  else {
-    return new Messaging_Message($message);
-  }
+  return messaging_check_object($message, 'Messaging_Message', TRUE);
 }
+
 /**
  * Send message to destination object
  *
@@ -757,6 +753,18 @@ function messaging_message_callbacks($callback_keys, $message, $info) {
 }
 
 /**
+ * Check that a parameter is an instance of a given class
+ */
+function messaging_check_object($object, $class, $create = FALSE) {
+  if ($object && is_object($object) && is_a($object, $class)) {
+    return $object;
+  }
+  elseif ($create) {
+    return new $class($object);
+  }
+}
+
+/**
  * Implementation of hook_token_list(). Documents the individual
  * tokens handled by the module.
  */
@@ -782,7 +790,7 @@ function messaging_token_list($type = 'all') {
 function messaging_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
     case 'message':
-      if ($message = $object) {
+      if ($message = messaging_check_object($object, 'Messaging_Message')) {
         $values['message-subject'] = check_plain($message->get_subject());
         $values['message-body'] = filter_xss($message->get_body());
         $values['message-author-name'] = check_plain($message->get_sender_name());
@@ -793,7 +801,7 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
       break;
     case 'destination':
       // Messaging destinations
-      if ($destination = $object) {
+      if ($destination = messaging_check_object($object, 'Messaging_Destination')) {
         $values['destination-address'] = $destination->format_address(FALSE);
         $values['destination-address-name'] = $destination->address_name();
       }

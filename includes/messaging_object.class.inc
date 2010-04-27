@@ -19,7 +19,9 @@ abstract class Messaging_Object {
   // Language and language object
   protected $language;
   protected $_language;
-  
+  // Deletion mark. Deleted objects will keep their id, may be needed to remove related data, but will be marked
+  protected $deleted = FALSE;
+
   /**
    * Constructor, with predefined array of data
    */ 
@@ -157,11 +159,18 @@ abstract class Messaging_Object {
   /**
    * Delete from system database
    */ 
-  function delete() {
+  public function delete() {
     if ($this->key()) {
       db_query('DELETE FROM {' . $this->db_table() . '} WHERE ' . $this->db_key() . ' = %d', $this->key());
-      unset($this->{$this->db_key()});
+      //unset($this->{$this->db_key()});
+      $this->deleted = TRUE;
     }
+  }
+  /**
+   * Check whether this object is an instance or just a template
+   */
+  public function is_instance() {
+    return !$this->deleted && $this->key();
   }
 
   /**
@@ -280,7 +289,7 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
   /**
    * Delete object from cache
    */
-  function cache_delete() {
+  public function cache_delete() {
     $this->cache_set($this->key(), FALSE);
   }
   /**

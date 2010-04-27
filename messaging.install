@@ -372,7 +372,7 @@ function messaging_update_6008() {
 function messaging_update_6009() {
   $ret = array();
   if (!variable_get('messaging_update_6006', 0)) {
-    db_drop_unique_key(&$ret, 'messaging_destination', 'destination');
+    db_drop_unique_key($ret, 'messaging_destination', 'destination');
   }
   return $ret;
 }
@@ -398,7 +398,7 @@ function messaging_update_6011() {
   return _messaging_update_duplicate_destinations();
 }
 
-// Pending, preserve data for now: db_drop_field(&$ret, 'messaging_destination', 'method');
+// Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');
 
 /**
  * Reusable update, delete duplicate destinations
