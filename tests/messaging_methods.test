@@ -70,9 +70,12 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       $queued = messaging_store('get', array('uid' => $user->uid, 'method' => $method));
       $this->assertEqual(count($queued), $count, 'The right number of messages have been queued for method: '.$method.' (Expected=' . $count . ' Real= ' . count($queued).')');    
     }
-    // Create a few destinations for each sending method
-    $users[] = $user;
-    $users[] = $this->drupalCreateUser();
+    // Create one more user and a few destinations for each sending method
+    $user->sms_user[0] = array('status' => 2, 'number' => 1234);
+    $user2 = $this->drupalCreateUser();
+    $user2->sms_user[0] = array('status' => 2, 'number' => 3456);
+    $users = array($user, $user2);
+   
     foreach (messaging_method_info() as $method => $info) {
       $send_method = messaging_send_method($method);
       foreach ($users as $account) {

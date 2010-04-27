@@ -53,13 +53,13 @@ class Messaging_Message extends Messaging_Object {
   public $sender_address;
   protected $sender_account;
   // Timestamps
-  public $created = 0;
+  public $created;
   public $sent = 0;
   // Processing parameters
   public $queue = 0;
   public $send = 0;
   public $cron = 0; 
-  public $log;
+  public $log = 0;
   // Error code, error text
   public $error = 0;
   public $error_msg;

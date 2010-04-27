@@ -25,10 +25,43 @@ abstract class Messaging_Method {
   public $type;
   public $title;
   public $name;
+  public $description;
   public $group;
+  // Remaining info array
+  protected $info;
   
-  /** Message composition and rendering **/
+  /**
+   * Build send method from info array
+   *
+   * Some of the array values will be set as properties for the object. Some others won't as they're just
+   * for formatting, so they'll be kept only in the $object->info array
+   */
+  function __construct($method, $info = array()) {
+    $this->method = $method;
+    $this->set_properties($info,'type', 'title', 'name', 'group', 'description');
+    $this->info = $info;
+  }
   
+  /**
+   * Set multiple properties from array
+   * 
+   * @param $data
+   *   Array of properties
+   * @param $name1, $name2...
+   *   Names of properties to set if they're in the array
+   */
+  function set_properties() {
+    $args = func_get_args();
+    if ($data = array_shift($args)) {
+      // If no parameters passed, set them all
+      $properties = $args ? $args : array_keys($data);
+      while ($name = array_shift($properties)) {
+        if (isset($data[$name])) {
+          $this->$name = $data[$name];
+        }
+      }
+    }
+  }
   /**
    * Renders full message with header and body
    * 
@@ -114,28 +147,25 @@ class Messaging_Send_Method extends Messaging_Method {
   public $type = Messaging_Method::TYPE_SEND;
   // Address type for this method
   public $address_type = 'user';
-  public $destination;
-  public $glue;
-  public $footer;
-  public $description;
-  public $address_name;
-  public $filter;
+  // Queue and log settings
+  public $queue = FALSE;
+  public $log = FALSE;
   // Suitable for anonymous users
   public $anonymous = FALSE;
-  // Remaining info array
-  protected $info;
   
+  /**
+   * Build send method from info array
+   *
+   * Some of the array values will be set as properties for the object. Some others won't as they're just
+   * for formatting, so they'll be kept only in the $object->info array
+   */
   function __construct($method, $info = array()) {
-    $this->method = $method;
-    foreach (array('title', 'name', 'group', 'destination', 'type', 'glue', 'footer', 'description', 'address_name', 'anonymous', 'filter') as $key) {
-      if (isset($info[$key])) {
-        $this->$key = $info[$key];
-        //unset($info[$key]);
-      }
-    }
-    $this->info = $info;
+    parent::__construct($method, $info);
+    $this->set_properties($info, 'address_type', 'anonymous', 'queue', 'log');
+    // Pull methods will have always queueing enabled
+    $this->queue = $this->queue || $this->type & self::TYPE_PULL;
   }
-  
+ 
   /**
    * Get info property
    */
@@ -172,6 +202,7 @@ class Messaging_Send_Method extends Messaging_Method {
   function send_destination($destination, $message) {
     return $this->send_address($destination->address, $message);
   }
+ 
   /**
    * Get address for user account
    * 
@@ -179,14 +210,15 @@ class Messaging_Send_Method extends Messaging_Method {
    *   User account object or uid
    */
   function get_user_address($account) {
-    if ($function = $this->get_address_info('user2address callback')) {
+    // The method may have its own destination callback. If not, default to address type,
+    if ($function = $this->get_info('destination callback')) {
+      return $function(messaging_user_object($account));
+    }
+    elseif ($function = $this->get_address_info('user2address callback')) {
       return $function($account);
     }
     elseif ($property = $this->get_address_info('account_property')) {        
       return messaging_user_property($account, $property);
-    }
-    elseif ($function = $this->get_info('destination callback')) {
-      return $function(messaging_user_object($account));
     }
   }
 
@@ -204,6 +236,7 @@ class Messaging_Send_Method extends Messaging_Method {
       return TRUE;
     }
   }
+
   /**
    * Get address name
    */
@@ -260,12 +293,16 @@ class Messaging_Send_Method extends Messaging_Method {
    * Decide on queue, log, cron and send options, prepare parameters
    */
   function message_prepare($message) {
+    // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
+    $message->queue = $message->queue || $this->queue;
+    $message->log = $message->log || $this->log;
+    // If the messaging method is of type push, cron processing will be enabled
+    $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);
+    // Aditinally we can have a prepare callback
     if ($function = $this->get_info('prepare callback')) {
-      return $function($message, $this->get_info());
+      $function($message, $this->get_info());
     }
-    else {
-      return $this->default_prepare($message, $this->type);
-    }    
+    return $message; 
   }
   /**
    * Renders full message with header and body
@@ -325,25 +362,6 @@ class Messaging_Send_Method extends Messaging_Method {
    * The message has been queued
    */
   function message_afterqueue($message) {
-  }
-  
-  /**
-   * Message default callback: preprocessing
-   * 
-   * Decide on queue, log, cron and send options, prepare parameters
-   */
-  static function default_prepare($message, $type) {
-    messaging_debug('Preparing message for sending', array('message' => $message));
-    // If the messaging method is of type push, cron processing will be enabled
-    if ($message->queue && ($type & MESSAGING_TYPE_PUSH)) {
-      $message->cron = 1;
-    }
-    // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-    if (!$message->queue && ($type & MESSAGING_TYPE_PULL)) {
-      $message->queue = 1;
-      $message->cron = 0;
-    }
-    return $message;
   }
   
 }

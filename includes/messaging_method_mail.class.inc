@@ -19,6 +19,7 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
    * Get address for user account
    */
   function get_user_address($account) {
+    $account = messaging_user_object($account);
     return $account->uid && $account->mail ? $account->mail : NULL;
   }
   /**
@@ -41,7 +42,7 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
    */
   function message_prepare($message) {
     // First, decide on queue, log, cron and send options
-    parent::message_prepare($message, $this->get_info());
+    parent::message_prepare($message);
     // Build specific mail parameters and store them into the message
     $params = $message->get_params('mail');
     $message->params[$this->method] = $this->mail_params($message, $params);

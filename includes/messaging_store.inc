@@ -13,46 +13,58 @@ define('MESSAGING_STEP_ROWS', 1000);
 define('MESSAGING_TIME_MARGIN', 5);
 
 /**
+ * Process messages on cron
+ */
+function messaging_store_cron_process() {
+  // Pass on a time out condition, that will be based on 'max_execution_time'
+  $limit['timeout'] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - MESSAGING_TIME_MARGIN;
+  return messaging_store_queue_process($limit);
+}
+/**
  * Process and send messages in queue, to be called from cron
  * 
  * It will check for predefined limits and repeat the cycle
  *   [fetch] -> [send] -> [check]
  * until the queue is empty or any of the limits are met
  * 
- * @param $timeout
- *   Optional time out to use instead of cron, just for this api to be testable
+ * The limits array may contain any of these conditions:
+ * - time, absolute max execution time
+ * - timeout, calculated time out (like for cron, based on the time we've been already running)
+ * - message, max number of messages sent
+ * - percent, max % of page execution time that can be spent on cron processing
+ * 
+ * @param $limits
+ *   Optional limits for queue processing
  * @return
  *   Array of results indexed by message id
  */
-function messaging_store_queue_process($timeout = 0) {
+function messaging_store_queue_process($limit = array()) {
   $results = array();
-  $limit = variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
+  $limit += variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
   // Calculate time limit. We get the smaller of all these times in seconds
-  if ($timeout) {
-    $timelimit[] = time() + $timeout;
-  } else {
-    $timelimit[] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - MESSAGING_TIME_MARGIN;
+  if (!empty($limit['timeout'])) {
+    $times[] = $limit['timeout'];
   }
-  if ($limit['time']) {
-    $timelimit[] = time() + $limit['time'];
+  if (!empty($limit['time'])) {
+    $times[] = time() + $limit['time'];
   }
-  if ($limit['percent']) {
-    $timelimit[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
-    unset($limit['percent']);
+  if (!empty($limit['percent'])) {
+    $times[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
   }
-  $limit['time'] = min($timelimit);
+  $timelimit = !empty($times) ? min($times) : 0;
   
   // Processing loop. Will stop when we run out of rows or reach time / messages limit
   $count = 0;
   $max = !empty($limit['message']) ? $limit['message'] : 0;
   do {
     $step = $max ? min(MESSAGING_STEP_ROWS, $max - $count) : MESSAGING_STEP_ROWS;
-    $result = messaging_store_queue_process_step($step, $limit['time']);
+    $result = messaging_store_queue_process_step($step, $timelimit);
     $number = count($result);
     $count += $number;
     $results = array_merge($results, $result);
   } 
-  while ($number == $step && time() <= $limit['time'] && (!$max || $max > $count));
+  while ($number == $step && (!$timelimit || time() <= $timelimit) && (!$max || $max > $count));
+
   return $results;
 }
 
@@ -101,13 +113,25 @@ function messaging_store_queue_process_step($limit, $timeout = 0) {
 
 /**
  * Queue clean up
- * - Remove expired logs
- * - @ TODO Remove expired queued messages
+ * - Remove expired logs (include errors)
+ * - Remove expired queued messages
+ * 
+ * @param $force
+ *   Whether to force removal of logs and errors (even if logging not set)
  */
-function messaging_store_queue_cleanup() {
-  if ($expire = variable_get('messaging_log', 0)) {
-    db_query('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d', time() - $expire);
+function messaging_store_queue_cleanup($force = FALSE) {
+  $count = 0;
+  if (($expire_logs = variable_get('messaging_log', 0)) || $force) {
+    $time = time() - $expire_logs;  
+    db_query('DELETE FROM {messaging_store} WHERE log = 1 AND queue = 0 AND sent < %d OR error = 1 AND created < %d', $time, $time);
+    $count += db_affected_rows();
   }
+  if ($expire_messages = variable_get('messaging_queue_expire', 0)) {
+    $time = time() - $expire_messages;
+    db_query('DELETE FROM {messaging_store} WHERE created < %d', $time);
+    $count += db_affected_rows();
+  }
+  return $count;
 }
 
 /**

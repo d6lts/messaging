@@ -96,7 +96,7 @@ function messaging_menu() {
     'type' => MENU_LOCAL_TASK,
   );
   $items['admin/messaging/settings/method/overview'] = array(
-    'title' => 'General',
+    'title' => 'Options',
     'description' => 'General settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
@@ -110,6 +110,31 @@ function messaging_menu() {
     'file' => 'messaging.admin.inc',
     'type' => MENU_LOCAL_TASK,
   );
+  $items['admin/messaging/settings/queue'] = array(
+    'title' => 'Queue',
+    'description' => 'Queue administration',
+    'page callback' => 'messaging_admin_queue_status',
+    'access arguments' => array('administer messaging'),
+    'weight' => 100,
+    'file' => 'messaging.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/messaging/settings/queue/status'] = array(
+    'title' => 'Status',
+    'description' => 'Queue and log status',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['admin/messaging/settings/queue/settings'] = array(
+    'title' => 'Options',
+    'description' => 'General settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('messaging_admin_queue_settings'),
+    'access arguments' => array('administer messaging'),
+    'file' => 'messaging.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+
   return $items;
 }
 
@@ -412,8 +437,10 @@ function messaging_message_send_out($address, $message, $method) {
  * Process queued messages for delivery
  */
 function messaging_cron() {
-  messaging_store('queue_process');
-  messaging_store('queue_cleanup');
+  if (variable_get('messaging_queue_process_cron', TRUE)) {
+    messaging_store('cron_process');
+    messaging_store('queue_cleanup');
+  }
 }
 
 /**
@@ -814,12 +841,8 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
  */
 function messaging_theme() {
   return array(
-    'messaging_admin_method_settings' => array(
-      'arguments' => array('element' => NULL),
-      'file' => 'messaging.admin.inc',
-    ),
-    'messaging_admin_method_filters' => array(
-      'arguments' => array('element' => NULL),
+    'messaging_admin_settings_table'  => array(
+      'arguments' => array('elements' => NULL),
       'file' => 'messaging.admin.inc',
     ),
   );

@@ -147,7 +147,7 @@ class Messaging_API_Tests extends MessagingTestCase {
     $this->assertEqual(count($queued), 2, 'We have the right number of messages in queue: ' . count($queued));
 
     // Process queue and check again
-    $results = messaging_store('queue_process', 10);
+    $results = messaging_store('queue_process');
     $this->assertEqual(count($results), 2, 'Two rows have been processed.');
     $this->assertEqual(count(array_filter($results)), 2, 'Both rows have been processed successfully.');
     $queued = messaging_store('get', array('method' => $test_method));
