@@ -25,6 +25,9 @@ define('MESSAGING_TYPE_SEND', MESSAGING_TYPE_PUSH | MESSAGING_TYPE_OUTGOING);
 // Special string for empty text part
 define('MESSAGING_EMPTY', '<none>');
 
+// Limit the size of static caches
+define('MESSAGING_CACHE_LIMIT', variable_get('messaging_cache_limit', 1000));
+
 /**
  * Implementation of hook_autoload_info().
  */
@@ -36,6 +39,8 @@ function messaging_autoload_info() {
     'Messaging_Message' => array('file' => 'includes/messaging_message.class.inc'),
     'Messaging_Send_Method' => array('file' => 'includes/messaging_method.class.inc'),
     'Messaging_Method_Mail' => array('file' => 'includes/messaging_method_mail.class.inc'),
+    'Messaging_Store' => array('file' => 'includes/messaging_store.class.inc'),
+    'Messaging_None' => array('file' => 'includes/messaging_object.class.inc'),
   ); 
 }
 
@@ -155,7 +160,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
     case 'delete':
       // Delete user data from tables
       Messaging_Destination::delete_multiple(array('uid' => $user->uid));
-      db_query("DELETE FROM {messaging_store} WHERE uid = %d", $user->uid);
+      messaging_store()->delete_multiple(array('uid' => $user->uid));
       break;
     case 'update':
       // Claim user mail address if in destinations table
@@ -192,7 +197,7 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
  * @param $method
  *   Method name or Messaging_Method object
  * @param $method_info
- *   Array of properties to build a custom send method
+ *   Array of properties to build a custom send method or override existing ones
  */
 function messaging_send_method($method, $method_info = array()) {
   $send_methods = &messaging_static(__FUNCTION__);
@@ -201,16 +206,17 @@ function messaging_send_method($method, $method_info = array()) {
     return $method;
   }
   if (!isset($send_methods[$method])) {
+    // This will init the method list if not done before
     if ($info = messaging_method_info($method)) {
       $class = !empty($info['class']) ? $info['class'] : 'Messaging_Send_Method';
-      $send_methods[$method] = new $class($method, $info);
+      $send_methods[$method] = new $class($method, $method_info + $info);
     }
     else {
       // No info available from modules. This is a custom method or a disabled one
       $send_methods[$method] = new Messaging_Send_Method($method, $method_info);
       // Add to static cache so it can be found later
-      $info = &messaging_static('messaging_info_method info');
-      $info[$method] = $method_info;
+      $static_info = &messaging_info('send methods');
+      $static_info[$method] = $method_info;
     }
   }
   
@@ -283,36 +289,17 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
     $message->method = $method;
   }
   $message->queue = $queue ? 1 : 0;
-  // Log in case it cannot be delivered. This can be overridden by user callback
-  //$message->log = TRUE;
-  $message->set_user($account);
+
   // Check user and availability if there's a callback for that. Depending on the sending method,
   // when user is not available it may just be discarded / queued / redirected through other method
-  $message->process = TRUE;
-  $message->discard = FALSE;
-  // This can go through multiple redirections, when done $process should be FALSE
-  while (!$message->queue && $message->method && !$message->discard && $message->process && ($callback = messaging_method_info($message->method, 'user callback'))) {
-    _messaging_callback_invoke($callback, $message);
-  }
-  // The sending method may have decided the message is to be discarded.
-  if ($message->discard) {
-    return FALSE;
-  }
-  // Now check that we have a destination for this user account. If set to FALSE we just don't try anymore
-  // Send the message or, if no destination, abort the message sending
-  if ($message->method && $message->destination) {
+  if ($message->set_user($account)) {
     messaging_debug('Found destination for user, sending message', array('method' => $message->method, 'destination' => $message->destination));
-    $message->send();
-  } elseif (!empty($message->log)) {
-    // Save the message, let it there for further reference
-    messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
-    $message->destination = 'ERROR';
-    $message->cron = $message->queue = 0;
-    $message->log = 1;
-    $message->success = FALSE;
-    $message->store();    
+    return $message->send();
   }
-  return $message->success;
+  else {
+    messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
+    return FALSE;  
+  }
 }
 
 /**
@@ -379,7 +366,6 @@ function messaging_message_send($destinations, $message, $method, $queue = 0) {
   $message->source['type'] = 'outgoing';
   $message->destinations = $destinations;
   $message->queue = $queue ? 1 : 0;
-  $message->sent = $message->queued = 0;
 
   if ($queue) {
     $message->queue();
@@ -388,9 +374,6 @@ function messaging_message_send($destinations, $message, $method, $queue = 0) {
     $message->send_multiple();
   }
   // This will return true if the message was sent or queued for delivery
-  if (!isset($message->success)) {
-    $message->success = $message->sent || $message->queued;
-  }
   return $message->success;
 }
 
@@ -438,8 +421,8 @@ function messaging_message_send_out($address, $message, $method) {
  */
 function messaging_cron() {
   if (variable_get('messaging_queue_process_cron', TRUE)) {
-    messaging_store('cron_process');
-    messaging_store('queue_cleanup');
+    messaging_store()->cron_process();
+    messaging_store()->queue_clean();
   }
 }
 
@@ -545,10 +528,11 @@ function messaging_user_setting($name, $account = NULL, $default = NULL) {
  *   Optional default value to return when there's not that property for the method
  */
 function messaging_method_info($method = NULL, $property = NULL, $default = NULL) {
-  $info = &messaging_static('messaging_info_method info');
-  
-  if (!$info) {
-    $info = messaging_info('send methods', NULL, FALSE, FALSE);
+  static $info;
+
+  if (!isset($info)) {
+    // Collect method info without 'alter', we do it later
+    $info = &messaging_info('send methods', NULL, FALSE, FALSE);
     // Merge settings from variable for each enabled method
     foreach (array_keys($info) as $name) {
       $info[$name] = array_merge(
@@ -557,7 +541,7 @@ function messaging_method_info($method = NULL, $property = NULL, $default = NULL
         variable_get('messaging_filters_' . $name, array())
       );
     }
-    // Allow altering by other modules
+    // Allow altering by other modules after we've set the variables
     drupal_alter('messaging_send_methods', $info);
   }
 
@@ -610,13 +594,23 @@ function messaging_address_get_uid($address, $property = 'mail') {
 }
 
 /**
- * Entry point for the storage API
+ * Entry point for the storage and queueing API
+ * 
+ * Default methods are implemented by Messaging_Store class
+ * 
+ * This API can be replaced by setting a new class name in the 'messaging_store' variable
+ * Or the whole thing can be skipped by settings 'messaging_store' to 'Messaging_None'
  */
 function messaging_store() {
-  messaging_include('messaging_store.inc');
-  $args = func_get_args();
-  $function = 'messaging_store_'. array_shift($args);
-  return call_user_func_array($function, $args);
+  static $messaging_store;
+  if (!isset($messaging_store)) {
+    //$args = func_get_args();
+    //$method = array_shift($args);
+    $class = variable_get('messaging_store', 'Messaging_Store');
+    $messaging_store = new $class();
+  }
+  //return call_user_func_array(array($class, $method), $args);
+  return $messaging_store;
 }
 
 /**
@@ -637,17 +631,7 @@ function messaging_load_user($uid) {
  *   Message id
  */
 function messaging_message_load($mqid, $refresh = FALSE) {
-  static $cache;
-
-  if (!isset($cache[$mqid]) || $refresh) {
-    if ($message = messaging_store('load', $mqid)) {
-      $cache[$mqid] = $message;
-    } else {
-      $cache[$mqid] = FALSE;
-    }
-  }
-
-  return $cache[$mqid];
+  return messaging_store()->message_load($mqid, $refresh);
 }
 
 /**
@@ -751,32 +735,6 @@ function _messaging_callback_invoke() {
   // Merge parameters and go for it
   $params = array_merge($params, $args);
   return call_user_func_array($function, $params);
-}
-
-/**
- * Invoke ordered list of callbacks on message
- * 
- * For each callback name this function will search existing callbacks in $info ('[name] callback')
- * and if not existing will try the default callback 'messaging_message_[name]'
- * 
- * @see _messaging_callback() for callback structure
- * 
- * @param $callback_keys
- *   Array of callbacks to invoke, ordered list
- * @param $message
- *   Message object
- * @param $info
- *   Messaging method info which may contain callbacks
- */
-function messaging_message_callbacks($callback_keys, $message, $info) {
-  while (!empty($message->process) && ($key = array_shift($callback_keys))) {
-    if ($callback = _messaging_callback_get($info, $key)) {
-      messaging_message_invoke($callback, $message, $info);
-    } elseif (function_exists('messaging_message_' . $key)) {
-      call_user_func('messaging_message_' . $key, $message, $info);
-    }
-  }
-  return $message;
 }
 
 /**
@@ -922,26 +880,111 @@ function messaging_array_info($info, $method = NULL, $property = NULL, $default 
  *   Optional table alias to prefix fields in conditions
  */
 function _messaging_query_conditions($table, $params, $table_alias = NULL) {
- $schema = drupal_get_schema($table);
- $conditions = $args = array();
- foreach ($params as $field => $value) {
-   $type = $schema['fields'][$field]['type'];
-   $field_name = $table_alias ? "$table_alias.$field" : $field;
-   // For array values, build IN conditions
-   if (is_array($value)) {
-     $conditions[] = $field_name . ' IN (' . db_placeholders($value, $type) . ')';
-     $args = array_merge($args, $value);
-   }
-   elseif (is_null($value)) {
-     $condtions[] = $field_name . ' IS NULL';
-   }
-   else {
-     $conditions[] = $field_name . ' = ' . db_type_placeholder($type);
-     $args[] = $value;
-   }
- }
+ $query = _messaging_query_where($table, $params, $table_alias);
  // Return arrwy with conditions and arguments. Also full where clause.
- return array('conditions' => $conditions, 'args' => $args, 'where' => implode(' AND ', $conditions));
+ return array('conditions' => $query['where'], 'args' => $query['args'], 'where' => implode(' AND ', $query['where']));
+}
+
+/**
+ * Query builder: Build where conditions and arguments using schema data
+ * 
+ * Using schema data get 'field = [placeholder]' and args arrays
+ * 
+ * @param $table
+ *   Table name (to be prefixed)
+ * @param $params
+ *   Array of field => value conditions
+ * @param $table_alias
+ *   Optional table alias to prefix fields in conditions
+ *   
+ * @return array()
+ *   Array with 'where' (array of where conditions) and 'args' (array of query arguments)
+ */
+function _messaging_query_where($table, $params, $table_alias = NULL) {
+  $schema = drupal_get_schema($table);
+  $conditions = $args = array();
+  foreach ($params as $field => $value) {
+    // If not a field we ignore the parameter
+    if (isset($schema['fields'][$field])) {
+      $type = $schema['fields'][$field]['type'];
+      $field_name = $table_alias ? "$table_alias.$field" : $field;
+      // For array values, build IN conditions
+      if (is_array($value)) {
+        $conditions[] = $field_name . ' IN (' . db_placeholders($value, $type) . ')';
+        $args = array_merge($args, $value);
+      }
+      elseif (is_null($value)) {
+        $condtions[] = $field_name . ' IS NULL';
+      }
+      else {
+        $conditions[] = $field_name . ' = ' . db_type_placeholder($type);
+        $args[] = $value;
+      }
+    }
+  }
+  // Return arrwy with conditions and arguments. Also full where clause.
+  return array('where' => $conditions, 'args' => $args);
+}
+
+/**
+ * Build the SQL statement from query elements
+ * 
+ * It will build INSERT + SELECT or SELECT queries from its elements
+ * 
+ * @param $query
+ *   Array of query parameters
+ * @param $execute
+ *   Whether to execute the query right away or return parameters
+ * @return mixed
+ *   If not $execute, list($sql, $args)
+ *   If execute, query result
+ */
+function messaging_query_sql($query, $execute = FALSE) {
+  $sql = !empty($query['sql']) ? $query['sql'] : '';
+  if (!empty($query['insert'])) {
+    $sql .= 'INSERT INTO ' . $query['into'] . ' ('. implode(', ', $query['insert']) .') ';
+  }
+  if (!empty($query['select'])) {
+    $sql .= !empty($query['distinct']) ? 'SELECT DISTINCT ' : 'SELECT ';
+    $sql .=  implode(', ', $query['select']);
+    $sql .= ' FROM '. implode(', ', $query['from']);
+  }
+  if (!empty($query['join'])) {
+    $sql .= ' '. implode(' ', $query['join']);
+  }
+  if (!empty($query['where'])) {
+    $sql .= ' WHERE ('. implode(') AND (', $query['where']) .')';
+  }  
+  if (!empty($query['group'])) {
+    $sql .= ' GROUP BY '. implode(', ', $query['group']);
+  }
+  if (!empty($query['having'])) {
+    $sql .= ' HAVING '. implode(' AND ', $query['having']);
+  }
+  // Merge all args, start with generic ones for subscription queries, then other groups
+  $args = !empty($query['args']) ? $query['args'] : array();
+  foreach (array('select', 'join', 'where', 'having') as $key) {
+    if (!empty($query[$key .' args'])) {
+      $args = array_merge($args, $query[$key .' args']);
+    }
+  }
+  // Add order by
+  if (!empty($query['order'])) {
+    $sql .= ' ORDER BY ' . implode(', ', $query['order']);
+  }
+  // Return parameters or execute query
+  if (!$execute) {
+    return array($sql, $args);
+  }
+  elseif (!empty($query['pager'])) {
+    return pager_query($sql, $query['limit'], $query['pager'], NULL, $args);
+  }
+  elseif (!empty($query['limit'])) {
+    return db_query_range($sql, $args, 0, $query['limit']);
+  }
+  else {
+    return db_query($sql, $args);
+  }
 }
 
 /**
@@ -1100,6 +1143,24 @@ function messaging_locale_refresh() {
 }
 
 /**
+ * Set data on static cache, checking whether the cache is under limits.
+ */
+function messaging_static_cache_set($cache_name, $key, $value) {
+  $cache = &messaging_static($cache_name);
+  if ($cache && MESSAGING_CACHE_LIMIT && count($cache) > MESSAGING_CACHE_LIMIT) {
+    $cache = array();
+  }
+  $cache[$key] = $value;
+}
+/**
+ * Get data from static cache
+ */
+function messaging_static_cache_get($cache_name, $key) {
+  $cache = &messaging_static($cache_name);
+  return isset($cache[$key]) ? $cache[$key] : NULL;
+}
+
+/**
  * Central static variable storage, Drupal 7 core backport
  * 
  * See http://api.drupal.org/api/function/drupal_static/7
@@ -1147,6 +1208,7 @@ function &messaging_static($name, $default_value = NULL, $reset = FALSE) {
 function messaging_static_reset($name = NULL) {
   messaging_static($name, NULL, TRUE);
 }
+
 
 /**
  * Load destination from key. Menu autoloading.

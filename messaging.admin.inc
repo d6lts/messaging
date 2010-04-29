@@ -226,26 +226,30 @@ function messaging_admin_queue_status() {
 
   // Compile data from db
   $status = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
-  $result = db_query("SELECT method, queue, cron, error, log, count(mqid) AS cuenta FROM {messaging_store} GROUP BY method, queue, cron, error, log");
-  while ($row = db_fetch_object($result)) {
-    if (!isset($methods[$row->method])) {
-      $methods[$row->method] = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
+  //$result = db_query("SELECT method, queue, cron, error, log, count(mqid) AS total FROM {messaging_store} GROUP BY method, queue, cron, error, log");
+  $summary = messaging_store()->get_status(array('method', 'queue', 'cron', 'error', 'log'));
+  if ($summary) {
+    foreach ($summary as $data) {
+      $method = $data['method'];
+      if (!isset($methods[$method])) {
+        $methods[$method] = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
+      }
+      $value = (int)$data['total'];
+      if ($data['error']) {
+        $field = 'error';
+      }
+      elseif ($data['queue']) {
+        $field = 'queue';
+      }
+      elseif ($data['log']) {
+        $field = 'log';
+      }
+      else {
+        $field = 'other';
+      }
+      $methods[$method][$field] += $value;
+      $status[$field] += $value;
     }
-    $value = (int)$row->cuenta;
-    if ($row->error) {
-      $field = 'error';
-    }
-    elseif ($row->queue) {
-      $field = 'queue';
-    }
-    elseif ($row->log) {
-      $field = 'log';
-    }
-    else {
-      $field = 'other';
-    }
-    $methods[$row->method][$field] += $value;
-    $status[$field] += $value;
   }
   // Build table if we've got any data
   if ($methods) {
@@ -315,20 +319,22 @@ function messaging_admin_queue_operations_form_submit($form, $form_state) {
       }
       else {
         $limit = variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
-        $results = messaging_store('queue_process', $limit);
-        $processed = count($results);
-        $success = count(array_filter($results));
-        $errors = $processed - $success;
-
+        $results = messaging_store()->queue_process($limit);
+        if ($results) {
+          $processed = count($results);
+          $success = count(array_filter($results));
+          $errors = $processed - $success;
+        }
       }
       break;
  
     case t('Clean up');
-      $deleted = messaging_store('queue_cleanup', TRUE);
+      //$deleted = messaging_store('queue_clean', TRUE);
+      $deleted = messaging_store()->queue_clean(TRUE);
       break;
 
     case t('Delete all');
-      db_query("DELETE FROM {messaging_store} WHERE mqid <= %d", $mqid);
+      messaging_store()->delete_multiple(array('max_mqid' => $mqid));
       $deleted = db_affected_rows();
       break;
 

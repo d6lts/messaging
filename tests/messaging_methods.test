@@ -29,8 +29,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
   function testMessagingMethods() {
     $user = $this->drupalCreateUser();
     
-    // First, with debug disabled, check sending method properties
-    variable_set('messaging_debug', 0);
+    // Check sending method properties
     foreach (messaging_method_info() as $method => $info) {
       // Instantiate every send method
       $send_method = messaging_send_method($method, $info);
@@ -50,8 +49,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       $this->assertTrue($message->rendered && $message->prepared, 'A message has been prepared and rendered for method: ' . $method);
     }
     
-    // Enable debug mode so messages are not actually sent and create user for testing
-    // variable_set('messaging_debug', 1);
+    // Now we try sending messages with queue = 1, so messages are not actually sent and create user for testing
     foreach (messaging_method_info(NULL, NULL, NULL, TRUE) as $method => $info) {
       $count = 0;
       $name = $info['name'];
@@ -67,7 +65,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       $result = messaging_message_send(array('foo1', 'foo2'), $message, $method, TRUE);
       $this->assertEqual($result, TRUE, 'Bulk messages sent using: '.$name);
       $count++;
-      $queued = messaging_store('get', array('uid' => $user->uid, 'method' => $method));
+      $queued = messaging_store()->get_messages(array('uid' => $user->uid, 'method' => $method));
       $this->assertEqual(count($queued), $count, 'The right number of messages have been queued for method: '.$method.' (Expected=' . $count . ' Real= ' . count($queued).')');    
     }
     // Create one more user and a few destinations for each sending method
@@ -97,7 +95,9 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       $this->assertTableRows('messaging_destination', 0, array('type' => $type), "We have successfully deleted destinations of type $type");
       // After replacing a mail method by a user one, we should have the destinations again
       messaging_method_disable($method, $replace);
-      $this->assertTableRows('messaging_destination', 2, array('type' => $type), "We got back destinations of type $type after method replace");
+      $old_type = messaging_method_info($method, 'address_type');
+      $new_type = messaging_method_info($replace, 'address_type');
+      $this->assertTableRows('messaging_destination', 2, array('type' => $type), "We got back destinations of type $type after method replace: from $method($old_type) to $replace($new_type)");
     }
   }  
 }

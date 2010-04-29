@@ -14,10 +14,10 @@ abstract class Messaging_Object {
   const DB_TABLE = '';
   const DB_KEY = '';
   // User id and user object
-  protected $uid;
+  public $uid = 0;
   protected $_user;
   // Language and language object
-  protected $language;
+  public $language;
   protected $_language;
   // Deletion mark. Deleted objects will keep their id, may be needed to remove related data, but will be marked
   protected $deleted = FALSE;
@@ -93,7 +93,7 @@ abstract class Messaging_Object {
       $this->uid = $account;
       $this->_user = NULL;
     }
-    elseif ($account) {
+    elseif (is_object($account)) {
       $this->uid = $account->uid;
       $this->_user = $account;
     }
@@ -141,7 +141,7 @@ abstract class Messaging_Object {
       return $this->update();
     }
     else {
-      return $this->insert();
+      return $this->insert(); 
     }
   }
   /**
@@ -194,43 +194,16 @@ abstract class Messaging_Object {
   }
 
   /**
-   * Magic method, set protected properties
-   * 
-   * Warning: This also runs for unsnset properties
+   * Magic function. Set protected properties
+   *
+   * We have a problem when creating records. Serial fields are unset() by drupal_write_record
+   * For these fields, though they're public, when there's a __set function it is called too
    */
   public function __set($name, $value) {
-    switch ($name) {
-      case 'language':
-        $this->language = $value;
-        unset($this->_language);
-        break;
-      case 'uid':
-      case 'user':
-        $this->set_user($value);
-        break;
-      default:
-        $this->$name = $value;
+    if ($name == $this->db_key()) {
+      $this->$name = $value;
     }
   }
-  /**
-   * Magic method, get protected properties
-   */
-  public function __get($name) {
-    switch ($name) {
-      case 'language':
-        $this->set_language();
-        return $this->language;
-      default:
-        return isset($this->$name) ? $this->$name : NULL;
-    }
-  }
-  /**
-   * Magic method, isset protected properties
-   */
-  public function __isset($name) {
-    return isset($this->$name);
-  }
-
   // Get table name for storage
   abstract public static function db_table();
   // Get key field name for storage
@@ -292,21 +265,30 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
   public function cache_delete() {
     $this->cache_set($this->key(), FALSE);
   }
+  
   /**
-   * Set static cache
+   * Set value into static cache
    */
-  public static function object_cache_set($cache_name, $key, $object) {
-    $cache = &messaging_static($cache_name);
-    $cache[$key] = $object;
+  protected static function object_cache_set($class_name, $key, $value) {
+    return messaging_static_cache_set($class_name, $key, $value);
   }
   /**
-   * Get from static cache
+   * Get value from static cache
    */
-  public static function object_cache_get($cache_name, $key) {
-    $cache = &messaging_static($cache_name);
-    return $cache && array_key_exists($key, $cache) ? $cache[$key] : NULL;
+  protected static function object_cache_get($class_name, $key) {
+    return messaging_static_cache_get($class_name, $key);
   }
- 
+  
   abstract public static function cache_set($key, $object);
   abstract public static function cache_get($key);
+}
+
+/**
+ * Dummy class, that takes any method and does nothing
+ * 
+ * @see messaging_store()
+ */
+class Messaging_None {
+   public function __call($name, $arguments) {}
+   public static function __callStatic ($name , $arguments) {}
 }

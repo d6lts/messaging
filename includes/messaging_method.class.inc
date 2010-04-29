@@ -28,7 +28,7 @@ abstract class Messaging_Method {
   public $description;
   public $group;
   // Remaining info array
-  protected $info;
+  public $info = array();
   
   /**
    * Build send method from info array
@@ -38,8 +38,9 @@ abstract class Messaging_Method {
    */
   function __construct($method, $info = array()) {
     $this->method = $method;
-    $this->set_properties($info,'type', 'title', 'name', 'group', 'description');
     $this->info = $info;
+    $this->set_properties($info,'type', 'title', 'name', 'group', 'description');
+    
   }
   
   /**
@@ -63,6 +64,17 @@ abstract class Messaging_Method {
     }
   }
   /**
+   * Get info property
+   */
+  function get_info($property = NULL) {
+    if ($property) {
+      return isset($this->info[$property]) ? $this->info[$property] : NULL;
+    }
+    else {
+      return $this->info;
+    }
+  }
+  /**
    * Renders full message with header and body
    * 
    * @param $message
@@ -82,7 +94,7 @@ abstract class Messaging_Method {
     $info += array('glue' => ' ', 'subject_glue' => ' ', 'body_format' => NULL, 'filter' => NULL);
     $message->subject = self::check_subject(self::text_render($message->subject, $info['subject_glue']));
     $message->body = self::text_render($message->body, $info['glue'], $info['body_format'], $info['filter']); 
-    $message->rendered = 1;  
+    $message->rendered = TRUE;  
     messaging_debug('Rendered message', array('message' => array('subject' => $message->subject, 'body' => $message->body), 'info' => $info));
     return $message;
   }
@@ -166,17 +178,6 @@ class Messaging_Send_Method extends Messaging_Method {
     $this->queue = $this->queue || $this->type & self::TYPE_PULL;
   }
  
-  /**
-   * Get info property
-   */
-  function get_info($property = NULL) {
-    if ($property) {
-      return isset($this->info[$property]) ? $this->info[$property] : NULL;
-    }
-    else {
-      return $this->info;
-    }
-  }
   /**
    * Get address info property
    */
@@ -288,14 +289,25 @@ class Messaging_Send_Method extends Messaging_Method {
   }
 
   /**
-   * Message default callback: preprocessing
+   * Prepare message for specific user. Check availability, redirect, etc..
+   * 
+   * Redirecting is only possible when we are sending to a user account, not for anonymous destinations
+   */
+  function message_user($message, $account) {
+    if ($callback = $this->get_info('user callback')) {
+      call_user_func($callback, $message, $account);
+    }
+  }
+
+  /**
+   * Message default callback: preprocessing{
    * 
    * Decide on queue, log, cron and send options, prepare parameters
    */
   function message_prepare($message) {
     // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
     $message->queue = $message->queue || $this->queue;
-    $message->log = $message->log || $this->log;
+    $message->log = $message->log || $this->log && variable_get('messaging_log', 0);
     // If the messaging method is of type push, cron processing will be enabled
     $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);
     // Aditinally we can have a prepare callback
@@ -342,8 +354,13 @@ class Messaging_Send_Method extends Messaging_Method {
       // Be careful with the order of function && value, so they both are evaluated
       $success = $this->send_address($to, $message) && $success;
     }
-    // If sent, set time. If failed force logging.
-    $success ? ($message->sent = time()) : ($message->log = 1);
+    // If sent, set time. If failed set error
+    if ($success) {
+      $message->sent = time();
+    }
+    else {
+      $message->set_error("Sending to some destinations failed");
+    }
     $message->success = $success;
     return $message;
   }
@@ -354,7 +371,8 @@ class Messaging_Send_Method extends Messaging_Method {
    * By default it is saved to the store
    */
   function message_queue($message) {
-    $message->store();
+    messaging_store()->message_queue($message);
+    $message->queued = TRUE;
     $message->success = TRUE;
   }
   

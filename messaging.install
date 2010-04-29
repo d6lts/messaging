@@ -214,19 +214,18 @@ function messaging_update_method_update($old, $new) {
       ($table= messaging_address_info($new_type, 'field_table')))
     {
       $sql = "INSERT INTO {messaging_destination} (uid, type, address)";
-      $where = " WHERE d1.uid > 0 AND d1.type = '%s' AND d2.uid IS NULL";
-      $join = " LEFT JOIN {messaging_destination} d2 ON d1.uid = d2.uid AND d2.type = '%s'" ; // Don't have already a destination of this type
       if ($new_type == 'user') {
         // Special case, destination is uid, it is much more straight forward
-        $sql .= " SELECT d1.uid, '%s', d1.uid FROM {messaging_destination} d1";
-        
+        $sql .= " SELECT d1.uid, '%s', d1.uid FROM {messaging_destination} d1";       
       }
       else {
         $sql .= " SELECT d1.uid, '%s', t.$field FROM {messaging_destination} d1";
         $sql .= " INNER JOIN {" . $table . "} t ON d1.uid = t.uid"; // Have destination data on the other table
       }
-      
-      db_query($sql . $join . $where, $new_type, $new_type, $old_type);
+      // Don't have already a destination of this type ($new_type)
+      $sql .= " LEFT JOIN {messaging_destination} d2 ON d1.uid = d2.uid AND d2.type = '%s'" ;
+      $sql .= " WHERE d1.uid > 0 AND d1.type = '%s' AND d2.uid IS NULL";
+      db_query($sql, $new_type, $new_type, $old_type);
       if ($created = db_affected_rows()) {
         drupal_set_message(t("Created @count user destinations for new sending method.", array('@count' => $created)));         
       }
@@ -236,7 +235,7 @@ function messaging_update_method_update($old, $new) {
   // Inform all modules this method is being replaced
   module_invoke_all('messaging', 'method update', $old, $new);
   // Delete all stored messages for this method
-  messaging_store('del', array('method' => $old));
+  messaging_store()->delete_multiple(array('method' => $old));
 }
 
 /**

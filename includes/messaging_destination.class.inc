@@ -18,11 +18,11 @@ class Messaging_Destination extends Messaging_Cached_Object {
   const STATUS_ACTIVE = 1;
 
   // Object unique id
-  public $mdid;
+  public $mdid = 0;
   // Destination type
   public $type;
-  // Sending method
-  //public $method;
+  // User id. Public parent protected variable
+  public $uid;
   // Address for this sending method
   public $address;
   // Date sent
@@ -146,7 +146,7 @@ class Messaging_Destination extends Messaging_Cached_Object {
   public static function create_type($type, $address, $uid) {
     if ($existing = self::get_by_address($type, $address)) {
       if ($existing->uid != $uid) {
-        $existing->uid = $uid;
+        $existing->uid = $uid;    
         $existing->save();
       }
       return $existing;
@@ -261,11 +261,11 @@ class Messaging_Destination extends Messaging_Cached_Object {
   }
   // Store into cache
   public static function cache_set($key, $object) {
-    return self::object_cache_set('Notifications_Destination', $key, $object);
+    return self::object_cache_set('Messaging_Destination', $key, $object);
   }
   // Get from cache
   public static function cache_get($key) {
-    return self::object_cache_get('Notifications_Destination', $key);
+    return self::object_cache_get('Messaging_Destination', $key);
   }
   /**
    * Cache get/set by method and address

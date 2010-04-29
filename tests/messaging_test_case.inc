@@ -119,13 +119,4 @@ class MessagingTestCase extends DrupalWebTestCase {
   }
 }
 
-/**
- * Foo callback functions for testing
- */
-function messaging_test_foo_message_callback($message, $info) {
-  return $message;
-}
-function messaging_test_foo_getargs_callback() {  
-  return func_get_args();
-}
 
