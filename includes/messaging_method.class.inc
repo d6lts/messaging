@@ -300,13 +300,13 @@ class Messaging_Send_Method extends Messaging_Method {
   }
 
   /**
-   * Message default callback: preprocessing{
+   * Message processing: Decide on queue, log, cron and send options, prepare parameters
    * 
-   * Decide on queue, log, cron and send options, prepare parameters
+   * At this stage, the message can be still redirected through other sending method, or marked for discard
    */
   function message_prepare($message) {
     // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-    $message->queue = $message->queue || $this->queue;
+    $message->queue = ($this->type & self::TYPE_PULL) || !$message->priority && ($message->queue || $this->queue);
     $message->log = $message->log || $this->log && variable_get('messaging_log', 0);
     // If the messaging method is of type push, cron processing will be enabled
     $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);

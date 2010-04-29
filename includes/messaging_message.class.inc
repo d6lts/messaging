@@ -60,6 +60,8 @@ class Messaging_Message extends Messaging_Object {
   public $send = 0;
   public $cron = 0; 
   public $log = 0;
+  // Message priority. If > 0 it won't be queued.
+  public $priority = 0;
   // Log when we've got an error
   public $log_error = TRUE;
   // Error code, error text
@@ -363,7 +365,6 @@ class Messaging_Message extends Messaging_Object {
       $this->uid = $destination->uid;
       $this->destination = $destination->address;
       $this->destination_object = $destination;
-      $this->method = $destination->method;
     }
   }
   /**

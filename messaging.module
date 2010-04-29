@@ -764,7 +764,7 @@ function messaging_token_list($type = 'all') {
   }
   if ($type == 'destination' || $type == 'all') {
     $tokens['destination']['destination-address'] = t('Destination address.');
-    $tokens['destination']['destination-address-name'] = t('Destination address name.');
+    $tokens['destination']['destination-type'] = t('Destination address type.');
   }
   return $tokens;
 }
@@ -788,7 +788,8 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
       // Messaging destinations
       if ($destination = messaging_check_object($object, 'Messaging_Destination')) {
         $values['destination-address'] = $destination->format_address(FALSE);
-        $values['destination-address-name'] = $destination->address_name();
+        $values['destination-type'] = $destination->address_name();
+        return $values;
       }
       break;
   }
