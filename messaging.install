@@ -397,6 +397,17 @@ function messaging_update_6011() {
   return _messaging_update_duplicate_destinations();
 }
 
+/**
+ * Fix template_parts table, may be missing new field depending on update path
+ */
+function messaging_update_6012() {
+  $ret = array();
+  if (db_table_exists('messaging_message_parts') && !db_column_exists('messaging_message_parts', 'language')) {
+    module_load_install('messaging_template');
+    $ret = messaging_template_update_6001();
+  }
+  return $ret;
+}
 // Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');
 
 /**

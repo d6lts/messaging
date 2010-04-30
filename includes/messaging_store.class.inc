@@ -382,7 +382,7 @@ class Messaging_Store {
   /**
    * Prepare for storage
    */
-  public static function message_prepare($message) {
+  protected static function message_prepare($message) {
     // On this store we can just save messages prepared and rendered
     $message->prepare();
     $message->render();
