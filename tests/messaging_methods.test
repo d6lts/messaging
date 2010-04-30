@@ -28,7 +28,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
    */
   function testMessagingMethods() {
     $user = $this->drupalCreateUser();
-    
+    $user->sms_user[0] = array('status' => 2, 'number' => 1234);
     // Check sending method properties
     foreach (messaging_method_info() as $method => $info) {
       // Instantiate every send method
@@ -69,7 +69,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       $this->assertEqual(count($queued), $count, 'The right number of messages have been queued for method: '.$method.' (Expected=' . $count . ' Real= ' . count($queued).')');    
     }
     // Create one more user and a few destinations for each sending method
-    $user->sms_user[0] = array('status' => 2, 'number' => 1234);
+   
     $user2 = $this->drupalCreateUser();
     $user2->sms_user[0] = array('status' => 2, 'number' => 3456);
     $users = array($user, $user2);

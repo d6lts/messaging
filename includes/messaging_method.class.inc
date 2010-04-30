@@ -188,8 +188,9 @@ class Messaging_Send_Method extends Messaging_Method {
    * Send message to address, use sending callback
    */
   function send_address($address, $message) {
-    $message->render();
     if ($send_callback = $this->get_info('send callback')) {
+      // For this case, we render it before so it is compatible with old send methods
+      $message->render();
       return call_user_func($send_callback, $address, $message, $message->get_params($this->method));
     }
     else {
@@ -293,8 +294,9 @@ class Messaging_Send_Method extends Messaging_Method {
    * 
    * Redirecting is only possible when we are sending to a user account, not for anonymous destinations
    */
-  function message_user($message, $account) {
+  function message_user($message, $account = NULL) {
     if ($callback = $this->get_info('user callback')) {
+      $account = $account ? $account : $message->get_user();
       call_user_func($callback, $message, $account);
     }
   }
@@ -321,8 +323,6 @@ class Messaging_Send_Method extends Messaging_Method {
    * 
    * @param $message
    *   Message object
-   * @param $info
-   *   Sending method info for rendering (glue and filter options)
    */  
   function message_render($message) {
     if ($function = $this->get_info('render callback')) {
@@ -334,15 +334,10 @@ class Messaging_Send_Method extends Messaging_Method {
   }
 
   /**
-   * The message is about to be sent
+   * Send message to a single destination
    */
-  function message_presend($message) {    
-  }
-
-  /**
-   * The message has been sent
-   */
-  function message_aftersend($message) {
+  function message_send($message) {
+    return $this->send_address($message->destination, $message);
   }
 
   /**
@@ -361,19 +356,22 @@ class Messaging_Send_Method extends Messaging_Method {
     else {
       $message->set_error("Sending to some destinations failed");
     }
-    $message->success = $success;
-    return $message;
+    return $success;
   }
-  
+ 
+  /**
+   * The message has been sent
+   */
+  function message_aftersend($message) {
+  }
+ 
   /**
    * Queue message for next delivery
    * 
    * By default it is saved to the store
    */
   function message_queue($message) {
-    messaging_store()->message_queue($message);
-    $message->queued = TRUE;
-    $message->success = TRUE;
+    return messaging_store()->message_queue($message);
   }
   
   /**

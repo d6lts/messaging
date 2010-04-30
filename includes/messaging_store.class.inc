@@ -107,10 +107,13 @@ class Messaging_Store {
       $processed[$message->mqid] = $success;
       if ($success) {
         $sent[] = $message->mqid;
+        messaging_debug('Processed message from queue', array('message' => $message, 'success' => $success));
       } else {
         $unsent[] = $message->mqid;
+        watchdog('messaging', 'Failed queue processing for @message', array('@message' => (string)$message), WATCHDOG_WARNING);
       }
       $count++;
+      
       // Check timeout after each message
       if ($timeout && time() > $timeout) break;
     }
@@ -278,6 +281,9 @@ class Messaging_Store {
     drupal_unpack($message);
     // Saved messages are prepared and rendered
     $message->prepared = $message->rendered = TRUE;
+    // And they may be already marked for queue / log
+    $message->queued = $message->queue;
+    $message->logged = $message->log;
     return messaging_message_build($message);
   }
   
@@ -303,7 +309,7 @@ class Messaging_Store {
   
     // Now unmark the rest for queue processing, as logs
     $args = array_merge(array($sent), $where['args']);
-    db_query("UPDATE {messaging_store} SET queue = 0, cron = 0, log = 1, sent = %d WHERE ".implode(' AND ', $where['where']), $where['args']);
+    db_query("UPDATE {messaging_store} SET queue = 0, cron = 0, log = 1, sent = %d WHERE ".implode(' AND ', $where['where']), $args);
   }
   
   /**
@@ -346,8 +352,14 @@ class Messaging_Store {
     $update = empty($message->mqid) ? array() : 'mqid';
     $result = drupal_write_record(self::DB_TABLE, $message, $update);
     if ($result) {
+      // For this store, queue and log are the same so we mark the messages accordingly
+      $message->updated = FALSE;
+      $message->queued = $message->queue;
+      $message->logged = $message->log;
+      // Store it into the cache for further reference
       self::cache_set(self::message_key($message), $message);
     }
+    messaging_debug('Saved message to store', array('message' => $message));
     return $result;
   }
 
@@ -374,6 +386,7 @@ class Messaging_Store {
     // On this store we can just save messages prepared and rendered
     $message->prepare();
     $message->render();
+  
     // Set created date if not previously set
     if (empty($message->created)) {
       $message->created = time();
@@ -381,11 +394,6 @@ class Messaging_Store {
     // Normalize some values. Boolean parameters must be 0|1
     foreach (array('queue', 'log', 'cron') as $field) {
       $message->$field = empty($message->$field) ? 0 : 1;
-    }
-    // Check for multiple destinations, just store 'multiple'
-    // Bulk sending modules may store each destination differently
-    if (!empty($message->destinations) && count($message->destinations) > 1) {
-      $message->destination = 'multiple';      
     }
     // Add data fields to serialize
     foreach ($message->data_fields() as $field) {

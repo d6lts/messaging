@@ -105,7 +105,6 @@ class Messaging_API_Tests extends MessagingTestCase {
 
     $message2->account = $user;
     $this->assertTrue(messaging_message_send(array($user->uid, $user->uid), $message2, $test_method, 1), 'Bulk message successfully sent');
-    
     // Now there should be two messages in queue for this user retrieve using two different methods
     $queued = messaging_store()->get_messages(array('uid' => $user->uid));
     $this->assertEqual(count($queued), 2, 'We have the right number of messages in queue: ' . count($queued));

@@ -25,13 +25,16 @@ class Messaging_Message extends Messaging_Object {
   // Database properties
   const DB_TABLE = 'messaging_store';
   const DB_KEY = 'mqid';
+  // Value for destination when there are more destinations
+  const MULTIPLE_DESTINATION = 'multiple';
   // Unique id
   public $mqid = 0;
   // Message type: outgoing, incoming
   public $type;
   // Sending method
   public $method;
-  protected $method_info;
+  // Send method object
+  protected $send_method;
   // Message source, mixed data
   public $source;
   // Sending method specific params
@@ -74,6 +77,7 @@ class Messaging_Message extends Messaging_Object {
   public $operations;
   
   // Message status
+  public $built = FALSE;
   public $prepared = FALSE;
   public $rendered = FALSE;
   public $processed = FALSE;
@@ -96,177 +100,247 @@ class Messaging_Message extends Messaging_Object {
   function __construct($data = array()) {
     parent::__construct($data);
   }
+
+  /**
+   * Build object from template
+   */
+  public static function build($template) {
+    return self::object_build($template, 'Messaging_Message');
+  }
+
   /**
    * Load from db
    */
   public static function load($mqid) {
     return messaging_store()->message_load($mqid);
   }
+
   /**
-   * Build from object or array
+   * Check parameters and go for alter hook
    */
-  public static function build($template) {
-    return new Messaging_Message($template);
-  }
-  /**
-   * Actual message sending
-   */
-  function send($destination = NULL) {
-    messaging_debug('Message send', array('message' => $this));
-    if ($destination) {
-      $this->destination = $destination->address;
-      $this->destinations = array($destination->address);
+  public function message_build() {
+    if (empty($this->built)) {
+      $this->set_destination();
+      // If message priority > 0 this is not to be queued
+      if ($this->priority > 0) {
+        $this->queue = 0;
+      }
+      // Provides a hook for other modules to modify the message before sending
+      // This is the old one, lacks namespace. OBSOLETED
+      $info = $this->send_method() ? $this->send_method()->get_info() : array();
+      drupal_alter('message', $this, $info);
+      drupal_alter('messaging_message', $this);
+      $this->built = TRUE;
     }
-    // The message can be for queueing or just for testing
-    if ($this->discard) {
-      return FALSE;
-    }
-    elseif ($this->test) {
-      return messaging_message_test($this);
-    }
-    elseif ($this->queue) {
-      return $this->queue();
-    }
-    elseif (!$this->processed) {
-      // This still needs full processing before being sent
-      $this->queue = 0;
-      return $this->process('prepare', 'presend', 'send', 'aftersend');
-    }
-    else {
-      $this->success = $this->send_method()->send_address($this->destination, $this);
-      return $this->success;
-    }
+    return $this->built && !$this->discard;
   }
 
   /**
-   * Get send method class
-   */
-  function send_method() {
-    return messaging_send_method($this->method);
-  }
-  /**
-   * Send to multiple destinations, same method
-   */
-  function send_multiple($method = NULL, $addresses = NULL) {
-    messaging_debug('Message send multiple', array('message' => $this));
-    if ($method && $addresses) {
-      $this->method = $method;
-      $this->destination = 'multiple';
-      $this->destinations = $addresses;
-    }
-      // The message can be for queueing or just for testing
-    if ($this->test) {
-      return messaging_message_test($this);
-    }
-    elseif ($this->queue) {
-      return $this->queue();
-    }
-    elseif (!$this->processed) {
-      // This still needs full processing before being sent
-      return $this->process('prepare', 'presend', 'multisend', 'aftersend');
-    }
-    else {
-      $this->invoke_callbacks('multisend');
-      return $this->success;
-    }
-  }
-  /**
-   * Process message to queue, send or discard
+   * Prepare for sending through given method
    * 
-   * This will go through all the operations in order. Any of the callbacks can:
-   * - Stop processing: set 'process' property to FALSE
-   * - Discard the message: set 'discard' property to TRUE
-   * - Change the operations, that are in the 'operations' array
-   * 
-   * @param
-   *   Multiple operations in order
+   * At this stage, message can be redirected to a different method
    */
-  function process() {
-    $this->operations = func_get_args();
-    $this->process = TRUE;
-    $this->discard = FALSE;
-    $this->processed = FALSE;
-    while ($this->process && !$this->discard && ($op = array_shift($this->operations))) {
-      messaging_debug('Message processing', array('op' => $op));
-      switch ($op) {
-        // Message methods. These can change the $operations array
-        case 'prepare':
-        case 'render':
-          $this->$op();
-          break;
-
-        // Invoke callbacks. These can change the $operations array
-        case 'presend':
-        case 'aftersend':
-          $this->invoke_callbacks($op);
-          break;
-
-        // Decission on whether this is for sending, queueing, etc...
-        case 'queue':
-          $this->processed = 'queue'; 
-          $this->queue();
-          break;
-        case 'send':
-          $this->processed = 'send';
-          $this->send();
-          break;
-        case 'multisend':
-          $this->processed = 'multisend';
-          $this->send_multiple();
-          break;
+  public function prepare() {
+    if (empty($this->prepared)) {
+      if ($this->message_build()) {
+        $this->set_destination();
+        // Prepare invoking one or more sending methods
+        $this->prepared = $this->process_method('message_prepare');
+        messaging_debug("Prepared for send method.");
+      }
+      else {
+        // Message building failed, we don't do anything else
+        $this->prepared = FALSE;
+        $this->message_log("Failed message build.");
       }
     }
-    // Processing has stopped because any of the callbacks decided so.
-    if (!$this->processed) {
-      $this->success = FALSE;
-      $this->set_error("Process aborted, operation: $op");
-    }
-    // End message processing store or dispose
-    $this->done();
-    return $this->success;
+    return $this->prepared;
   }
+
   /**
-   * Queue message
+   * Render through sending method
    */
-  public function queue() {
-    if (!$this->processed) {
-      $this->queue = 1;
-      return $this->process('prepare', 'queue');
+  public function render() {
+    $this->prepare();
+    if (empty($this->rendered)) {
+      $this->send_method()->message_render($this);
+      $this->rendered = time();
     }
-    // Check queue property because it may have been changed during processing
-    if (!$this->queued && $this->queue) {
-      $this->invoke_callbacks('queue', 'afterqueue');
-      $this->queued = TRUE;
+  }
+
+  /**
+   * Send message through sending method.
+   * 
+   * The message may need to be processed and it can be queued or discarded yet.
+   */
+  public function send($destination = NULL) {
+    if (isset($destination)) {
+      $this->set_destination($destination);
+    }
+    if (!$this->processed) {
+      return $this->process();
+    }
+    else {
+      // The message has been processed and it is for sending
+      $this->message_log('Sending message.');
+      return $this->send_method()->message_send($this);
+    }
+  }
+
+  /**
+   * Send to multiple destinations, same method.
+   * 
+   * The message may need to be processed and it can be queued or discarded yet.
+   */
+  function send_multiple($addresses = NULL, $method = NULL) { 
+    $this->destination = self::MULTIPLE_DESTINATION;
+    if (isset($method)) {
+      $this->method = $method;
+    }
+    if ($addresses) {
+      $this->destinations = $addresses;
+    }
+    if (!$this->processed) {
+      return $this->process();
+    }
+    else {
+      $this->message_log('Sending to multiple destinations.', array('destinations' => $this->destinations));
+      $this->success = $this->send_method()->message_multisend($this);
       return $this->success;
     }
+  }
+
+  /**
+   * Queue message using the messaging store.
+   * 
+   * This should happen only once per message, we check it hasn't been queued before.
+   */
+  public function queue() {
+    $this->queue = 1;
+    if (!$this->processed) {
+      return $this->process();
+    }
+    elseif (!$this->queued) {
+      $this->queued = $this->send_method()->message_queue($this);
+      $this->send_method()->message_afterqueue($this);
+    }
+    return $this->queued;
+  }
+  
+  /**
+   * Get send method object
+   */
+  public function send_method() {
+    // Create send method object the first time or when 'method' changed
+    if (!isset($this->send_method) || $this->method != $this->send_method->method) {
+      $this->send_method = !empty($this->method) ? messaging_send_method($this->method) : NULL;
+    }
+    return $this->send_method;
+  }
+
+
+  /**
+   * Check whether the message is to be sent / queued
+   * 
+   * @return boolean
+   *   True if it needs further processing
+   */
+  protected function process() {
+    // Preprocess: Build and prepare if not done before
+    if (!$this->processed) {
+      if (!$this->discard && !$this->prepared) {
+        $this->prepare();
+      }
+    }
+    // If everything is ok after preprocessing go for actual send/queue
+    if ($this->prepared && !$this->discard && !$this->error) {
+      // Mark as processed, so it is actually queued/sent
+      $this->processed = TRUE;
+      if ($this->test) {
+        messaging_message_test($this);
+        $this->success = TRUE;
+      } 
+      elseif ($this->queue) {
+        $this->success = $this->queue();
+        $this->module_invoke('message queued');
+      }
+      else {
+        // Send to one or more destinations
+        if ($this->destination == self::MULTIPLE_DESTINATION) {
+          $this->success = $this->send_multiple();
+        }
+        else {
+          $this->success = $this->send();
+        }
+        if ($this->success) {
+          $message->sent = time();
+        }
+        $this->send_method()->message_aftersend($this);
+        $this->module_invoke('message sent');
+      }
+      // Message done, maybe log and return
+      $this->done();
+      return $this->success;    
+    }
+    else {
+      $this->discard('Failed processing.');
+      messaging_debug('Discarded message during processing.', array('message' => $this));
+      return FALSE;
+    }
+  }
+  /**
+   * Process through sending method
+   * 
+   * This can go through multiple redirections, we stop it when we get to the same method again or process = FALSE
+   */
+  protected function process_method($operation) {
+    if ($this->send_method()) {
+      $this->process = TRUE;
+      $methods = array();
+      // The send method can stop this by setting 'process' to FALSE or 'discard' to TRUE
+      while ($this->process && !$this->discard && !in_array($this->method, $methods)) {
+        $methods[] = $this->method;
+        $this->send_method()->$operation($this);
+      }
+      return TRUE;
+    } else {
+      return FALSE;
+    }
+  }
+  /**
+   * Invoke hook_messaging_message() on all modules
+   */
+  protected function module_invoke($op) {
+    return module_invoke_all('messaging_message', $op, $this);
   }
   /**
    * Discard message
    */
-  function discard($reason = '') {
-    messaging_log('Message discarded during process', array('reason' => $reason, 'message' => (string)$this));
+  function discard($reason = 'No reason.') {
+    $this->success = FALSE;
+    $this->message_log('Message discarded during process', array('reason' => $reason));
     $this->delete();
   }
+
   /**
    * After the message has been processed
    */
-  function done($text = '') {
+  function done() {
     // Depending on parameters and what's happened so far we make the final queue/log decision
     if ($this->discard) {
-      $this->discard($text);
+      $this->discard('Done processing');
     } if ($this->error || $this->log) {
       $this->log();
     }
   }
+
   /**
    * Get method info
    */
   function method_info() {
-    if (!isset($this->method_info)) {
-      $this->method_info = messaging_method_info($this->method);
-    }
-    return $this->method_info;
+    return messaging_method_info($this->method);
   }
+
   /**
    * Save to store if not saved yet or updated
    */
@@ -275,43 +349,17 @@ class Messaging_Message extends Messaging_Object {
       $this->save();
     }
   }
-  /**
-   * Prepare for sending
-   */
-  function prepare() {
-    if (empty($this->prepared)) {
-      $this->send_method()->message_prepare($this);
-      $this->prepared = TRUE;
-      // Provides a hook for other modules to modify the message before sending
-      $info = $this->send_method()->get_info();
-      drupal_alter('message', $this, $info);
-    }
-  }
-  /**
-   * Render through sending method
-   */
-  function render() {
-    if (empty($this->rendered)) {
-      $this->process = TRUE;
-      $this->send_method()->message_render($this);
-      $this->rendered = TRUE;
-    }
-  }
+
   /**
    * Save to store / update
    */
   function save() {
-    // Make sure this is rendered before saving
-    $this->prepare();
-    $this->render();
     $result = messaging_store()->message_save($this);
     if ($result) {
       $this->updated = FALSE;
-      $this->queued = $this->queue;
-      $this->logged = $this->log;
     }
     else {
-      $this->set_error(t('The message cannot be saved.'));
+      $this->set_error('The message cannot be saved.');
     }
   }
   /**
@@ -322,20 +370,6 @@ class Messaging_Message extends Messaging_Object {
       messaging_store()->message_log($this);
       $this->logged = TRUE;
     }
-  }
-  /**
-   * Run callbacks on message
-   */
-  function invoke_callbacks() {
-    $callback_keys = func_get_args();
-    $this->process = TRUE;
-    $this->success = TRUE;
-    while (!empty($this->process) && ($callback = array_shift($callback_keys))) {
-      // Invoke callback message_callback on send method object
-      $function = 'message_' . $callback;
-      $this->send_method()->$function($this, $this->method_info());
-    }
-    return $this->success;
   }
   /**
    * Set sender account and related properties
@@ -354,19 +388,47 @@ class Messaging_Message extends Messaging_Object {
     }
   }
   /**
-   * Set destination object
+   * Set destination object or figure out a destination if not set
+   * 
+   * @param $destination
+   *   Destination object, single address, or array of addresses
    */
-  function set_destination($destination) {
-    if (empty($destination)) {
-      $this->destination = '';
-      $this->destination_object = FALSE;
+  function set_destination($destination = NULL) {
+    if (isset($destination)) {
+      if (is_object($destination)) {
+        $this->uid = $destination->uid;
+        $this->destination = $destination->address;
+        $this->destination_object = $destination;
+      }
+      elseif (is_string($destination) || is_empty($destination)) {
+        $this->set_multiple($destination);
+        $this->destination = $destination;
+        $this->destination_object = FALSE;
+      }
     }
-    elseif (is_object($destination)) {
-      $this->uid = $destination->uid;
-      $this->destination = $destination->address;
-      $this->destination_object = $destination;
+    else {
+      if (empty($this->method)) {
+        // If we don't have a method we can get it from the user account
+        $this->method = messaging_method_default($this->get_user());
+      }
+      // Same for address, but only for registered users
+      if ($this->send_method() && empty($this->destination) && $this->uid) {
+        $this->destination = $this->send_method()->get_user_address($this->get_user());
+      }
     }
   }
+
+  /**
+   * Set multiple sestinations
+   * 
+   * @param $destinations
+   *   Array of addresses
+   */
+  function set_multiple($destinations) {
+    $this->destination = self::MULTIPLE_DESTINATION;
+    $this->destinations = $destinations;
+  }
+  
   /**
    * Set user object and related properties
    * 
@@ -374,48 +436,42 @@ class Messaging_Message extends Messaging_Object {
    */
   function set_user($account) {
     parent::set_user($account);
-    $this->check_user($account);
-    return !$this->discard && !empty($this->method) && !empty($this->destination);
+    $this->set_destination();
+    // The send method can have some specific bits for user
+    $this->process_method('message_user');
+    // Check we have method and address
+    if (empty($this->method)) {
+      $this->set_error('Cannot find a suitable send method for this user.');
+      return FALSE;
+    }
+    elseif (empty($this->destination)) {
+      $this->set_error('Cannot find a suitable address for this user.');
+      return FALSE;
+    }
+    else {
+      return !$this->discard;
+    }
   }
 
   /**
-   * Check the message method is ok for this user
+   * Check we have a sending method and a destination
+   * 
+   * @param $error
+   *   Whether to mark this message as error if destination not ok
    */
-  function check_user($account) {
-    if (empty($this->method)) {
-      $this->method = messaging_method_default($account);
-    }
-    // If we have a method, check user and availability if there's a callback for that. 
-    // Depending on the sending method, the message can be queued / discarded / redirected  
-    if (!$this->method) {
-      $this->set_error('Cannot find a suitable send method for this user.');
-    }
-    else {
-      $methods = array();
-      // This can go through multiple redirections, we stop it when we get to the same method again or process = FALSE
-      while ($this->process && !in_array($this->method, $methods) && !$this->queue && !$this->discard) {
-        $methods[] = $this->method;
-        $this->send_method()->message_user($this, $account);
-      }
-      // The sending method may have decided the message is to be discarded or queued.
-      if (!$this->discard && empty($this->destination)) {
-        if ($destination = $this->send_method()->get_user_address($account)) {
-          $this->destination = $destination;
-        }
-        else {
-          $this->set_error('Cannot find a suitable address for this user.');
-        }
-      }
-    }
-    return !$this->discard;
+  function check_destination($error = FALSE) {
+    $this->set_destination();
+    return !empty($this->method) && !empty($this->destination);
   }
   
   /**
    * Add destination to the list
    * 
-   * This will also de-dupe destinations
+   * 
    */
   function add_destination($destination) {
+    $this->destination = self::MULTIPLE_DESTINATION;
+    // This will also de-dupe destinations
     $this->destinations[$destination->index()] = $destination;
   }
 
@@ -439,7 +495,7 @@ class Messaging_Message extends Messaging_Object {
    */
   function delete() {
     if ($this->is_instance()) {
-      $result = messaging_store()->message_delete($this->mqid);
+      $result = messaging_store()->message_delete($this);
       $this->deleted = TRUE;
       return $result;
     }
@@ -451,15 +507,16 @@ class Messaging_Message extends Messaging_Object {
    * @param $text
    *   Error message to be stored
    */
-  function set_error($text, $code = 1) {
+  function set_error($text = 'ERROR', $code = 1) {
     // This will stop processing if we are in the middle of anything
     $this->process = FALSE;
-    $this->result = FALSE;
+    $this->success = FALSE;
     $this->error = $code;
     $this->error_msg = $text;
-    
+    $this->message_log('Error processing message.');
+    // By default, messages are set to be logged when errors happen
     if ($this->log_error) {
-      $this->log = TRUE;
+      $this->log = 1;
       $this->updated = TRUE;
     }
     elseif (!$this->log) {
@@ -468,69 +525,6 @@ class Messaging_Message extends Messaging_Object {
     }
   } 
 
-  /**
-   * Get list of fields to serialize for storage
-   */
-  function data_fields() {
-    return array('files', 'parts', 'sender_name', 'error_msg');
-  }
-  // Magic function, format as string
-  public function __toString() {
-    $subject = $this->subject ? check_plain($this->subject) : '<none>';
-    return "Message: method=$this->method, destination=$this->destination, subject=$subject";
-  }
-  /**
-   * Magic method, set protected properties
-   * 
-   * Warning: This also runs for unset properties
-   */
-  public function __set($name, $value) {
-    switch ($name) {
-      case 'sender_account':
-        $this->sender_account = $value;
-        if (!isset($this->sender)) {
-          $this->sender = $value ? $value->uid : 0;
-        }
-        break;
-      case 'destination':
-        if (is_object($value)) {
-          $this->set_destination($value);
-        }
-        else {
-          $this->destination = $value;
-        }
-        break;
-      case 'user':
-      case 'account':
-        $this->set_user($value);
-        break;
-      default:
-        $this->$name = $value;
-        break;
-    }
-  }
-  /**
-   * Magic method, get protected properties
-   */
-  public function __get($name) {
-    switch ($name) {
-      case 'sender_account':
-        return $this->get_sender();
-      case 'user':
-      case 'account':
-        return $this->get_user();
-    }
-  }
-  /**
-   * Magic method, isset protected properties
-   */
-  public function __isset($name) {
-    switch ($name) {
-      case 'destination':
-      case 'user';
-        return !empty($this->$name);
-    }
-  }
   /**
    * Get sender account
    */
@@ -586,6 +580,85 @@ class Messaging_Message extends Messaging_Object {
     $parts = array_filter($parts);
     $text = $parts ? implode($glue, $parts) : '';
     return $text;
+  }
+
+  /**
+   * Log message with some data
+   */
+  protected function message_log($text, $variables = array()) {
+    messaging_log($text, $variables + array('message' =>(string)$this));
+  }
+  
+  /**
+   * Get list of fields to serialize for storage
+   */
+  public function data_fields() {
+    return array('destinations', 'files', 'parts', 'sender_name', 'error_msg');
+  }
+
+  // Magic function, format as string
+  public function __toString() {
+    $subject = !empty($this->subject) ? check_plain($this->subject) : '<none>';
+    $method = !empty($this->method) ? $this->method : '<none>';
+    $destination = !empty($this->destination) ? $this->destination : '<none>';
+    $text = "Message: method= $method, destination= $destination, subject= $subject";
+    if (!empty($this->error)) {
+      $text .= " error=$this->error, $this->error_msg";
+    }
+    return $text;
+  }
+
+  /**
+   * Magic method, set protected properties
+   * 
+   * Warning: This also runs for unset properties
+   */
+  public function __set($name, $value) {
+    switch ($name) {
+      case 'sender_account':
+        $this->sender_account = $value;
+        if (!isset($this->sender)) {
+          $this->sender = $value ? $value->uid : 0;
+        }
+        break;
+      case 'destination':
+        if (is_array($value)) {
+          $this->set_multiple($value);
+        }
+        else {
+          $this->set_destination($value);
+        }
+        break;
+      case 'user':
+      case 'account':
+        $this->set_user($value);
+        break;
+      default:
+        $this->$name = $value;
+        break;
+    }
+  }
+  /**
+   * Magic method, get protected properties
+   */
+  public function __get($name) {
+    switch ($name) {
+      case 'sender_account':
+        return $this->get_sender();
+      case 'user':
+      case 'account':
+        return $this->get_user();
+    }
+  }
+  /**
+   * Magic method, isset protected properties
+   */
+  public function __isset($name) {
+    switch ($name) {
+      case 'destination':
+      case 'user';
+        return !empty($this->$name);
+    }
   }
   // Get table name for storage
   public static function db_table() {

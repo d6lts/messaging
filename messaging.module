@@ -231,16 +231,44 @@ function messaging_message_build($message) {
 }
 
 /**
+ * Send message to array of destinations. The message is rendered just once.
+ *
+ * @param $destinations
+ *   Single destination or array of destinations for sending.
+ *   The element type depends on sending method so it can be a list of e-mail addresses, user accounts, etc
+ * @param $message
+ *   Message object or array of message parts.
+ * @param $method
+ *   Sending method. Unlike for messaging_message_send_user() for which the sending method may be user's default
+ *   it is not an optional parameter for this function.
+ * @param $queue
+ *   Optional flag to force queueing.
+ *   We may want to force queueing for bulk messaging. Otherwise it will depend on the sending method
+ *   wether to queue the messages (for pull methods) or not (push methods)
+ */
+function messaging_message_send($destinations, $message, $method, $queue = FALSE) {
+  messaging_debug('Sending message', array('destinations' => $destinations, 'message' => $message, 'method' => $method, 'queue' => $queue));
+  
+  // Convert into an object and add all the information into the message object
+  $message = messaging_message_build($message);
+  $message->method = $method;
+  if (is_array($destinations)) {
+    $message->set_multiple($destinations);
+  }
+  else {
+    $message->set_destination($destinations);
+  }
+  // This will return true if the message was sent or queued for delivery
+  return $queue ? $message->queue() : $message->send();
+}
+
+/**
  * Send message to destination object
  *
  * @param $destination
  *   Messaging Destination object to recieve message.
  * @param $message
- *   Array of message parts that will be compiled depending on send method.
- *   Mandatory message parts, which may have nexted parts are:
- *   - 'type'
- *   - 'subject'
- *   - 'body'. The message body may have 'header', 'content', 'footer', 'etc'
+ *   Message object or array of message parts.
  * @param $queue
  *   Optional send method. Defaults to the user account predefined method
  */
@@ -248,16 +276,9 @@ function messaging_message_send_destination($method, $destination, $message, $qu
   messaging_debug('Sending message to destination', array('destination' => $destination, 'message' => $message));
   // Build array of parameters so they can be overridden by callbacks
   $message = messaging_message_build($message);
-  $message->uid = $destination->uid;
   $message->method = $method;
-  $message->destination = $destination->address;
-  $message->acccount = $destination->get_account();
-  if ($queue) {
-    return $message->queue();
-  }
-  else {
-    return $message->send();
-  }
+  $message->set_destination($destination);
+  return $queue ? $message->queue() : $message->send();
 }
 
 /**
@@ -288,19 +309,18 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
   if (isset($method)) {
     $message->method = $method;
   }
-  $message->queue = $queue ? 1 : 0;
-
   // Check user and availability if there's a callback for that. Depending on the sending method,
   // when user is not available it may just be discarded / queued / redirected through other method
   if ($message->set_user($account)) {
     messaging_debug('Found destination for user, sending message', array('method' => $message->method, 'destination' => $message->destination));
-    return $message->send();
+    return $queue ? $message->queue() : $message->send();
   }
   else {
-    messaging_log('Destination not available for user account', array('method' => $method, 'account' => $account));
+    watchdog('messaging', 'Cannot send message to user !username. @message', array('!username' => theme('username', $account), '@message' => (string)$message), WATCHDOG_WARNING);
     return FALSE;  
   }
 }
+
 
 /**
  * Build destination object from user account (and create destination if not exists)
@@ -334,50 +354,6 @@ function messaging_user_destination($account, $method, $message = NULL) {
 }
 
 /**
- * Send message to array of destinations. The message is rendered just once.
- * 
- * The $message array may have the following elements
- *   'subject' => Message subject, may be already rendered or not
- *   'body' => Message content, may be already rendered or not
- *   'params' => Optional message params, indexed by sending method group
- *      I.e. params for mail methods will be in $message['params']['mail']
- *   'render' => Optional flag to mark the message subject and body as rendered
- *   'sender' => Optional int to identify message sender, may be $user->uid
- *   'sender_account' => Optional user account to use as message sender
- * @param $destinations
- *   Array of destinations for sending.
- *   The element type depends on sending method so it can be a list of e-mail addresses, user accounts, etc
- * @param $message
- *   Message object or array, not rendered
- * @param $method
- *   Sending method. Unlike for messaging_message_send_user() for which the sending method may be user's default
- *   it is not an optional parameter for this function.
- * @param $queue
- *   Optional flag, 0 for normal queueing, 1 to force queueing.
- *   We may want to force queueing for bulk messaging. Otherwise it will depend on the sending method
- *   wether to queue the messages (for pull methods) or not (push methods)
- */
-function messaging_message_send($destinations, $message, $method, $queue = 0) {
-  messaging_debug('Sending message', array('destinations' => $destinations, 'message' => $message, 'method' => $method, 'queue' => $queue));
-  
-  // Convert into an object and add all the information into the message object
-  $message = messaging_message_build($message);
-  $message->method = $method ? $method : messaging_method_default(NULL);
-  $message->source['type'] = 'outgoing';
-  $message->destinations = $destinations;
-  $message->queue = $queue ? 1 : 0;
-
-  if ($queue) {
-    $message->queue();
-  }
-  else {
-    $message->send_multiple();
-  }
-  // This will return true if the message was sent or queued for delivery
-  return $message->success;
-}
-
-/**
  * Test sending, just log message
  */
 function messaging_message_test($message, $destinations = array()) {
@@ -385,33 +361,6 @@ function messaging_message_test($message, $destinations = array()) {
   $message->render();
   messaging_log('Emulating message sending (test run)', array('summary' => (string)$message, 'message' => $message, 'destinations' => $destinations));
   return $message->success = TRUE;
-}
-
-/**
- * Send for real, finally invoking method's callback function
- * 
- * This sends messages one by one, so the callback function only need to support a single destination
- * Specific parameters for this message group are processed here too
- * 
- * @param $address
- *   Single destination, may be email, user account, etc...
- * @param $message
- *   Message object
- * @param $method
- *   Sending method
- * 
- * @return boolean
- *   Message successfully sent
- */
-function messaging_message_send_out($address, $message, $method) {
-  $message = messaging_message_build($message);
-  $message->method = $method;
-  if ($send_method = messaging_send_method($method)) {  
-    return $send_method->send_address($address, $message);
-  } else {
-    watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $method), WATCHDOG_ERROR);
-    return FALSE;
-  }  
 }
 
 /**
