@@ -17,7 +17,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'address_type' => 'mail', // Type of address 
         'group' => 'mail', // Class of send method
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
-        'footer' => "<br><br>--",  // Separator for message footer
+        'footer' => "--\n",  // Separator for message footer
         'send callback' => 'messaging_mime_mail_send_msg',  // Sending callback
         'class' => 'Messaging_Method_Mail',
         'filter' => 'messaging_html', // Default filter for this format
@@ -37,7 +37,7 @@ function messaging_mime_mail_messaging($op = 'info') {
  */
 function messaging_mime_mail_send_msg($destination, $message, $params) {
   // mimemail($sender, $recipient, $subject, $body, $plaintext = NULL, $headers = array(), $text = NULL, $attachments = array(), $mailkey = '')  
-  return mimemail($params['from'], $destination, $message->get_subject(), $message->get_body(), NULL, $params['headers'], NULL, $message->get_files(), '');
+  return mimemail($params['from'], $destination, $message->get_subject(), $message->get_body(), NULL, $params['headers'], NULL, $message->get_files(), $params['id']);
 }
 
 /**
