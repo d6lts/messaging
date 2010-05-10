@@ -3,9 +3,9 @@
 /**
  * @file
  * Simple messaging using html page. Messaging method plug-in
- * 
+ *
  * This is a really simple message viewer and also an illustration of pulling messaging methods
- * 
+ *
  * @ TODO: Add ability to delete queued messages
  */
 
@@ -16,7 +16,7 @@ define('MESSAGING_SIMPLE_PAGER', 20);
  * Implementation of hook_messaging
  */
 function messaging_simple_messaging($op = 'info') {
-  switch($op) {
+  switch ($op) {
     case 'send methods':
       $info['simple'] = array(
         'title' => t('Simple'),
@@ -31,7 +31,7 @@ function messaging_simple_messaging($op = 'info') {
         'filter' => 'messaging_filter',
         'anonymous' => FALSE, // This method is not valid for anonymous users
       );
-      return $info;  
+      return $info;
   }
 }
 
@@ -60,7 +60,7 @@ function messaging_simple_access($account) {
 
 /**
  * Menu callback. Display pending messages to the user
- * 
+ *
  * Sample Implementation of messaging pull methods
  */
 function messaging_simple_user_page($account, $op = NULL, $id = NULL) {
@@ -73,7 +73,7 @@ function messaging_simple_user_page($account, $op = NULL, $id = NULL) {
     default:
       return messaging_simple_user_overview($account);
   }
-  
+
 }
 
 /**
@@ -84,10 +84,10 @@ function messaging_simple_user_overview($account) {
   foreach (messaging_simple_get_messages(array('uid' => $account->uid)) as $message) {
     $message->sender_account = $message->sender ? user_load($message->sender) : NULL;
     $rows[] = array(
-      l($message->subject, 'user/'. $account->uid .'/messages/view/'. $message->msid),
+      l($message->subject, 'user/' . $account->uid . '/messages/view/' . $message->msid),
       !empty($message->sender_account) ? theme('username', $message->sender_account) : t('System'),
       format_date($message->created),
-    );    
+    );
   }
   if (!empty($rows)) {
     $header = array(t('Subject'), t('From'), t('Date'));
@@ -123,7 +123,7 @@ function messaging_simple_user_message($form_state, $account, $msid) {
       '#type' => 'submit',
       '#value' => t('Delete'),
     );
-    $form['#redirect'] = 'user/'. $account->uid .'/messages';
+    $form['#redirect'] = 'user/' . $account->uid . '/messages';
   }
   return $form;
 }
@@ -133,7 +133,7 @@ function messaging_simple_user_message($form_state, $account, $msid) {
  */
 function messaging_simple_user_message_submit($form, &$form_state) {
   db_query("DELETE FROM {messaging_simple} WHERE msid = %d", $form_state['values']['message']->msid);
-  drupal_set_message(t('The message has been deleted'));
+  drupal_set_message(t('The message has been deleted.'));
 }
 
 /**
@@ -147,7 +147,7 @@ function messaging_simple_format_address($uid, $html = FALSE) {
 
 /**
  * Get messages for user or destination
- * 
+ *
  * @param $params
  *   Array of integer parameters
  */
@@ -171,7 +171,7 @@ function messaging_simple_get_messages($params, $pager = MESSAGING_SIMPLE_PAGER)
 }
 
 /**
- * Just store the message to be shown later 
+ * Just store the message to be shown later
  */
 function messaging_simple_send_msg($uid, $message) {
   // Store without changing the original message
@@ -180,6 +180,16 @@ function messaging_simple_send_msg($uid, $message) {
   $store->sent = time();
   drupal_write_record('messaging_simple', $store);
   return TRUE;
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function messaging_simple_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'messaging_simple') . '/views',
+  );
 }
 
 /**
