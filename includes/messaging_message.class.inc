@@ -126,9 +126,6 @@ class Messaging_Message extends Messaging_Object {
         $this->queue = 0;
       }
       // Provides a hook for other modules to modify the message before sending
-      // This is the old one, lacks namespace. OBSOLETED
-      $info = $this->send_method() ? $this->send_method()->get_info() : array();
-      drupal_alter('message', $this, $info);
       drupal_alter('messaging_message', $this);
       $this->built = TRUE;
     }
@@ -262,7 +259,7 @@ class Messaging_Message extends Messaging_Object {
       } 
       elseif ($this->queue) {
         $this->success = $this->queue();
-        $this->module_invoke('message queued');
+        $this->module_invoke('queued');
       }
       else {
         // Send to one or more destinations
@@ -276,7 +273,7 @@ class Messaging_Message extends Messaging_Object {
           $message->sent = time();
         }
         $this->send_method()->message_aftersend($this);
-        $this->module_invoke('message sent');
+        $this->module_invoke('sent');
       }
       // Message done, maybe log and return
       $this->done();
@@ -401,7 +398,7 @@ class Messaging_Message extends Messaging_Object {
         $this->destination_object = $destination;
       }
       elseif (is_string($destination) || is_empty($destination)) {
-        $this->set_multiple($destination);
+        //$this->set_multiple($destination);
         $this->destination = $destination;
         $this->destination_object = FALSE;
       }
@@ -416,6 +413,16 @@ class Messaging_Message extends Messaging_Object {
         $this->destination = $this->send_method()->get_user_address($this->get_user());
       }
     }
+  }
+
+  /**
+   * Get destination object
+   */
+  function get_destination() {
+    if (!isset($this->destination_object)) {
+      $this->set_destination();
+    }
+    return $this->destination_object;
   }
 
   /**
@@ -476,16 +483,26 @@ class Messaging_Message extends Messaging_Object {
   }
 
   /**
+   * Get generic parameters
+   */
+  function get_params($key = NULL) {
+    if ($key) {
+      return isset($this->params[$key]) ? $this->params[$key] : array();
+    }
+    else {
+      return isset($this->params) ? $this->params : array();
+    }
+  }
+  /**
    * Get sending method parameters
    */
-  function get_params($method = NULL) {
+  function get_method_params($method = NULL) {
     $method = $method ? $method : $this->method;
     // First get specific parameters for this sending method
-    $params = isset($this->params[$method]) ? $this->params[$method] : array();
+    $params = $this->get_params($method);
     // Check for specific parameters for this method group
-    $group = $this->send_method()->get_info('group');
-    if ($group && !empty($this->params[$group])) {
-      $params += $this->params[$group];
+    if ($group = $this->send_method()->get_info('group')) {
+      $params += $this->get_params($group);
     }
     return $params;
   }

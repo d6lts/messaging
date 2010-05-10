@@ -1027,10 +1027,9 @@ function _messaging_log($type, $txt = NULL, $variables = NULL, $severity = WATCH
  */
 function _messaging_log_format($log) {
   list($type, $string, $args, $severity) = $log;
-
+  $append = $replace = $objects = array();
   if ($args) {
     // Transform arguments before inserting them.
-    $append = $replace = $objects = array();
     foreach ($args as $key => $value) {
       if (is_numeric($value) || is_string($value)) {
         switch ($key[0]) {

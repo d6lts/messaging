@@ -191,7 +191,7 @@ class Messaging_Send_Method extends Messaging_Method {
     if ($send_callback = $this->get_info('send callback')) {
       // For this case, we render it before so it is compatible with old send methods
       $message->render();
-      return call_user_func($send_callback, $address, $message, $message->get_params($this->method));
+      return call_user_func($send_callback, $address, $message, $message->get_method_params($this->method));
     }
     else {
       watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $this->method), WATCHDOG_ERROR);
