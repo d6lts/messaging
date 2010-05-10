@@ -119,7 +119,7 @@ function messaging_phpmailer_send_msg($destination, $message, $params = array())
  *   TRUE if the PHPMailer library is loaded, FALSE otherwise.
  */
 function messaging_phpmailer_load_library() {
-  if (!class_exists('PHPMailer')) {
+  if (!class_exists('PHPMailer', FALSE)) {
     // First, try using libraries module.
     if (module_exists('libraries')) {
       // Let's see if PHPMailer is really available from libraries.
@@ -129,7 +129,7 @@ function messaging_phpmailer_load_library() {
       }
     }
     // If PHPMailer is not already loaded, then try from module subdirectory.
-    if (!class_exists('PHPMailer')) {
+    if (!class_exists('PHPMailer', FALSE)) {
       $phpmailer_library = './'. drupal_get_path('module', 'messaging_phpmailer') .'/PHPMailer/class.phpmailer.php';
       if (file_exists($phpmailer_library)) {
         include_once $phpmailer_library;
@@ -137,7 +137,7 @@ function messaging_phpmailer_load_library() {
     }
   }
   // Tell the caller if PHPMailer class exists.
-  return class_exists('PHPMailer');
+  return class_exists('PHPMailer', FALSE);
 }
 
 /**

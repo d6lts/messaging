@@ -48,12 +48,17 @@ class Messaging_Message extends Messaging_Object {
   // Rendered message parts
   public $subject;
   public $body;
+  // Files linked to this message, object array indexed by 'fid'
   public $files;
+  // Not rendered subject and body parts
   public $parts;
-  // Sender information
+  // Sender user id, will default to 0 (system)
   public $sender;
+  // Sender name, will default to site name
   public $sender_name;
+  // Sender address, depends on sending method, may be site address or sender address
   public $sender_address;
+  // Optional sender user account, when sender is a system user. Internal storage only
   protected $sender_account;
   // Timestamps
   public $created;

@@ -294,6 +294,7 @@ function messaging_template_extract_group($filter, $templates) {
  *   Array of objects for token replacement
  */
 function messaging_template_text_replace($text, $objects) {
+  messaging_include('text.inc');
   // Add some token types
   $objects['global'] = NULL;  
   // Parts may be text or text objects, check them and take out filters to be applied later

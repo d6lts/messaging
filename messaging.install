@@ -264,11 +264,10 @@ function messaging_update_2() {
 }
 
 /**
- * Updates for Drupal 6 version
+ * Updates for Drupal 6 version. Not needed anymore
  */
 function messaging_update_6001() {
   $ret = array();
-  _messaging_install_create_filter();
   return $ret;
 }
 
@@ -409,6 +408,21 @@ function messaging_update_6012() {
   }
   return $ret;
 }
+
+/**
+ * Fix template_parts table, may be missing new field depending on update path
+ */
+function messaging_update_6013() {
+  $ret = array();
+  if (db_table_exists('messaging_message_parts') && !db_column_exists('messaging_message_parts', 'format')) {
+    module_load_install('messaging_template');
+    $ret = messaging_template_update_6002();
+  }
+  // Clear all caches for the new classes to work with autoload, new theme functions, etc..
+  drupal_flush_all_caches();
+  return $ret;
+}
+
 // Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');
 
 /**
