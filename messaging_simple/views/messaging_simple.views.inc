@@ -51,7 +51,7 @@ function messaging_simple_views_data() {
 
   $data['messaging_simple']['msid'] = array(
     'title' => t('MSID'),
-    'help' => t('The queue ID of the message.'),
+    'help' => t('The ID of the message.'),
     'field' => array(
       'handler' => 'views_handler_field',
       'click sortable' => TRUE,
@@ -66,7 +66,7 @@ function messaging_simple_views_data() {
 
   $data['messaging_simple']['mqid'] = array(
     'title' => t('MQID'),
-    'help' => t('The simple ID of the message.'),
+    'help' => t('The queue ID of the message.'),
     'field' => array(
       'handler' => 'views_handler_field',
       'click sortable' => TRUE,

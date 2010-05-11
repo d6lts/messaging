@@ -1,8 +1,11 @@
 // $Id$
 
-6.x-4.x-beta3 to .............
+6.x-4.x-beta3 to 6.x-4.x-beta4
 -------------------------------
-- Fixed: multiple warnings on upgrade scripts, #787304, #786844
+- Added views support for messaging_simple, by joshuajabbour, #791694
+- Added some extenstions to Message class: get_method_params()
+- Simplified and improved message sending workflow.
+- Fixed multiple upgrade issues and bugs: #787304, #786844, #790984, #792850, #790226, #792756
 
 6.x-4.x-beta1 to 6.x-4.x-beta3
 ------------------------------
