@@ -728,8 +728,8 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
         $values['message-subject'] = check_plain($message->get_subject());
         $values['message-body'] = filter_xss($message->get_body());
         $values['message-author-name'] = check_plain($message->get_sender_name());
-        $tokens['message-method'] = messaging_method_info($message->method, 'name');
-        $tokens['message-date'] = format_date($message->sent);
+        $values['message-method'] = messaging_method_info($message->method, 'name');
+        $values['message-date'] = format_date($message->sent);
         return $values;
       }
       break;
