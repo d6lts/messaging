@@ -25,13 +25,22 @@ class Messaging_Store {
   const DB_KEY = 'mqid';
   
   /**
+   * Capabilities: whether this Queue can expire old messages
+   */
+  public static function can_expire() {
+    return TRUE;
+  }
+  /**
    * Process messages on cron
    */
   public static function cron_process() {
     // Pass on a time out condition, that will be based on 'max_execution_time'
     $limit['timeout'] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - self::TIME_MARGIN;
-    return self::queue_process($limit);
+    self::queue_process($limit);
+    self::queue_expire_messages();
+    self::queue_expire_logs();
   }
+
   /**
    * Process and send messages in queue, to be called from cron
    * 
@@ -90,20 +99,13 @@ class Messaging_Store {
    * @return
    *   Array of sending results indexed by message id
    */
-  public static function queue_process_step($limit, $timeout = 0) {
+  protected static function queue_process_step($limit, $timeout = 0) {
     $count = 0;
     $sent = $unsent = $processed = array();
     $result = self::select_query('*', array('queue' => 1, 'cron' => 1), array('order' => array(self::DB_KEY), 'limit' => $limit));
     while ($object = db_fetch_object($result)) {
       $message = self::message_unpack($object, TRUE);
-      // Do not queue again but send out
-      $message->queue = 0;
-      if (!empty($message->destinations)) {
-        $success = $message->send_multiple();
-      }
-      else {
-        $success = $message->send();
-      }
+      $success = self::queue_process_message($message);
       $processed[$message->mqid] = $success;
       if ($success) {
         $sent[] = $message->mqid;
@@ -127,28 +129,62 @@ class Messaging_Store {
   }
   
   /**
+   * Process single messag from queue
+   */
+  protected static function queue_process_message($message) {
+    // Do not queue again but send out
+    $message->queue = 0;
+    if (!empty($message->destinations)) {
+      $success = $message->send_multiple();
+    }
+    else {
+      $success = $message->send();
+    }
+    return $success; 
+  }
+
+  /**
    * Queue clean up
    * - Remove expired logs (include errors)
    * - Remove expired queued messages
+   */
+  public static function queue_clean() {
+    $count = self::queue_expire_messages();
+    $count += self::queue_expire_logs(TRUE);
+    return $count;
+  }
+  
+  /**
+   * Remove expired logs from queue
    * 
    * @param $force
    *   Whether to force removal of logs and errors (even if logging not set)
    */
-  public static function queue_clean($force = FALSE) {
-    $count = 0;
+  public static function queue_expire_logs($force = FALSE) {
     if (($expire_logs = variable_get('messaging_log', 0)) || $force) {
       $time = time() - $expire_logs;  
       db_query('DELETE FROM {' . self::DB_TABLE . '} WHERE log = 1 AND queue = 0 AND sent < %d OR error = 1 AND created < %d', $time, $time);
-      $count += db_affected_rows();
+      return db_affected_rows();
     }
+    else {
+      return 0;
+    }
+  }
+
+  /**
+   * Remove expired messages from queue
+   */
+  public static function queue_expire_messages() {
     if ($expire_messages = variable_get('messaging_queue_expire', 0)) {
       $time = time() - $expire_messages;
       db_query('DELETE FROM {' . self::DB_TABLE . '} WHERE created < %d', $time);
-      $count += db_affected_rows();
+      return db_affected_rows();
     }
-    return $count;
+    else {
+      return 0;
+    }
   }
-  
+
   /**
    * Retrieve from messaging database storage
    * 
@@ -415,5 +451,50 @@ class Messaging_Store {
    */
   protected static function cache_get($key) {
     return messaging_static_cache_get('messaging_store', $key);
+  }
+  
+  /**
+   * Get help for admin pages
+   */
+  public static function admin_help() {
+    return array(
+      'name' => t('Built in Messaging Store'),
+      'queue' => t('Queued messages will be processed on cron.'),
+      'logs' => t('Configure your logging settings on the next tab.'),
+    );
+  }
+
+  /**
+   * Get more settings for Admin page
+   */
+  public static function admin_settings() {
+    $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
+    $form['messaging_process_limit'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Limits for queue processing'),
+      '#tree' => TRUE,
+      '#collapsible' => TRUE, '#collapsed' => !array_filter($limit),
+      '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+    );
+    $form['messaging_process_limit']['message'] = array(
+      '#title' => t('Number of messages sent'),
+      '#type' => 'textfield',
+      '#size' => 10,
+      '#default_value' => $limit['message'],
+    );
+    $form['messaging_process_limit']['time'] = array(
+      '#title' => t('Time (seconds)'),
+      '#type' => 'textfield',
+      '#size' => 10,
+      '#default_value' => $limit['time'],
+    );
+    $form['messaging_process_limit']['percent'] = array(
+      '#title' => t('Time (% of cron time)'),
+      '#type' => 'textfield',
+      '#size' => 10,
+      '#default_value' => $limit['percent'],
+      '#description' => t('Maximum percentage of cron time the process may use.'),
+    );
+    return $form;
   }
 }

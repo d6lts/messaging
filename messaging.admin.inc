@@ -155,13 +155,6 @@ function messaging_admin_method_filters() {
  * Queue options form
  */
 function messaging_admin_queue_settings($form_state) {
-  $form['messaging_queue_process_cron'] = array(
-    '#type' => 'radios',
-    '#title' => t('Process on cron'),
-    '#default_value' => variable_get('messaging_queue_process_cron', 1),
-    '#options' => array(t('Disabled'), t('Enabled')),
-    '#description' => t('If disabled you must use code elsewhere to actually send your queued messages such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
-  );
   // Logging and expiration settings  
   $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
   $form['messaging_log'] = array(
@@ -177,6 +170,7 @@ function messaging_admin_queue_settings($form_state) {
     '#options' => $period,
     '#default_value' => variable_get('messaging_queue_expire', 0),
     '#description' => t('If enabled all queued messages will be deleted after the selected time, even when they haven\'t been sent yet.'),
+    '#disabled' => !messaging_store()->can_expire(),
   );
   /*
   $form['messaging_queue_pending_limit'] = array(
@@ -187,34 +181,11 @@ function messaging_admin_queue_settings($form_state) {
     '#description' => t('Discard older messages when the queue exceeds this limit. Some messages may be lost but this will keep your processing under control. Set 0 (zero) for no limit.'),
   );
   */
-  // Processing limits
-  $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
-  $form['messaging_process_limit'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Limits for queue processing'),
-    '#tree' => TRUE,
-    '#collapsible' => TRUE, '#collapsed' => !array_filter($limit),
-    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
-  );
-  $form['messaging_process_limit']['message'] = array(
-    '#title' => t('Number of messages sent'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['message'],
-  );
-  $form['messaging_process_limit']['time'] = array(
-    '#title' => t('Time (seconds)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['time'],
-  );
-  $form['messaging_process_limit']['percent'] = array(
-    '#title' => t('Time (% of cron time)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['percent'],
-    '#description' => t('Maximum percentage of cron time the process may use.'),
-  );
+  // The Queue class can provide some more settings
+  if ($more_settings = messaging_store()->admin_settings()) {
+    $form += $more_settings;
+  }
+
   return system_settings_form($form);  
 }
 
@@ -222,33 +193,40 @@ function messaging_admin_queue_settings($form_state) {
  * Queue status page
  */
 function messaging_admin_queue_status() { 
-  $output = '';
+  $output = messaging_admin_queue_help();
 
   // Compile data from db
   $status = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
   //$result = db_query("SELECT method, queue, cron, error, log, count(mqid) AS total FROM {messaging_store} GROUP BY method, queue, cron, error, log");
   $summary = messaging_store()->get_status(array('method', 'queue', 'cron', 'error', 'log'));
+  $messages = array();
   if ($summary) {
     foreach ($summary as $data) {
-      $method = $data['method'];
-      if (!isset($methods[$method])) {
-        $methods[$method] = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
-      }
-      $value = (int)$data['total'];
-      if ($data['error']) {
-        $field = 'error';
-      }
-      elseif ($data['queue']) {
-        $field = 'queue';
-      }
-      elseif ($data['log']) {
-        $field = 'log';
+      if (is_array($data)) {
+        $method = $data['method'];
+        if (!isset($methods[$method])) {
+          $methods[$method] = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
+        }
+        $value = (int)$data['total'];
+        if ($data['error']) {
+          $field = 'error';
+        }
+        elseif ($data['queue']) {
+          $field = 'queue';
+        }
+        elseif ($data['log']) {
+          $field = 'log';
+        }
+        else {
+          $field = 'other';
+        }
+        $methods[$method][$field] += $value;
+        $status[$field] += $value;
       }
       else {
-        $field = 'other';
+        // Not an array it must be an status message
+        $messages[] = $data;
       }
-      $methods[$method][$field] += $value;
-      $status[$field] += $value;
     }
   }
   // Build table if we've got any data
@@ -264,10 +242,14 @@ function messaging_admin_queue_status() {
     $status['total'] = array_sum($status);
     $rows[] = array(t('Total'), $status['queue'], $status['error'], $status['log'], $status['other'], $status['total']);
     $content = theme('table', $header, $rows);
+
     $output .= drupal_get_form('messaging_admin_queue_operations_form', $status);
   }
   else {
-    $content = t('No data in queue.');
+    $content = t('No data available.');
+  }
+  if ($messages) {
+    $content .= theme('item_list', $messages);
   }
   $output .= theme('box', t('Queue status'), $content);
   return $output;
@@ -348,6 +330,16 @@ function messaging_admin_queue_operations_form_submit($form, $form_state) {
   if (!empty($deleted)) {
     drupal_set_message(t('Deleted @count messages from queue.', array('@count' => $deleted)));
   }
+}
+
+/**
+ * Print out help from messaging store
+ */
+function messaging_admin_queue_help() {
+  $help = messaging_store()->admin_help();
+  $name = $help['name'];
+  unset($help['name']);
+  return theme('box', $name, theme('item_list', $help));
 }
 
 /**

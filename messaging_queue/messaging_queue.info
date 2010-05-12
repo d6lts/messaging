@@ -1,0 +1,7 @@
+; $Id$
+name = Messaging Queue
+description = Queues messages for asynchronous sending. Can use multiple worker threads.
+package = "Messaging"
+dependencies[] = messaging
+dependencies[] = drupal_queue
+core = 6.x

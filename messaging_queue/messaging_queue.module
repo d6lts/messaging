@@ -1,0 +1,53 @@
+<?php
+// $Id$
+/**
+ * @
+ * Drupal Messaging Framework: Queue system
+ *
+*/
+
+/**
+ * Implementation of hook_autoload_info().
+ */
+function messaging_queue_autoload_info() {
+  return array(
+    'Messaging_Queue' => array('file' => 'messaging_queue.class.inc'),
+  );
+}
+
+/**
+ * Implementation of hook_enable()
+ */
+function messaging_queue_enable() {
+  variable_set('messaging_store', 'Messaging_Queue');
+}
+
+/**
+ * Implementation of hook_disable()
+ */
+function messaging_queue_disable() {
+  variable_del('messaging_store');
+}
+
+/**
+ * Implementation of hook_cron_queue_info()
+ */
+function messaging_queue_cron_queue_info() {  
+  // This is about to be called from Drush so we need our autoload hack
+  // Otherwise when we try to unserialize the Message it is already too late
+  messaging_include('drush_hack.inc');
+
+  return array(
+    'messaging' => array(
+      'worker callback' => 'messaging_queue_worker',
+  ));
+}
+
+
+/**
+ * Worker callback
+ */
+function messaging_queue_worker($message) {
+//var_dump($message);  
+  messaging_store()->queue_process_message($message);
+}

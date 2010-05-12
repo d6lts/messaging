@@ -423,7 +423,6 @@ function messaging_update_6013() {
   return $ret;
 }
 
-// Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');
 
 /**
  * Reusable update, delete duplicate destinations
@@ -436,3 +435,6 @@ function _messaging_update_duplicate_destinations() {
   $ret[] = update_sql("DELETE FROM messaging_destination WHERE type = ''");
   return $ret;
 }
+
+// Pending delete obsoleted variable 'messaging_queue_process_cron'
+// Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');
