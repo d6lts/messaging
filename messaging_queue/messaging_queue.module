@@ -45,9 +45,17 @@ function messaging_queue_cron_queue_info() {
 
 
 /**
- * Worker callback
+ * Worker callback. Check whether the message has expired before sending out.
  */
 function messaging_queue_worker($message) {
-//var_dump($message);  
-  messaging_store()->queue_process_message($message);
+  static $expire;
+
+  if (!isset($expire)) {
+    $queue_expire = variable_get('messaging_queue_expire', 0);
+    $expire = $queue_expire ? time() - $queue_expire : 0;
+  }
+
+  if ($message->created > $expire) {
+    messaging_store()->queue_process_message($message);
+  }
 }

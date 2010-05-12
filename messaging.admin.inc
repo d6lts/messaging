@@ -155,35 +155,17 @@ function messaging_admin_method_filters() {
  * Queue options form
  */
 function messaging_admin_queue_settings($form_state) {
-  // Logging and expiration settings  
-  $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
-  $form['messaging_log'] = array(
-    '#title' => t('Logging'),
-    '#type' => 'select',
-    '#options' => $period,
-    '#default_value' => variable_get('messaging_log', 0),
-    '#description' => t('If enabled all messages for the <a href="@messaging-methods">selected methods</a> will be logged and kept for the specified time after they\'re sent.', array('@messaging-methods' => url('admin/messaging/settings/method'))),
+  $form['help']['#value'] = messaging_admin_queue_help();
+  $form['messaging_queue_process_cron'] = array(
+    '#type' => 'radios',
+    '#title' => t('Process on cron'),
+    '#default_value' => variable_get('messaging_queue_process_cron', 1),
+    '#options' => array(t('Disabled'), t('Enabled')),
+    '#description' => t('If disabled you must use code elsewhere to actually send your queued messages such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
   );
-  $form['messaging_queue_expire'] = array(
-    '#title' => t('Expiration'),
-    '#type' => 'select',
-    '#options' => $period,
-    '#default_value' => variable_get('messaging_queue_expire', 0),
-    '#description' => t('If enabled all queued messages will be deleted after the selected time, even when they haven\'t been sent yet.'),
-    '#disabled' => !messaging_store()->can_expire(),
-  );
-  /*
-  $form['messaging_queue_pending_limit'] = array(
-    '#title' => t('Limit pending messages'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => variable_get('messaging_queue_pending_limit', 0),
-    '#description' => t('Discard older messages when the queue exceeds this limit. Some messages may be lost but this will keep your processing under control. Set 0 (zero) for no limit.'),
-  );
-  */
   // The Queue class can provide some more settings
   if ($more_settings = messaging_store()->admin_settings()) {
-    $form += $more_settings;
+    $form = array_merge($form, $more_settings);
   }
 
   return system_settings_form($form);  
@@ -194,7 +176,9 @@ function messaging_admin_queue_settings($form_state) {
  */
 function messaging_admin_queue_status() { 
   $output = messaging_admin_queue_help();
-
+  // Queued messages
+  $queued = messaging_store()->queue_count();
+  
   // Compile data from db
   $status = array('queue' => 0, 'error' => 0, 'log' => 0, 'other' => 0);
   //$result = db_query("SELECT method, queue, cron, error, log, count(mqid) AS total FROM {messaging_store} GROUP BY method, queue, cron, error, log");
@@ -243,7 +227,7 @@ function messaging_admin_queue_status() {
     $rows[] = array(t('Total'), $status['queue'], $status['error'], $status['log'], $status['other'], $status['total']);
     $content = theme('table', $header, $rows);
 
-    $output .= drupal_get_form('messaging_admin_queue_operations_form', $status);
+    $output .= drupal_get_form('messaging_admin_queue_operations_form', $queued, $status);
   }
   else {
     $content = t('No data available.');
@@ -251,16 +235,17 @@ function messaging_admin_queue_status() {
   if ($messages) {
     $content .= theme('item_list', $messages);
   }
-  $output .= theme('box', t('Queue status'), $content);
+  $output .= theme('box', t('Queued messages'), $queued ? '<strong>' . $queued . '</strong> ' . t('(All methods)') : t('No messages in queue.'));  
+  $output .= theme('box', t('Stored messages'), $content);
   return $output;
 }
 
 /**
  * Queue operations form
  */
-function messaging_admin_queue_operations_form($form_state, $status) {
+function messaging_admin_queue_operations_form($form_state, $queued, $status) {
   $form = $help = array();
-  if ($status['queue']) {
+  if ($queued) {
     $operations['queue'] = array('#type' => 'submit', '#value' => t('Process queue'));
   }
   if ($status['total']) {
@@ -316,8 +301,7 @@ function messaging_admin_queue_operations_form_submit($form, $form_state) {
       break;
 
     case t('Delete all');
-      messaging_store()->delete_multiple(array('max_mqid' => $mqid));
-      $deleted = db_affected_rows();
+      $deleted = messaging_store()->delete_all();
       break;
 
   }
@@ -328,7 +312,7 @@ function messaging_admin_queue_operations_form_submit($form, $form_state) {
     }
   }
   if (!empty($deleted)) {
-    drupal_set_message(t('Deleted @count messages from queue.', array('@count' => $deleted)));
+    drupal_set_message(t('Deleted @count queued messages and logs.', array('@count' => $deleted)));
   }
 }
 

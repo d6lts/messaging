@@ -59,9 +59,30 @@ class Messaging_Store {
    * @return
    *   Array of results indexed by message id
    */
-  public static function queue_process($limit = array()) {
+  public static function queue_process($limits = array()) {
     $results = array();
-    $limit += variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
+    $limit = self::process_limits($limits);
+    
+    // Processing loop. Will stop when we run out of rows or reach time / messages limit
+    $count = 0;
+    $max = !empty($limit['message']) ? $limit['message'] : 0;
+    do {
+      $step = $max ? min(self::STEP_ROWS, $max - $count) : self::STEP_ROWS;
+      $result = self::queue_process_step($step, $limit['timeout']);
+      $number = count($result);
+      $count += $number;
+      $results = array_merge($results, $result);
+    } 
+    while ($number == $step && (!$limit['timeout'] || time() <= $limit['timeout']) && (!$max || $max > $count));
+  
+    return $results;
+  }
+  
+  /**
+   * Calculate limits for queue processing
+   */
+  public static function process_limits($limits = array()) {
+    $limits += variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
     // Calculate time limit. We get the smaller of all these times in seconds
     if (!empty($limit['timeout'])) {
       $times[] = $limit['timeout'];
@@ -72,23 +93,10 @@ class Messaging_Store {
     if (!empty($limit['percent'])) {
       $times[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
     }
-    $timelimit = !empty($times) ? min($times) : 0;
-    
-    // Processing loop. Will stop when we run out of rows or reach time / messages limit
-    $count = 0;
-    $max = !empty($limit['message']) ? $limit['message'] : 0;
-    do {
-      $step = $max ? min(self::STEP_ROWS, $max - $count) : self::STEP_ROWS;
-      $result = self::queue_process_step($step, $timelimit);
-      $number = count($result);
-      $count += $number;
-      $results = array_merge($results, $result);
-    } 
-    while ($number == $step && (!$timelimit || time() <= $timelimit) && (!$max || $max > $count));
-  
-    return $results;
+    $limits['timeout'] = !empty($times) ? min($times) : 0; 
+    return $limits;  
   }
-  
+
   /**
    * Retrieve and send queued messages
    * 
@@ -154,6 +162,13 @@ class Messaging_Store {
     return $count;
   }
   
+  /**
+   * Count queued messages
+   */
+  public static function queue_count() {
+    return db_result(self::select_query('COUNT(*)', array('queue' => 1, 'cron' => 1)));
+  }
+
   /**
    * Remove expired logs from queue
    * 
@@ -357,6 +372,14 @@ class Messaging_Store {
   }
  
   /**
+   * Delete all message from queue and logs
+   */
+  public static function delete_all() {
+    db_query('DELETE FROM {' . self::DB_TABLE . '}');
+    return db_affected_rows();
+  }
+
+  /**
    * Delete single message from store
    */
   public static function message_delete($message) {
@@ -463,7 +486,6 @@ class Messaging_Store {
     return array(
       'name' => t('Messaging Store (built-in)'),
       'queue' => t('Queued messages will be processed on cron.'),
-      'logs' => t('Configure your logging settings on the next tab.'),
     );
   }
 
@@ -471,6 +493,33 @@ class Messaging_Store {
    * Get more settings for Admin page
    */
   public static function admin_settings() {
+
+  // Logging and expiration settings  
+  $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
+  $form['messaging_log'] = array(
+    '#title' => t('Logging'),
+    '#type' => 'select',
+    '#options' => $period,
+    '#default_value' => variable_get('messaging_log', 0),
+    '#description' => t('If enabled all messages for the <a href="@messaging-methods">selected methods</a> will be logged and kept for the specified time after they\'re sent.', array('@messaging-methods' => url('admin/messaging/settings/method'))),
+  );
+  $form['messaging_queue_expire'] = array(
+    '#title' => t('Expiration'),
+    '#type' => 'select',
+    '#options' => $period,
+    '#default_value' => variable_get('messaging_queue_expire', 0),
+    '#description' => t('If enabled all queued messages will be deleted after the selected time, even when they haven\'t been sent yet.'),
+    '#disabled' => !messaging_store()->can_expire(),
+  );
+  /*
+  $form['messaging_queue_pending_limit'] = array(
+    '#title' => t('Limit pending messages'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => variable_get('messaging_queue_pending_limit', 0),
+    '#description' => t('Discard older messages when the queue exceeds this limit. Some messages may be lost but this will keep your processing under control. Set 0 (zero) for no limit.'),
+  );
+  */
     $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
     $form['messaging_process_limit'] = array(
       '#type' => 'fieldset',
