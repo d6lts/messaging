@@ -33,6 +33,7 @@ define('MESSAGING_CACHE_LIMIT', variable_get('messaging_cache_limit', 1000));
  */
 function messaging_autoload_info() {
   return array(
+    'Messaging_User_Object' => array('file' => 'includes/messaging_object.class.inc'),
     'Messaging_Object' => array('file' => 'includes/messaging_object.class.inc'),
     'Messaging_Cached_Object' => array('file' => 'includes/messaging_object.class.inc'),
     'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),

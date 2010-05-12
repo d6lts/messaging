@@ -5,9 +5,12 @@
  * Drupal Messaging Framework - Message class file
  * 
  * The steps the message follows are
+ * - build
+ *   Parameters are checked, goes through alter hooks, etc...
+ *   The sending method may change at this stage
  * - prepare
- *   Parameters are prepared, alter hook is invoked, etc
- *   The sending method may change at this stage 
+ *   Parameters are prepared using the sending method
+ *   The sending method may still change at this stage 
  * - presend, send, aftersend
  *   If the message is to be sent right away
  * - queue, afterqueue
@@ -21,30 +24,39 @@
  * 
  * This is a message with all the information, ready for sending
  */
-class Messaging_Message extends Messaging_Object {
-  // Database properties
-  const DB_TABLE = 'messaging_store';
-  const DB_KEY = 'mqid';
+class Messaging_Message extends Messaging_User_Object {
   // Value for destination when there are more destinations
   const MULTIPLE_DESTINATION = 'multiple';
+
   // Unique id
   public $mqid = 0;
   // Message type: outgoing, incoming
   public $type;
-  // Sending method
+  // Sending method key: 'mail', 'sms', etc...
   public $method;
-  // Send method object
-  protected $send_method;
+  
+  // Don't forget inherited properties
+  // Message destination, user uid
+  // public $uid;
+  // Message language
+  // public $language;
+  
   // Message source, mixed data
   public $source;
   // Sending method specific params
   public $params;
-  // Message destination
-  public $uid;
+
+
+  // Real address for this message's method for single destination and destination object
   public $destination;
-  protected $user;
-  // Used when sending to multiple destinations
-  public $destinations;
+  // Destination id and destination object
+  public $mdid;
+  protected $_destination;
+  
+  // Array of multiple addresses, used when sending to multiple destinations.
+  // In this case destination will be MULTIPLE_DESTINATION
+  public $destinations;  
+
   // Rendered message parts
   public $subject;
   public $body;
@@ -52,53 +64,57 @@ class Messaging_Message extends Messaging_Object {
   public $files;
   // Not rendered subject and body parts
   public $parts;
-  // Sender user id, will default to 0 (system)
+  // Sender user id, will default to 0 (system) and user object
   public $sender;
+  protected $_sender;
   // Sender name, will default to site name
   public $sender_name;
   // Sender address, depends on sending method, may be site address or sender address
   public $sender_address;
   // Optional sender user account, when sender is a system user. Internal storage only
   protected $sender_account;
+
   // Timestamps
   public $created;
   public $sent = 0;
-  // Processing parameters
-  public $queue = 0;
-  public $send = 0;
-  public $cron = 0; 
-  public $log = 0;
+  // Processing flags. They are 1 if the message is:
+  public $queue = 0; // To be queued
+  public $send = 0;  // To be sent
+  public $cron = 0;  // To be processed on cron (queued)
+  public $log = 0;   // To be stored as log
   // Message priority. If > 0 it won't be queued.
   public $priority = 0;
-  // Log when we've got an error
+  // Log when we've got an error, enabled as default
   public $log_error = TRUE;
   // Error code, error text
   public $error = 0;
   public $error_msg;
-  // Serialized data
-  public $data;
-  // Temporary processing variables 
-  // These are not stored
-  public $operations;
-  
-  // Message status
+
+  // Message status. These should be persistent and handled by the storage method.
   public $built = FALSE;
   public $prepared = FALSE;
   public $rendered = FALSE;
-  public $processed = FALSE;
+  
   public $queued = FALSE;
   public $logged = FALSE;
-  public $redirect = FALSE;
-  public $retry = FALSE;
-  // Result after each operation
-  public $process = TRUE;
+
+  // Temporary processing variables. These are not stored
+  public $processed = FALSE; // Preprocessed and ready for action (send, queue)
+  public $process = TRUE;   // Keep on processing
   public $result = TRUE;
-  public $discard = FALSE;
+  public $discard = FALSE;  // Marked to be discarded
+  public $redirect = FALSE; // Redirect to a different sending method
+  public $retry = FALSE;    // Retry sending
+  public $success = TRUE;   // Result of last operation
+  public $deleted = FALSE;  // The message has been deleted, though it's still around for whatever use
+  
+  public $updated = FALSE;  // The message has been updated after being saved, needs to be saved again
   // Test message, not really for sending
   public $test = FALSE;
-  public $success = TRUE;
-  // The message has been updated after being saved, needs to be saved again
-  public $updated = FALSE;
+
+  // Serialized data for db_storage and unpack()
+  public $data;  
+
   /**
    * Constructor, with predefined array of data
    */ 
@@ -107,10 +123,18 @@ class Messaging_Message extends Messaging_Object {
   }
 
   /**
-   * Build object from template
+   * Get list of persistent fields to store or serialize.
+   * 
+   * @see _sleep()
+   * 
+   * All these must be public properties so it can be handled by storage mechanisms.
    */
-  public static function build($template) {
-    return self::object_build($template, 'Messaging_Message');
+  public function data_fields() {
+    return array('mqid', 'type', 'method', 'uid', 'language', 'source', 'params', 'mdid', 'destination', 'destinations',
+      'subject', 'body', 'files', 'parts', 'sender', 'sender_name', 'sender_address',
+      'created', 'sent', 'queue', 'send', 'log', 'cron', 'built', 'prepared', 'rendered', 'queued', 'logged',
+      'priority', 'log_error', 'error', 'error_msg', 
+    );
   }
 
   /**
@@ -123,7 +147,7 @@ class Messaging_Message extends Messaging_Object {
   /**
    * Check parameters and go for alter hook
    */
-  public function message_build() {
+  public function build() {
     if (empty($this->built)) {
       $this->set_destination();
       // If message priority > 0 this is not to be queued
@@ -144,7 +168,7 @@ class Messaging_Message extends Messaging_Object {
    */
   public function prepare() {
     if (empty($this->prepared)) {
-      if ($this->message_build()) {
+      if ($this->build()) {
         $this->set_destination();
         // Prepare invoking one or more sending methods
         $this->prepared = $this->process_method('message_prepare');
@@ -233,13 +257,8 @@ class Messaging_Message extends Messaging_Object {
    * Get send method object
    */
   public function send_method() {
-    // Create send method object the first time or when 'method' changed
-    if (!isset($this->send_method) || $this->method != $this->send_method->method) {
-      $this->send_method = !empty($this->method) ? messaging_send_method($this->method) : NULL;
-    }
-    return $this->send_method;
+    return !empty($this->method) ? messaging_send_method($this->method) : NULL;
   }
-
 
   /**
    * Check whether the message is to be sent / queued
@@ -384,7 +403,7 @@ class Messaging_Message extends Messaging_Object {
   function set_sender($account, $address = NULL) {
     $this->sender = $account->uid;
     $this->sender_name = $account->name;
-    $this->sender_account = $account;
+    $this->_sender = $account;
     if (isset($address)) {
       $this->sender_address = $address;
     }
@@ -400,7 +419,8 @@ class Messaging_Message extends Messaging_Object {
       if (is_object($destination)) {
         $this->uid = $destination->uid;
         $this->destination = $destination->address;
-        $this->destination_object = $destination;
+        $this->mdid = $destination->mdid;
+        $this->_destination = $destination;
       }
       elseif (is_string($destination) || is_empty($destination)) {
         //$this->set_multiple($destination);
@@ -488,6 +508,24 @@ class Messaging_Message extends Messaging_Object {
   }
 
   /**
+   * Get addresses for this to be sent to
+   */
+  function get_addresses() {
+    $this->set_destination();
+    $addresses = array();
+    if (!empty($this->destination)) {
+      if ($this->destination != self::MULTIPLE_DESTINATION) {
+        $addresses[] = $this->destination;
+      }
+      elseif (!empty($this->destinations)) {
+        foreach ($this->destinations as $destination) {
+          $addresses[] = is_object($destination) ? $destination->address : $destination;
+        }
+      }
+    }
+    return $addresses;
+  }
+  /**
    * Get generic parameters
    */
   function get_params($key = NULL) {
@@ -516,13 +554,13 @@ class Messaging_Message extends Messaging_Object {
    * Delete if already on store
    */
   function delete() {
-    if ($this->is_instance()) {
+    if (!empty($this->mqid) && !$this->deleted) {
       $result = messaging_store()->message_delete($this);
       $this->deleted = TRUE;
       return $result;
     }
   }
-
+  
   /**
    * Set error condition and stop processing
    * 
@@ -551,12 +589,13 @@ class Messaging_Message extends Messaging_Object {
    * Get sender account
    */
   function get_sender() {
-    if (!isset($this->sender_account)) {
+    if (!isset($this->_sender)) {
       $sender = !empty($this->sender) ? messaging_load_user($this->sender) : NULL;
-      $this->sender_account = $sender ? $sender : FALSE;
+      $this->_sender = $sender ? $sender : FALSE;
     }
-    return $this->sender_account;
+    return $this->_sender;
   }
+  
   /**
    * Get sender name
    */
@@ -591,6 +630,7 @@ class Messaging_Message extends Messaging_Object {
   function get_files() {
     return !empty($this->files) ? $this->files : array();
   }
+
   /**
    * Build a simple text with message subject and body
    * 
@@ -609,13 +649,6 @@ class Messaging_Message extends Messaging_Object {
    */
   protected function message_log($text, $variables = array()) {
     messaging_log($text, $variables + array('message' =>(string)$this));
-  }
-  
-  /**
-   * Get list of fields to serialize for storage
-   */
-  public function data_fields() {
-    return array('destinations', 'files', 'parts', 'sender_name', 'error_msg');
   }
 
   // Magic function, format as string
@@ -638,7 +671,7 @@ class Messaging_Message extends Messaging_Object {
   public function __set($name, $value) {
     switch ($name) {
       case 'sender_account':
-        $this->sender_account = $value;
+        $this->_sender = $value;
         if (!isset($this->sender)) {
           $this->sender = $value ? $value->uid : 0;
         }
@@ -655,11 +688,15 @@ class Messaging_Message extends Messaging_Object {
       case 'account':
         $this->set_user($value);
         break;
+ 
       default:
+        // For unset fields, though they're public, when there's a __set function it is called too
+        // When creating records, serial fields are unset() by drupal_write_record
         $this->$name = $value;
         break;
     }
   }
+
   /**
    * Magic method, get protected properties
    */
@@ -672,6 +709,7 @@ class Messaging_Message extends Messaging_Object {
         return $this->get_user();
     }
   }
+
   /**
    * Magic method, isset protected properties
    */
@@ -682,13 +720,11 @@ class Messaging_Message extends Messaging_Object {
         return !empty($this->$name);
     }
   }
-  // Get table name for storage
-  public static function db_table() {
-    return self::DB_TABLE;
+
+  // Magic function, returns the properties names that will be serialized
+  public function __sleep() {
+    return $this->data_fields();
   }
-  // Get key field name for storage
-  public static function db_key() {
-    return self::DB_KEY;
-  }
+
 }
 

@@ -436,5 +436,6 @@ function _messaging_update_duplicate_destinations() {
   return $ret;
 }
 
+// Pending cache refresh (new classes for autoload)
 // Pending delete obsoleted variable 'messaging_queue_process_cron'
 // Pending, preserve data for now: db_drop_field($ret, 'messaging_destination', 'method');

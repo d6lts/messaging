@@ -342,21 +342,28 @@ class Messaging_Send_Method extends Messaging_Method {
 
   /**
    * Message default callback: send iterating over all destinations
+   * 
+   * This can be overridden by any sending method that can send multiple messages in a more efficient way.
    */
   function message_multisend($message) {
-    $success = TRUE;
-    foreach ($message->destinations as $to) {
-      // Be careful with the order of function && value, so they both are evaluated
-      $success = $this->send_address($to, $message) && $success;
+    $success = $fail = array();
+    foreach ($message->get_addresses() as $to) {
+      if ($this->send_address($to, $message)) {
+        $success[] = $to;
+      }
+      else {
+        $fail[] = $to;
+      }
     }
     // If sent, set time. If failed set error
     if ($success) {
       $message->sent = time();
     }
-    else {
-      $message->set_error("Sending to some destinations failed");
+    if ($fail) {
+      $destinations = check_plain(implode(', ', $fail));
+      $message->set_error("Sending ($this->method) to some destinations failed: $destinations.");
     }
-    return $success;
+    return $success && !$fail;
   }
  
   /**
@@ -368,7 +375,7 @@ class Messaging_Send_Method extends Messaging_Method {
   /**
    * Queue message for next delivery
    * 
-   * By default it is saved to the store
+   * By default it is saved to the store, though some sending methods like 'simple' may not consider queueing.
    */
   function message_queue($message) {
     return messaging_store()->message_queue($message);

@@ -1,24 +1,137 @@
 <?php
 // $Id$
+
 /**
  * @file
- * Drupal Messaging Framework - Base class
+ * Drupal Messaging Framework - Base classes
+ */
+
+/**
+ * Messaging user's object
  * 
  * This will be the base class for all objects that:
- * - Are persistent (db storage)
  * - Have a user account associated
  * - Have language
  */
-abstract class Messaging_Object {
-  // Database properties
-  const DB_TABLE = '';
-  const DB_KEY = '';
+abstract class Messaging_User_Object {
   // User id and user object
   public $uid = 0;
   protected $_user;
+  // Optional user name, when we are loading multiple rows ready for display
+  public $user_name;
+ 
   // Language and language object
   public $language;
   protected $_language;
+
+  /**
+   * Constructor, with predefined array of data
+   */ 
+  public function __construct($template = NULL) {
+    if ($template) {
+      foreach ($template as $key => $value) {
+        $this->$key = $value;
+      }
+    }
+    // Make sure all objects have language
+    if (!isset($this->language)) {
+      $this->set_language();
+    }
+  }
+
+  /**
+   * Get destination user
+   */
+  public function get_user() {
+    if (!isset($this->_user)) {
+      $user = isset($this->uid) ? messaging_load_user($this->uid) : NULL;
+      $this->_user = $user ? $user : FALSE;
+    }
+    return $this->_user;
+  }
+
+  /**
+   * Get destination user name, either from user object or from a user_name property.
+   * 
+   * When loading a listing of objects, we can save some queries by setting the user_name property
+   */
+  public function get_user_name() {
+    if (!empty($this->_user)) {
+      $user = $this->_user;
+    }
+    elseif (!empty($this->user_name)) {
+      $user = new Stdclass();
+      $user->uid = $this->uid;
+      $user->name = $this->user_name;
+    }
+    else {
+      // Last resource, we do user loading
+      $user = $this->get_user();
+    }
+    return $user ? theme('username', $user) : t('none');
+  }
+
+  /**
+   * Set user account
+   * 
+   * @param $account
+   *   User account or user id
+   */
+  public function set_user($account) {
+    if (is_numeric($account)) {
+      $this->uid = $account;
+      $this->_user = NULL;
+    }
+    elseif (is_object($account)) {
+      $this->uid = $account->uid;
+      $this->_user = $account;
+    }
+    else {
+      $this->uid = 0;
+      $this->_user = $account;   
+    }
+  }
+
+  /**
+   * Get language object
+   */
+  public function get_language() {
+    if (!isset($this->_language)) {
+      $this->set_language();
+    }
+    return $this->_language;
+  }
+
+  /**
+   * Set language object / property
+   */
+  public function set_language($language = NULL) {
+    if ($language) {
+      $this->language = $language->language;
+      $this->_language = $language;
+    }
+    elseif (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
+      $this->_language = $languages[$this->language];
+    }
+    else {
+      // Fallback to default language
+      $this->set_language(language_default());
+    }
+  }
+}
+
+/**
+ * Messaging persistent object
+ * 
+ * This will be the base class for all objects that:
+ * - Are persistent (db storage)
+ * - Have a user account associated and language (Messaging_User_Object)
+ */
+abstract class Messaging_Object extends Messaging_User_Object {
+  // Database properties
+  const DB_TABLE = '';
+  const DB_KEY = '';
+
   // Deletion mark. Deleted objects will keep their id, may be needed to remove related data, but will be marked
   protected $deleted = FALSE;
 
@@ -52,81 +165,7 @@ abstract class Messaging_Object {
       return call_user_func(array($class, 'build'), $template);
     }
   }
-  /**
-   * Get destination user
-   */
-  public function get_user() {
-    if (!isset($this->_user)) {
-      $user = isset($this->uid) ? messaging_load_user($this->uid) : NULL;
-      $this->_user = $user ? $user : FALSE;
-    }
-    return $this->_user;
-  }
-  /**
-   * Get destination user name, either from user object or from a user_name property.
-   * 
-   * When loading a listing of objects, we can save some queries by setting the user_name property
-   */
-  public function get_user_name() {
-    if (!empty($this->_user)) {
-      $user = $this->_user;
-    }
-    elseif (!empty($this->user_name)) {
-      $user = new Stdclass();
-      $user->uid = $this->uid;
-      $user->name = $this->user_name;
-    }
-    else {
-      // Last resource, we do user loading
-      $user = $this->get_user();
-    }
-    return $user ? theme('username', $user) : t('none');
-  }
-  /**
-   * Set user account
-   * 
-   * @param $account
-   *   User account or user id
-   */
-  public function set_user($account) {
-    if (is_numeric($account)) {
-      $this->uid = $account;
-      $this->_user = NULL;
-    }
-    elseif (is_object($account)) {
-      $this->uid = $account->uid;
-      $this->_user = $account;
-    }
-    else {
-      $this->uid = 0;
-      $this->_user = $account;   
-    }
-  }
-  /**
-   * Get language object
-   */
-  public function get_language() {
-    if (!isset($this->_language)) {
-      $this->set_language();
-    }
-    return $this->_language;
-  }
-  /**
-   * Set language object / property
-   */
-  public function set_language($language = NULL) {
-    if ($language) {
-      $this->language = $language->language;
-      $this->_language = $language;
-    }
-    elseif (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
-      $this->_language = $languages[$this->language];
-    }
-    else {
-      // Fallback to default language
-      $this->set_language(language_default());
-    }
-  }
+
   /**
    * Get unike id key
    */

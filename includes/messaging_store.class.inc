@@ -427,12 +427,15 @@ class Messaging_Store {
     if (empty($message->created)) {
       $message->created = time();
     }
+ 
     // Normalize some values. Boolean parameters must be 0|1
     foreach (array('queue', 'log', 'cron') as $field) {
       $message->$field = empty($message->$field) ? 0 : 1;
     }
-    // Add data fields to serialize
-    foreach ($message->data_fields() as $field) {
+    // Add fields to serialize. All persistent properties that are not in the schema
+    $schema = drupal_get_schema(self::DB_TABLE);
+    $serialize_fields = array_diff($message->data_fields(), array_keys($schema['fields'])); 
+    foreach ($serialize_fields as $field) {
       if (isset($message->$field)) {
         $data[$field] = $message->$field;
       }
@@ -458,7 +461,7 @@ class Messaging_Store {
    */
   public static function admin_help() {
     return array(
-      'name' => t('Built in Messaging Store'),
+      'name' => t('Messaging Store (built-in)'),
       'queue' => t('Queued messages will be processed on cron.'),
       'logs' => t('Configure your logging settings on the next tab.'),
     );
