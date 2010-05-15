@@ -116,31 +116,6 @@ function messaging_menu() {
     'file' => 'messaging.admin.inc',
     'type' => MENU_LOCAL_TASK,
   );
-  $items['admin/messaging/settings/queue'] = array(
-    'title' => 'Queue',
-    'description' => 'Queue administration',
-    'page callback' => 'messaging_admin_queue_status',
-    'access arguments' => array('administer messaging'),
-    'weight' => 100,
-    'file' => 'messaging.admin.inc',
-    'type' => MENU_LOCAL_TASK,
-  );
-  $items['admin/messaging/settings/queue/status'] = array(
-    'title' => 'Status',
-    'description' => 'Queue and log status',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-    'weight' => -10,
-  );
-  $items['admin/messaging/settings/queue/settings'] = array(
-    'title' => 'Options',
-    'description' => 'General settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('messaging_admin_queue_settings'),
-    'access arguments' => array('administer messaging'),
-    'file' => 'messaging.admin.inc',
-    'type' => MENU_LOCAL_TASK,
-  );
-
   return $items;
 }
 
@@ -552,13 +527,12 @@ function messaging_address_get_uid($address, $property = 'mail') {
  */
 function messaging_store() {
   static $messaging_store;
+  
   if (!isset($messaging_store)) {
-    //$args = func_get_args();
-    //$method = array_shift($args);
     $class = variable_get('messaging_store', 'Messaging_Store');
     $messaging_store = new $class();
   }
-  //return call_user_func_array(array($class, $method), $args);
+
   return $messaging_store;
 }
 
