@@ -82,7 +82,7 @@ class Messaging_Store {
    * Calculate limits for queue processing
    */
   public static function process_limits($limits = array()) {
-    $limits += variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => 0));
+    $limits += variable_get('messaging_process_limit', array('message' => 0, 'time' => 0, 'percent' => MESSAGING_DEFAULT_CRON_PERCENT));
     // Calculate time limit. We get the smaller of all these times in seconds
     if (!empty($limit['timeout'])) {
       $times[] = $limit['timeout'];

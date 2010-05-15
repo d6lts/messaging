@@ -28,6 +28,9 @@ define('MESSAGING_EMPTY', '<none>');
 // Limit the size of static caches
 define('MESSAGING_CACHE_LIMIT', variable_get('messaging_cache_limit', 1000));
 
+// Limit the max % of cron time this module can use (this can be overridden by some modules)
+define('MESSAGING_DEFAULT_CRON_PERCENT', variable_get('messaging_default_cron_percent', 80));
+
 /**
  * Implementation of hook_autoload_info().
  */
