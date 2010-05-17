@@ -17,8 +17,10 @@ abstract class Messaging_Method {
   const TYPE_OUTGOING = 4;
   // Incoming method
   const TYPE_INCOMING = 8;
+  // Disable queueing (sending is more expensive than queueing)
+  const TYPE_NOQUEUE = MESSAGING_TYPE_NOQUEUE;
   // Shorthand type: Push + Outgoing
-  const TYPE_SEND = 4;
+  const TYPE_SEND = MESSAGING_TYPE_SEND;
   // Common properties
   // Method key
   public $method;
@@ -308,7 +310,7 @@ class Messaging_Send_Method extends Messaging_Method {
    */
   function message_prepare($message) {
     // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-    $message->queue = ($this->type & self::TYPE_PULL) || !$message->priority && ($message->queue || $this->queue);
+    $message->queue = !($this->type & self::TYPE_NOQUEUE) && (($this->type & self::TYPE_PULL) || !$message->priority && ($message->queue || $this->queue));
     $message->log = $message->log || $this->log && variable_get('messaging_log', 0);
     // If the messaging method is of type push, cron processing will be enabled
     $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);

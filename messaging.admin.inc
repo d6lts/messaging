@@ -58,19 +58,9 @@ function messaging_admin_method_settings() {
         '#default_value' => $options['name'],
         '#size'          => 20,
       );
-      // Log and queue settings
-      $form['methods'][$key]['queue'] = array(
-        '#title' => t('Queue'),
-        '#type' => 'checkbox',
-        '#default_value' => $options['queue'],
-        '#disabled' => $options['type'] & Messaging_Send_Method::TYPE_PULL, // Pull methods will be always queued
-      );
-      $form['methods'][$key]['log'] = array(
-        '#title' => t('Log'),
-        '#type' => 'checkbox',
-        '#default_value' => $options['log'],
-        '#disabled' => variable_get('messaging_log', 0) == 0,
-      );
+      // Log and queue can be enabled by 'Messaging Tool', disabled otherwise
+      $form['methods'][$key]['queue'] = array('#type' => 'value', '#value' => 0);
+      $form['methods'][$key]['log'] = array('#type' => 'value', '#value' => 0);
       // Description
       $form['methods'][$key]['description'] = array(
         '#title' => t('Description'),
@@ -167,11 +157,12 @@ function theme_messaging_admin_settings_table($elements) {
   foreach (element_children($elements) as $index) {
     $row = array();
     foreach (element_children($elements[$index]) as $key) {
-      if ($extract_headers) {
-        // Extract the titles from elements
-        $header[] = $elements[$index][$key]['#title'];
-      }
+      if ($elements[$index][$key]['#type'] == 'value') continue;
       if (isset($elements[$index][$key]['#title'])) {
+        if ($extract_headers) {
+          // Extract the titles from elements
+          $header[] = $elements[$index][$key]['#title'];
+        }   
         unset($elements[$index][$key]['#title']);
       }
       $row[] = drupal_render($elements[$index][$key]);

@@ -13,12 +13,14 @@
 
 // Method with push delivery. Messages will be pushed to the user using messaging sending methods.
 define('MESSAGING_TYPE_PUSH', 1);
-// Method type with pull delivery. Messages will be pulled using messaging pull methods
+// Method type with pull delivery. Messages will be pulled from queue by the plug-in
 define('MESSAGING_TYPE_PULL', 2);
 // Outgoing method
 define('MESSAGING_TYPE_OUTGOING', 4);
 // Incoming method
 define('MESSAGING_TYPE_INCOMING', 8);
+// Disable queue for this method, when sending is more 'expensive' than queueing (like for simple method)
+define('MESSAGING_TYPE_NOQUEUE', 16);
 // Shorthand type: Push + Outgoing
 define('MESSAGING_TYPE_SEND', MESSAGING_TYPE_PUSH | MESSAGING_TYPE_OUTGOING);
 
