@@ -1,5 +1,16 @@
 // $Id$
 
+6.x-4.x-beta4 to 6.x-4.x-beta5
+------------------------------
+- Some updates for it not break with Twitter 6.x-3.x
+- Moved queue and log options to Messaging Tools (Notifications Tools), #799770
+- Added new method type (NOQUEUE) for disabling queueing for some methods
+- Cleaned up and documented Messaging_Message properties
+- Improved persistence for messages, proper handling of serializable properties
+- Messaging_Store now uses schema information to properly handle serialization
+- Improved multisend, log all destinations that failed
+- New Messaging_User_Object so it can be inherited independently of 'persistent objects'
+
 6.x-4.x-beta3 to 6.x-4.x-beta4
 -------------------------------
 - Added views support for messaging_simple, by joshuajabbour, #791694
