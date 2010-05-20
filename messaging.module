@@ -1172,7 +1172,7 @@ function &messaging_info($name, $param = NULL, $refresh = FALSE, $alter = TRUE) 
     $info = messaging_module_invoke_all('messaging', $name, $param);
     // Provide alter hook
     if ($alter) {
-      drupal_alter('messaging_' . strtr(' ', '_', $name), $info);
+      drupal_alter('messaging_' . strtr($name, ' ', '_'), $info);
     }
   }      
   return $info;

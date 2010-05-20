@@ -154,7 +154,7 @@ function _messaging_template_message_part($group, $method, $language) {
   // If not in db and method is default, get values from modules
   if (empty($templates) && $method == 'default') {
     foreach (messaging_template_message_defaults($group, $language) as $key => $text) {
-      $part = (object)array('msgkey' => $key, 'default' => $text, 'format' => 0, 'message' => is_array($text) ? implode("\n", $text) : $text);
+      $part = (object)array('type' => $group, 'msgkey' => $key, 'default' => $text, 'format' => 0, 'message' => is_array($text) ? implode("\n", $text) : $text);
       $templates[$key] = $part;
     }
   }
