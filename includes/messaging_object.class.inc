@@ -15,7 +15,7 @@
  */
 abstract class Messaging_User_Object {
   // User id and user object
-  public $uid = 0;
+  public $uid;
   protected $_user;
   // Optional user name, when we are loading multiple rows ready for display
   public $user_name;
@@ -36,6 +36,18 @@ abstract class Messaging_User_Object {
     // Make sure all objects have language
     if (!isset($this->language)) {
       $this->set_language();
+    }
+  }
+  
+  /**
+   * Magic function. Set protected properties
+   *
+   * We have a problem when creating records. Serial fields are unset() by drupal_write_record
+   * For these fields, though they're public, when there's a __set function it is called too
+   */
+  public function __set($name, $value) {
+    if ($name == 'uid' || $name == 'language') {
+      $this->$name = $value;
     }
   }
 
@@ -241,6 +253,9 @@ abstract class Messaging_Object extends Messaging_User_Object {
   public function __set($name, $value) {
     if ($name == $this->db_key()) {
       $this->$name = $value;
+    }
+    else {
+      parent::__set($name, $value);
     }
   }
   // Get table name for storage
