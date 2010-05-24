@@ -29,6 +29,8 @@ abstract class Messaging_Method {
   public $name;
   public $description;
   public $group;
+  // All sending methods are enabled by default
+  public $enabled = TRUE;
   // Remaining info array
   public $info = array();
   
@@ -41,8 +43,7 @@ abstract class Messaging_Method {
   function __construct($method, $info = array()) {
     $this->method = $method;
     $this->info = $info;
-    $this->set_properties($info,'type', 'title', 'name', 'group', 'description');
-    
+    $this->set_properties($info,'type', 'title', 'name', 'group', 'description', 'enabled'); 
   }
   
   /**
@@ -316,16 +317,23 @@ class Messaging_Send_Method extends Messaging_Method {
    * At this stage, the message can be still redirected through other sending method, or marked for discard
    */
   function message_prepare($message) {
-    // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
-    $message->queue = !($this->type & self::TYPE_NOQUEUE) && (($this->type & self::TYPE_PULL) || !$message->priority && ($message->queue || $this->queue));
-    $message->log = $message->log || $this->log && variable_get('messaging_log', 0);
-    // If the messaging method is of type push, cron processing will be enabled
-    $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);
-    // Aditinally we can have a prepare callback
+    // If this method is disabled, mark for discard, log the error
+    if (!$this->enabled) {
+      $message->discard = TRUE;
+      $message->queue = $message->cron = 0;
+      $message->set_error(t('The sending method is disabled.'));
+    }
+    else {
+      // It will be queued always for pull methods, cron disabled though so it will wait till it's pulled
+      $message->queue = !($this->type & self::TYPE_NOQUEUE) && (($this->type & self::TYPE_PULL) || !$message->priority && ($message->queue || $this->queue));
+      $message->log = $message->log || $this->log && variable_get('messaging_log', 0);
+      // If the messaging method is of type push, cron processing will be enabled
+      $message->cron = $message->cron || $message->queue && ($this->type & self::TYPE_PUSH);
+    }
+    // Aditionally we can have a prepare callback
     if ($function = $this->get_info('prepare callback')) {
       $function($message, $this->get_info());
     }
-    return $message; 
   }
   /**
    * Renders full message with header and body

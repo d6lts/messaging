@@ -63,7 +63,7 @@ class Messaging_API_Tests extends MessagingTestCase {
     $test_method = 'test';
     $test_info = array(
       'glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => 0,
-      'address_type' => 'user', 'log' => 1,
+      'address_type' => 'user', 'log' => 1, 'enabled' => TRUE,
     );
     $send_method = messaging_send_method($test_method, $test_info);
 

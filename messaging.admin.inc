@@ -20,34 +20,37 @@ function messaging_admin_settings() {
     if ($reqs = messaging_requirements('runtime')) {
       drupal_set_message($reqs['messaging']['value'], 'error');
     }
-  }  
-  $form['methods'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Sending methods'),
-    '#theme' => 'messaging_admin_methods_table',
-  );
-
-  $options = $enabled = array();
-  foreach ($method_info as $method => $info) {
-    $options[$method] = '';
-    if ($info['enabled']) {
-      $enabled[] = $method;
-    }
-    $method_names[$method] = $info['title'];
-    $form['methods']['name'][$method]['#value'] = $info['title'];
-    $form['methods']['description'][$method]['#value'] = $info['description'];
+    $form = array();
   }
-  $form['methods']['messaging_method_enabled'] = array(
-    '#type' => 'checkboxes',
-    '#options' => $options,
-    '#default_value' => $enabled,
-  );
-  $form['methods']['messaging_default_method'] = array(
-    '#type' => 'radios',
-    '#options' => $options,
-    '#default_value' => variable_get('messaging_default_method', ''),
-  );
-  $form['#validate'][] = 'messaging_admin_settings_validate';
+  else {
+    $form['methods'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Sending methods'),
+      '#theme' => 'messaging_admin_methods_table',
+    );
+  
+    $options = $enabled = array();
+    foreach ($method_info as $method => $info) {
+      $options[$method] = '';
+      if ($info['enabled']) {
+        $enabled[] = $method;
+      }
+      $method_names[$method] = $info['title'];
+      $form['methods']['name'][$method]['#value'] = $info['title'];
+      $form['methods']['description'][$method]['#value'] = $info['description'];
+    }
+    $form['methods']['messaging_method_enabled'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $options,
+      '#default_value' => $enabled,
+    );
+    $form['methods']['messaging_default_method'] = array(
+      '#type' => 'radios',
+      '#options' => $options,
+      '#default_value' => variable_get('messaging_default_method', ''),
+    );
+    $form['#validate'][] = 'messaging_admin_settings_validate';
+  }
   // We use settings form so other modules can add here their settings
   return system_settings_form($form);
 }
