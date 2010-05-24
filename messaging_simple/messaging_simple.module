@@ -87,7 +87,7 @@ function messaging_simple_user_overview($account) {
     $rows[] = array(
       l($message->subject, 'user/' . $account->uid . '/messages/view/' . $message->msid),
       !empty($message->sender_account) ? theme('username', $message->sender_account) : t('System'),
-      format_date($message->created),
+      format_date($message->sent),
     );
   }
   if (!empty($rows)) {
