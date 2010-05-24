@@ -135,6 +135,17 @@ function messaging_menu() {
       'type' => MENU_LOCAL_TASK,
     );
   }
+  // Test tab, moving from messaging_debug()
+  $items['admin/messaging/settings/test'] = array(
+    'title' => 'Test',
+    'description' => 'Test message sending',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('messaging_admin_test_post_form'),
+    'access arguments' => array('administer messaging'),
+    'file' => 'messaging.admin.inc',
+    'weight' => -10,
+    'type' => MENU_LOCAL_TASK,
+  );
   return $items;
 }
 
