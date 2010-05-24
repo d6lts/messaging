@@ -204,6 +204,13 @@ function messaging_phpmailer_drupal_mail($message) {
   $mail->From = !empty($from['email']) ? $from['email'] : $message['headers']['From'];
   $mail->FromName = !empty($from['name']) ? $from['name'] : '';
 
+  if (!empty($message['headers']['Sender'])) {
+    $mail->Sender = $message['headers']['Sender'];
+  }
+  if (!empty($message['headers']['Errors-To'])) {
+    $mail->AddCustomHeader('Errors-To:'. $message['headers']['Errors-To']);
+  }
+  
   if (variable_get('messaging_phpmailer_bcc', 0)) {
     $mail->AddBCC($message['to']);
   }

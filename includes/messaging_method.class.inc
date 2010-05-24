@@ -181,6 +181,12 @@ class Messaging_Send_Method extends Messaging_Method {
   }
  
   /**
+   * Get default method parameters to be merged with the ones passed on with the message
+   */
+  static function default_params($message = NULL) {
+    return array();
+  }
+  /**
    * Get address info property
    */
   function get_address_info($property = NULL) {
@@ -193,7 +199,8 @@ class Messaging_Send_Method extends Messaging_Method {
     if ($send_callback = $this->get_info('send callback')) {
       // For this case, we render it before so it is compatible with old send methods
       $message->render();
-      return call_user_func($send_callback, $address, $message, $message->get_method_params($this->method));
+      $params = $message->get_method_params($this->method) + $this->default_params();
+      return call_user_func($send_callback, $address, $message, $params);
     }
     else {
       watchdog('messaging', 'Message could not be delivered for method %method', array('%method' => $this->method), WATCHDOG_ERROR);

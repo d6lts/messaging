@@ -44,16 +44,22 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
     // First, decide on queue, log, cron and send options
     parent::message_prepare($message);
     // Build specific mail parameters and store them into the message
-    $params = $message->get_params('mail');
+    $params = $message->get_params('mail') + $this->default_params();
     $message->params[$this->method] = $this->mail_params($message, $params);
   }
   
   /**
-   * Get default from address. 
+   * Get default method parameters
    */
-  static function default_from() {
-    return variable_get('site_mail', ini_get('sendmail_from'));
+  static function default_params($message = NULL) {
+    $default_mail = variable_get('site_mail', ini_get('sendmail_from'));
+    return array(
+      'default_from' => variable_get('messaging_mail_default_from', $default_mail),
+      'returnpath' => variable_get('messaging_mail_returnpath', $default_mail),
+    );
   }
+
+
   /**
    * Rebuild message in Drupal mail format, right before sending
    * 
@@ -91,18 +97,28 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
   }
   
   /**
+   * Format from name and address
+   */
+  static function format_from($name, $mail) {
+    $tokens = array(
+      '[name]' => $name,
+      '[mail]' => $mail,
+    );
+    return strtr(variable_get('messaging_mail_sender_format', '[name] <[mail]>'), $tokens);
+  }
+
+  /**
    * Prepare from address and mail headers
    */
   static function mail_params($message, $params = array()) {
     // The message 'from' will depend on message sender if present, otherwise default to site mail    
-    $params += array('default_from' => self::default_from());
     if (empty($params['from'])) {
       $sender_name = $message->get_sender_name();
       $sender_account = $message->get_sender();
       if ($sender_name && $sender_account && !empty($sender_account->mail)) {
-        $from = $sender_name . ' <'.$sender_account->mail.'>';
-      } elseif($sender_name) {
-        $from = $sender_name . ' <'. $params['default_from'].'>';
+        $from = self::format_from($sender_name, $sender_account->mail);
+      } elseif ($sender_name) {
+        $from = self::format_from($sender_name, $params['default_from']);
       } else {
         $from = $params['default_from'];
       }
@@ -113,6 +129,7 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
   
     // Set headers, or add to existing ones. Pre-existing ones should not be overridden.
     $headers = self::mail_headers($params);
+
     $params += array(
       'id'       => 'messaging_'. (!empty($message->type) ? 'message-'.$message->type : 'message'),
       'from'     => $from,
@@ -133,7 +150,6 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
    *   - 'headers', Predefined headers to be added to this one
    */
   static function mail_headers($params) {
-    $params += array('default_from' => self::default_from());
     $headers = !empty($params['headers']) ? $params['headers'] : array();
     
     // Add some default headers
@@ -153,11 +169,11 @@ class Messaging_Method_Mail extends Messaging_Send_Method {
       'Reply-To' => $from,
     );
     
-    if ($default_from) {
+    if ($params['returnpath']) {
       // To prevent e-mail from looking like spam, the addresses in the Sender and
       // Return-Path headers should have a domain authorized to use the originating
       // SMTP server. Errors-To is redundant, but shouldn't hurt.
-      $more_headers['Sender'] = $more_headers['Return-Path'] = $more_headers['Errors-To'] = $default_from;
+      $more_headers['Sender'] = $more_headers['Return-Path'] = $more_headers['Errors-To'] = $params['returnpath'];
       $headers += $more_headers;
     }  
   

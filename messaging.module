@@ -121,6 +121,20 @@ function messaging_menu() {
     'file' => 'messaging.admin.inc',
     'type' => MENU_LOCAL_TASK,
   );
+
+  // If we have any mail methods enabled, provide a specific tab
+  messaging_include('mail.inc');
+  if (messaging_mail_methods()) {
+    $items['admin/messaging/settings/method/mail'] = array(
+      'title' => 'Mail',
+      'description' => 'Common options for mail methods',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('messaging_mail_admin_settings'),
+      'access arguments' => array('administer messaging'),
+      'file' => 'includes/mail.inc',
+      'type' => MENU_LOCAL_TASK,
+    );
+  }
   return $items;
 }
 

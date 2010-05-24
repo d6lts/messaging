@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-4.x-beta5 to .............
+------------------------------
+- Fixed wrong function name (is_empty) by Scott Reynolds, #805862
+
 6.x-4.x-beta4 to 6.x-4.x-beta5
 ------------------------------
 - Some updates for it not break with Twitter 6.x-3.x

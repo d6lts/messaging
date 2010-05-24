@@ -422,7 +422,7 @@ class Messaging_Message extends Messaging_User_Object {
         $this->mdid = $destination->mdid;
         $this->_destination = $destination;
       }
-      elseif (is_string($destination) || is_empty($destination)) {
+      elseif (is_string($destination) || empty($destination)) {
         //$this->set_multiple($destination);
         $this->destination = $destination;
         $this->destination_object = FALSE;
