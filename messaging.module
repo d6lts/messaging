@@ -389,6 +389,7 @@ function messaging_method_type($type) {
  *
  * @param $account
  *   Optional user account, for checking permissions against this account
+ *   If no account passed it is a list for the administrator
  */
 function messaging_method_list($account = NULL) {
   $info = messaging_method_info(NULL, 'name');
@@ -415,8 +416,7 @@ function messaging_method_list($account = NULL) {
  *   User account to check permission
  */
 function messaging_method_permission($method, $account = NULL) {
-  $send_method = messaging_send_method($method);
-  return $send_method && $send_method->user_access($account);
+  return messaging_method_info($method, 'enabled') && messaging_send_method($method)->user_access($account);
 }
 
 /**
@@ -476,6 +476,9 @@ function messaging_method_info($method = NULL, $property = NULL, $default = NULL
   if (!isset($info)) {
     // Collect method info without 'alter', we do it later
     $info = &messaging_info('send methods', NULL, FALSE, FALSE);
+    // Get list of enabled methods. All will be enabled by default.
+    $enabled = variable_get('messaging_method_enabled', array());
+   
     // Merge settings from variable for each enabled method
     foreach (array_keys($info) as $name) {
       $info[$name] = array_merge(
@@ -483,6 +486,8 @@ function messaging_method_info($method = NULL, $property = NULL, $default = NULL
         variable_get('messaging_method_' . $name, array()), 
         variable_get('messaging_filters_' . $name, array())
       );
+      // If not set enabled flag, the method will be enabled by default
+      $info[$name]['enabled'] = isset($enabled[$name]) ? $enabled[$name] : TRUE;
     }
     // Allow altering by other modules after we've set the variables
     drupal_alter('messaging_send_methods', $info);
@@ -742,6 +747,10 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
  */
 function messaging_theme() {
   return array(
+    'messaging_admin_methods_table'  => array(
+      'arguments' => array('elements' => NULL),
+      'file' => 'messaging.admin.inc',
+    ),
     'messaging_admin_settings_table'  => array(
       'arguments' => array('elements' => NULL),
       'file' => 'messaging.admin.inc',

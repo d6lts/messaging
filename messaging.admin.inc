@@ -14,25 +14,73 @@
  */
 function messaging_admin_settings() {
   // Get plug-in information and produce big warning if none enabled.
-  $methods = messaging_method_list();
-  if (!$methods) {
+  $method_info = messaging_method_info();
+  if (!$method_info) {
     // Get message from requirements
     if ($reqs = messaging_requirements('runtime')) {
       drupal_set_message($reqs['messaging']['value'], 'error');
-    }    
+    }
   }  
-  $form['general'] = array(
+  $form['methods'] = array(
     '#type' => 'fieldset',
-    '#title' => t('General settings'),
-  );
-  $form['general']['messaging_default_method'] = array(
-    '#title' => t('Default send method'),
-    '#type' => 'radios',
-    '#options' => $methods,
-    '#default_value' => variable_get('messaging_default_method', ''),
+    '#title' => t('Sending methods'),
+    '#theme' => 'messaging_admin_methods_table',
   );
 
+  $options = $enabled = array();
+  foreach ($method_info as $method => $info) {
+    $options[$method] = '';
+    if ($info['enabled']) {
+      $enabled[] = $method;
+    }
+    $method_names[$method] = $info['title'];
+    $form['methods']['name'][$method]['#value'] = $info['title'];
+    $form['methods']['description'][$method]['#value'] = $info['description'];
+  }
+  $form['methods']['messaging_method_enabled'] = array(
+    '#type' => 'checkboxes',
+    '#options' => $options,
+    '#default_value' => $enabled,
+  );
+  $form['methods']['messaging_default_method'] = array(
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => variable_get('messaging_default_method', ''),
+  );
+  $form['#validate'][] = 'messaging_admin_settings_validate';
+  // We use settings form so other modules can add here their settings
   return system_settings_form($form);
+}
+
+/**
+ * Format main methods settings form
+ */
+function theme_messaging_admin_methods_table($elements) {
+  $output = '';
+  $header = array(t('Enabled'), t('Default'), t('Name'), t('Description'));
+  $rows = array();
+  foreach (element_children($elements['name']) as $key) {
+    $rows[] = array(
+      drupal_render($elements['messaging_method_enabled'][$key]),
+      drupal_render($elements['messaging_default_method'][$key]),
+      '<strong>' . drupal_render($elements['name'][$key]) . '</strong>',
+      drupal_render($elements['description'][$key]),   
+    );
+  }
+  $output .= theme('table', $header, $rows);
+  $output .= drupal_render($elements);
+  return $output;
+}
+
+/**
+ * Preprocess method settings into variables
+ */
+function messaging_admin_settings_validate($form, &$form_state) {
+  // Check the default method is enabled  
+  $default = $form_state['values']['messaging_default_method'];
+  if (!$default || empty($form_state['values']['messaging_method_enabled'][$default])) {
+    form_set_error('', t('You must select on of the enabled methods as the default one.'));
+  }
 }
 
 /**
@@ -61,11 +109,6 @@ function messaging_admin_method_settings() {
       // Log and queue can be enabled by 'Messaging Tool', disabled otherwise
       $form['methods'][$key]['queue'] = array('#type' => 'value', '#value' => 0);
       $form['methods'][$key]['log'] = array('#type' => 'value', '#value' => 0);
-      // Description
-      $form['methods'][$key]['description'] = array(
-        '#title' => t('Description'),
-        '#value' => $options['description'],
-      );
     }
   } else {
     $form['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
