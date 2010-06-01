@@ -55,11 +55,10 @@ abstract class Messaging_User_Object {
    * Get destination user
    */
   public function get_user() {
-    if (!isset($this->_user)) {
-      $user = isset($this->uid) ? messaging_load_user($this->uid) : NULL;
-      $this->_user = $user ? $user : FALSE;
+    if (!isset($this->_user) && isset($this->uid)) {
+      $this->_user = messaging_load_user($this->uid);
     }
-    return $this->_user;
+    return isset($this->_user) ? $this->_user : NULL;
   }
 
   /**
