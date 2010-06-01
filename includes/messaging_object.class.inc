@@ -125,9 +125,13 @@ abstract class Messaging_User_Object {
     elseif (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
       $this->_language = $languages[$this->language];
     }
+    elseif ($account = $this->get_user()) {
+      // Fallback to account language
+      return $this->set_language(user_preferred_language($account));
+    }
     else {
       // Fallback to default language
-      $this->set_language(language_default());
+      return $this->set_language(language_default());
     }
   }
 }
