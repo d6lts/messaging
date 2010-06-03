@@ -1,8 +1,14 @@
 // $Id$
 
-6.x-4.x-beta5 to .............
+6.x-4.x-beta5 to 6.x-4.x-beta6
 ------------------------------
+- Added: More flexible return path and message headers for mail, #542022, #260595
+- Improved admin settings for send methods, added 'enable/disable' checkbox
+- Added testing feature from messaging_debug.
+- Changing fallback for object language, check user language first
 - Fixed wrong function name (is_empty) by Scott Reynolds, #805862
+- Fixed wrong name for alter hook in messaging_info()
+- Updated privatemsg API to avoid permission issues, #726874
 
 6.x-4.x-beta4 to 6.x-4.x-beta5
 ------------------------------
