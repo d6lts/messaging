@@ -2,5 +2,5 @@
 name = Messaging PHPMailer
 description = Mail Sending Method: Integration with PHPMailer for HTML Mail
 package = "Messaging"
-dependencies[] = messaging
+dependencies[] = messaging_mail
 core = 6.x

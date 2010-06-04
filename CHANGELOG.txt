@@ -1,5 +1,10 @@
 // $Id$
 
+6.x-4.x-beta6 to
+------------------------------
+- Moved all mail related functions into messaging_mail module, #807964
+- PHPMailer, SMTP Port and Security configuration in UI, by bryan_savage and joshk, #813550
+
 6.x-4.x-beta5 to 6.x-4.x-beta6
 ------------------------------
 - Added: More flexible return path and message headers for mail, #542022, #260595

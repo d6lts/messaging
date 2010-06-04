@@ -44,7 +44,6 @@ function messaging_autoload_info() {
     'Messaging_Destination' => array('file' => 'includes/messaging_destination.class.inc'),
     'Messaging_Message' => array('file' => 'includes/messaging_message.class.inc'),
     'Messaging_Send_Method' => array('file' => 'includes/messaging_method.class.inc'),
-    'Messaging_Method_Mail' => array('file' => 'includes/messaging_method_mail.class.inc'),
     'Messaging_Store' => array('file' => 'includes/messaging_store.class.inc'),
     'Messaging_None' => array('file' => 'includes/messaging_object.class.inc'),
   ); 
@@ -122,19 +121,6 @@ function messaging_menu() {
     'type' => MENU_LOCAL_TASK,
   );
 
-  // If we have any mail methods enabled, provide a specific tab
-  messaging_include('mail.inc');
-  if (messaging_mail_methods()) {
-    $items['admin/messaging/settings/method/mail'] = array(
-      'title' => 'Mail',
-      'description' => 'Common options for mail methods',
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('messaging_mail_admin_settings'),
-      'access arguments' => array('administer messaging'),
-      'file' => 'includes/mail.inc',
-      'type' => MENU_LOCAL_TASK,
-    );
-  }
   // Test tab, moving from messaging_debug()
   $items['admin/messaging/settings/test'] = array(
     'title' => 'Test',
@@ -167,11 +153,6 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
       // Delete user data from tables
       Messaging_Destination::delete_multiple(array('uid' => $user->uid));
       messaging_store()->delete_multiple(array('uid' => $user->uid));
-      break;
-    case 'update':
-      // Claim user mail address if in destinations table
-      messaging_include('mail.inc');
-      messaging_mail_update_user($user);
       break;
     case 'form':
       if ($category == 'account' && ($list = messaging_method_list($user))) {
@@ -526,14 +507,6 @@ function messaging_messaging($op, $type = NULL) {
 
     case 'address types':
       // Get some built in address types
-      $types['mail'] = array(
-        'name' => t('E-mail address'), // Name for display
-        'validate callback' => 'valid_email_address', // Validation callback
-        'account_property' => 'mail', // Property on user account
-        'address2uid callback' => 'messaging_address_get_uid',
-        'field_name' => 'mail', // Field on which this address is stored
-        'field_table' => 'users', // Table on which this address is stored
-      );
       $types['user'] = array(
         'name' => t('User name'), // Name of the address for this method
         'format callback' => 'messaging_user_format_name', // Format address for display
