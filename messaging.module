@@ -1228,14 +1228,16 @@ function messaging_module_invoke_all() {
  * Helper function, get uid from account parameter (object or uid)
  */
 function messaging_user_uid($account) {
-  return is_object($account) ? $account->uid : $account;
+  return is_object($account) ? $account->uid : (int)$account;
 }
+
 /**
  * Helper function, get object from account parameter (object or uid)
  */
 function messaging_user_object($account) {
-  return is_object($account) ? $account : messaging_load_user($account);
+  return is_object($account) ? $account : messaging_load_user((int)$account);
 }
+
 /**
  * Helper function, get user object property from account parameter (object or uid)
  */
