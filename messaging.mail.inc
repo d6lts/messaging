@@ -66,9 +66,9 @@ function messaging_mail_prepare($destination, $message, $params, $alter = TRUE) 
  * 
  */
 function messaging_mail_headers($message, $params) {
-  
-  $headers = !empty($params['headers']) ? $params['headers'] : array();
-  
+
+  $headers = !empty($params['headers']) && is_array($params['headers']) ? $params['headers'] : array();
+
   // Add some default headers
   $headers += array(
     'MIME-Version'              => '1.0',
