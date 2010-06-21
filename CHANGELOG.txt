@@ -2,6 +2,7 @@
 
 6.x-4.x-beta6 to
 ------------------------------
+- Fixed Message::get_destination(), set_destination() to always set a value, by davidmprice, #832098
 - Moved all mail related functions into messaging_mail module, #807964
 - PHPMailer, SMTP Port and Security configuration in UI, by bryan_savage and joshk, #813550
 

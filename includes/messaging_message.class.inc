@@ -219,12 +219,16 @@ class Messaging_Message extends Messaging_User_Object {
    * The message may need to be processed and it can be queued or discarded yet.
    */
   function send_multiple($addresses = NULL, $method = NULL) { 
-    $this->destination = self::MULTIPLE_DESTINATION;
+    // Set parameters if needed, if not go with current ones
     if (isset($method)) {
       $this->method = $method;
     }
     if ($addresses) {
-      $this->destinations = $addresses;
+      $this->set_multiple($addresses);
+    }
+    else {
+      // Make sure it is marked as multiple destinations
+      $this->set_destination(self::MULTIPLE_DESTINATION);
     }
     if (!$this->processed) {
       return $this->process();
@@ -422,10 +426,11 @@ class Messaging_Message extends Messaging_User_Object {
         $this->mdid = $destination->mdid;
         $this->_destination = $destination;
       }
-      elseif (is_string($destination) || empty($destination)) {
-        //$this->set_multiple($destination);
+      else {
+        // Set destination value but not destination object
         $this->destination = $destination;
-        $this->destination_object = FALSE;
+        $this->mdid = 0;
+        $this->_destination = FALSE;
       }
     }
     else {
@@ -433,9 +438,18 @@ class Messaging_Message extends Messaging_User_Object {
         // If we don't have a method we can get it from the user account
         $this->method = messaging_method_default($this->get_user());
       }
-      // Same for address, but only for registered users
-      if ($this->send_method() && empty($this->destination) && $this->uid) {
-        $this->destination = $this->send_method()->get_user_address($this->get_user());
+      // If we've got a send method we can try filling the rest of the values
+      if ($this->send_method() && !isset($this->_destination)) {
+        if (!empty($this->mdid) && ($destination = Messaging_Destination::load($this->mdid))) {
+          return $this->set_destination($destination);
+        }
+        // We can try to find an address, but only for registered users. We just set parameters, not creating a destination object
+        elseif (empty($this->destination) && $this->uid && ($address = $this->send_method()->get_user_address($this->get_user()))) {
+          return $this->set_destination($address);
+        }
+        else {
+          return $this->_destination = FALSE;
+        }
       }
     }
   }
@@ -444,10 +458,10 @@ class Messaging_Message extends Messaging_User_Object {
    * Get destination object
    */
   function get_destination() {
-    if (!isset($this->destination_object)) {
+    if (!isset($this->_destination)) {
       $this->set_destination();
     }
-    return $this->destination_object;
+    return $this->_destination;
   }
 
   /**
@@ -457,7 +471,7 @@ class Messaging_Message extends Messaging_User_Object {
    *   Array of addresses
    */
   function set_multiple($destinations) {
-    $this->destination = self::MULTIPLE_DESTINATION;
+    $this->set_destination(self::MULTIPLE_DESTINATION);
     $this->destinations = $destinations;
   }
   
