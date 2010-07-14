@@ -1059,7 +1059,7 @@ function messaging_translate($name, $string, $langcode = NULL, $textgroup = 'mes
 function messaging_locale($op = 'groups') {
   switch ($op) {
     case 'groups':
-      return array('messaging' => t('Notifications'));
+      return array('messaging' => t('Messaging'));
     case 'info':
       $info['messaging']['refresh callback'] = 'messaging_locale_refresh';
       $info['messaging']['format'] = TRUE; // Strings may have format
