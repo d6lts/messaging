@@ -550,7 +550,14 @@ function messaging_store() {
 function messaging_load_user($uid) {
   $cache = &messaging_static(__FUNCTION__);
   if (!$cache || !array_key_exists($uid, $cache)) {
-    $cache[$uid] = $uid ? user_load($uid) : drupal_anonymous_user();
+    if ($uid) {
+      $cache[$uid] = user_load($uid);
+    }
+    else {
+      $cache[0] = drupal_anonymous_user();
+      // This will prevent some notice from token module
+      $cache[0]->name = variable_get('anonymous', 'Anonymous');
+    }
   }
   return $cache[$uid];
 }
@@ -704,6 +711,7 @@ function messaging_token_list($type = 'all') {
  * Implementation of hook_token_values()
  */
 function messaging_token_values($type, $object = NULL, $options = array()) {
+  $language = isset($options['language']) ? $options['language'] : $GLOBALS['language'];
   switch ($type) {
     case 'message':
       if ($message = messaging_check_object($object, 'Messaging_Message')) {
@@ -711,7 +719,8 @@ function messaging_token_values($type, $object = NULL, $options = array()) {
         $values['message-body'] = filter_xss($message->get_body());
         $values['message-author-name'] = check_plain($message->get_sender_name());
         $values['message-method'] = messaging_method_info($message->method, 'name');
-        $values['message-date'] = format_date($message->sent);
+        $timezone = isset($options['timezone']) ? $options['timezone'] : variable_get('date_default_timezone', 0);
+        $values['message-date'] = format_date($message->sent, 'medium', '', $timezone, $language->language);
         return $values;
       }
       break;

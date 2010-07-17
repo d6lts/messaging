@@ -292,8 +292,19 @@ function messaging_template_extract_group($filter, $templates) {
  *   String or arry of text parts, that may be strings or template objects
  * @param $objects
  *   Array of objects for token replacement
+ * @param $language
+ *   Language object to be used for the token values
+ * @param $options
+ *   Aditional options to get the tokens: language, user
  */
-function messaging_template_text_replace($text, $objects) {
+function messaging_template_text_replace($text, $objects, $language = NULL, $options = array()) {
+  global $language;
+  global $user;
+
+  // Add default options, these will work with this patch http://drupal.org/node/854688
+  $options += array('language' => $language ? $language : $GLOBALS['language']);
+  $options += array('langcode' => $options['language']->language);
+  
   messaging_include('text.inc');
   // Add some token types
   $objects['global'] = NULL;  
@@ -320,7 +331,7 @@ function messaging_template_text_replace($text, $objects) {
     $text = token_logic_replace_multiple($text, $objects);
   }
   else {
-    $text = token_replace_multiple($text, $objects);
+    $text = token_replace_multiple($text, $objects, '[', ']', $options);
   }
   // Run filters if needed and return. We use our extra fast messaging_text_check_markup()
   if (is_array($text) && !empty($filters)) {
