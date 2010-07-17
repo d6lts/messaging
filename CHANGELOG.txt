@@ -2,6 +2,7 @@
 
 6.x-4.x-beta6 to
 ------------------------------
+- Added bulk sending to multiple users: messaging_message_bulk_send(), to be optimized
 - Some improvements to support language for tokens
 - Set name for anonymous user, prevent PHP Notice on latest token module
 - Fixed Message::get_destination(), set_destination() to always set a value, by davidmprice, #832098

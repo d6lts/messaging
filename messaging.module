@@ -308,6 +308,29 @@ function messaging_message_send_user($account, $message, $method = NULL, $queue 
   }
 }
 
+/**
+ * Send message to multiple users. For each user it will use the preferred method
+ * 
+ * @param $users
+ *   User id, array of user ids, user account or array of user accounts
+ * @param $message
+ *   Message object to use as template or array with 'subject' and 'body' texts
+ *   
+ * @return array
+ *   Array with sending result, indexed by user id
+ */
+function messaging_message_bulk_send($users, $message, $queue = FALSE) {
+  // Convert users to array of user account objects
+  $users = is_array($users) ? $users : array($users);
+  $users = array_map('messaging_user_object', $users);
+  $template = messaging_message_build($message);
+  $results = array();
+  foreach ($users as $account) {
+    $message = clone $template;
+    $results[$account->uid] = messaging_message_send_user($account, $message, NULL, $queue);
+  }
+  return $results;
+}
 
 /**
  * Build destination object from user account (and create destination if not exists)
