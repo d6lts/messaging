@@ -96,6 +96,42 @@ function messaging_template_perm() {
 }
 
 /**
+ * Build message from template with token replacement
+ * 
+ * @param $template
+ *   Template name to get text parts from
+ * @param $send_method
+ *   Send method to build the template
+ * @param $language
+ *   Language object
+ * @param $objects
+ *   Objects for token replacement. Global tokens will be added always
+ * @param $options
+ *   Aditional options for token replacement
+ * @param $parts
+ *   Array of template parts. Default will be: subject, header, main, footer
+ *   
+ * @return Messaging_Message object
+ */
+function messaging_template_build($template, $send_method, $language, $objects = array(), $options = array(), $parts = array('subject', 'header', 'main', 'footer')) {
+  $textparts = array();
+  foreach ($parts as $key) {
+    $textparts[$key] = messaging_template_text_part($template, $key, $send_method, $language);
+  }
+  // Run token replacement
+  $text = messaging_template_text_replace($textparts, $objects, $language, $options);
+  // Get subject out of text and build the message array
+  if (isset($text['subject'])) {
+    $subject = $text['subject'];
+    unset($text['subject']);
+  }
+  else {
+    $subject = '';
+  }
+  $message = new Messaging_Message(array('subject' => $subject, 'body' => $text, 'language' => $language));
+}
+
+/**
  * Returns parts of messages, that may be formatted for each sending method
  *
  * @ TODO Review logic, optimizations, text pre-fetching
@@ -298,9 +334,6 @@ function messaging_template_extract_group($filter, $templates) {
  *   Aditional options to get the tokens: language, user
  */
 function messaging_template_text_replace($text, $objects, $language = NULL, $options = array()) {
-  global $language;
-  global $user;
-
   // Add default options, these will work with this patch http://drupal.org/node/854688
   $options += array('language' => $language ? $language : $GLOBALS['language']);
   $options += array('langcode' => $options['language']->language);
