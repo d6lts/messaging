@@ -1,7 +1,8 @@
 // $Id$
 
-6.x-4.x-beta6 to
+6.x-4.x-beta6 to 6.x-4.x-beta7
 ------------------------------
+- Added API function: messaging_template_build() to build message from template
 - Added bulk sending to multiple users: messaging_message_bulk_send(), to be optimized
 - Some improvements to support language for tokens
 - Set name for anonymous user, prevent PHP Notice on latest token module
