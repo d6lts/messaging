@@ -1,8 +1,8 @@
 // $Id$
 
-6.x-2.2 to ...
+6.x-2.2 to 6.x-2.3
 ------------------------
-- Added PHPMailer support for secur sending port (Gmail support), by foxtrotcharlie, #549382
+- Added PHPMailer support for secure sending port (Gmail support), by foxtrotcharlie, #549382
 - Check message['headers'] is actually an array, by Scott Reynolds, #653856
 - Removed obsoleted messaging_get_log() function, #717852
 - Fixing issue: Unsupported operand types (method disabled), #451638
