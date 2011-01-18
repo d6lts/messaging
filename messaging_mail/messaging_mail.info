@@ -3,4 +3,5 @@ name = Simple Mail
 description = Mail Sending Method: Integration with Drupal mail API
 package = "Messaging"
 dependencies[] = messaging
-core = 6.x
+core = 7.x
+files[] = messaging_mail.inc

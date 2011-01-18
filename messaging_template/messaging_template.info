@@ -1,7 +1,10 @@
 ; $Id$
-name = Text templates
-description = Configurable text templates for modules using messaging.
-package = "Messaging"
+name = Messaging template
+description = Advanced templating system for messages. Do not enable this module unless other module requires it.
+package = Messaging
+version = VERSION
+core = 7.x
 dependencies[] = messaging
-dependencies[] = token
-core = 6.x
+files[] = messaging_template.inc
+
+

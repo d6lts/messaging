@@ -1,6 +1,7 @@
 ; $Id$
-name = Simple messaging
+name = Web messaging
 description = Sending Method: Show messages on user's page
 package = "Messaging"
 dependencies[] = messaging
-core = 6.x
+core = 7.x
+files[] = messaging_simple.inc

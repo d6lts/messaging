@@ -1,8 +1,0 @@
-; $Id$
-name = Messaging XMPP
-description = XMPP Sending Method: Integration with XMPP Framework
-package = "Messaging"
-dependencies[] = messaging
-dependencies[] = xmppframework
-dependencies[] = xmpp_user
-core = 6.x

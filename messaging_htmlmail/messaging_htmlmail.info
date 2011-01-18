@@ -1,0 +1,8 @@
+; $Id$
+name = HTML Mail
+description = Mail Sending Method: HTML Multipart e-mails with MimeMail
+package = "Messaging"
+dependencies[] = messaging
+dependencies[] = messaging_mail
+core = 7.x
+files[] = messaging_htmlmail.inc

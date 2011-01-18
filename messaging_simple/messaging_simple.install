@@ -8,13 +8,13 @@ function messaging_simple_schema() {
   $schema['messaging_simple'] = array(
     'description' => 'Stores messages sent among site users.',
     'fields' => array(
-      'msid'    => array(      
+      'mgid'    => array(      
         'type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE,
-        'description' => 'Unique message id.',
+        'description' => 'Unique simple message id.',
       ),
-      'mqid'    => array(      
+      'msid'    => array(      
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
-        'description' => 'Unique message id.',
+        'description' => 'Unique system message id.',
       ),
       'language' => array(
         'type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => '',
@@ -23,10 +23,6 @@ function messaging_simple_schema() {
       'uid'    => array(
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
         'description' => 'The {user}.uid for destination if it is a unique destination.',        
-      ),
-      'mdid'    => array(
-        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
-        'description' => 'The {messaging_destination}.mdid for destination.',        
       ),
       'sender' => array(
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0,
@@ -44,29 +40,18 @@ function messaging_simple_schema() {
         'type' => 'int', 'not null' => TRUE, 'default' => 0,
         'description' => 'Unix timestamp, when the message was sent.',
       ),
+      'timeread' => array(
+        'type' => 'int', 'not null' => TRUE, 'default' => 0,
+        'description' => 'Unix timestamp, when the message was read the first time.',
+      ),
     ),    
-    'primary key' => array('msid'),
+    'primary key' => array('mgid'),
     'indexes' => array(
       'uid' => array('uid'),
-      'destination' => array('mdid'),
     ),
   );
   return $schema;
 } 
-  
-/**
- * Implementation of hook_install()
-*/
-function messaging_simple_install() {
-  drupal_install_schema('messaging_simple');  
-}
-
-/**
- * Implementation of hook_uninstall()
-*/
-function messaging_simple_uninstall() {
-  drupal_uninstall_schema('messaging_simple');  
-}
 
 /**
  * Update: Create table and move messages from messaging_store

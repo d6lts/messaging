@@ -96,7 +96,7 @@ class Messaging_Methods_Tests extends MessagingTestCase {
       }
       $this->assertTableRows('messaging_destination', 0, array('type' => $type), "We have successfully deleted destinations of type $type");
       // After replacing a mail method by a user one, we should have the destinations again
-      messaging_method_disable($method, $replace);
+      Messaging_Method::method_disable($method, $replace);
       $old_type = messaging_method_info($method, 'address_type');
       $new_type = messaging_method_info($replace, 'address_type');
       $this->assertTableRows('messaging_destination', 2, array('type' => $type), "We got back destinations of type $type after method replace: from $method($old_type) to $replace($new_type)");

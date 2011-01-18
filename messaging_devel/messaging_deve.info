@@ -1,0 +1,6 @@
+; $Id$
+name = Messaging devel
+description = Debugging and development utilities for messaging package.
+package = "Development"
+dependencies[] = messaging
+core = 6.x

@@ -1,7 +1,0 @@
-; $Id$
-name = Twitter Messaging
-description = Sending method for messaging that uses Twitter
-package = "Messaging"
-dependencies[] = messaging
-dependencies[] = twitter
-core = 6.x

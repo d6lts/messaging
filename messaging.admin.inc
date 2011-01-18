@@ -31,13 +31,13 @@ function messaging_admin_settings() {
   
     $options = $enabled = array();
     foreach ($method_info as $method => $info) {
+      $send_method = messaging_send_method($method);
       $options[$method] = '';
       if ($info['enabled']) {
         $enabled[] = $method;
       }
-      $method_names[$method] = $info['title'];
-      $form['methods']['name'][$method]['#value'] = $info['title'];
-      $form['methods']['description'][$method]['#value'] = $info['description'];
+      $form['methods']['name'][$method]['#markup'] = $send_method->get_title();
+      $form['methods']['description'][$method]['#markup'] = $send_method->get_description();
     }
     $form['methods']['messaging_method_enabled'] = array(
       '#type' => 'checkboxes',
@@ -74,19 +74,20 @@ function messaging_admin_method_settings() {
   if ($info = messaging_method_info()) {
     $form['methods'] = array('#theme' => 'messaging_admin_settings_table');
     foreach ($info as $method => $options) {
+      $send_method = messaging_send_method($method);
       $options += array('log' => 0, 'queue' => 0);
       $key = 'messaging_method_'.$method;
       // This will preserve settings for disabled modules
       $form['methods'][$key]['#tree'] = TRUE;
       $form['methods'][$key]['title'] = array(
         '#title' => t('Method'),
-        '#value' => $options['title'],
+        '#markup' => $send_method->get_title(),
       );
       // Display name
       $form['methods'][$key]['name'] = array(
         '#title' => t('Name'),
         '#type' => 'textfield',
-        '#default_value' => $options['name'],
+        '#default_value' => $send_method->get_name(),
         '#size'          => 20,
       );
       // Log and queue can be enabled by 'Messaging Tool', disabled otherwise
@@ -94,7 +95,7 @@ function messaging_admin_method_settings() {
       $form['methods'][$key]['log'] = array('#type' => 'value', '#value' => 0);
     }
   } else {
-    $form['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
+    $form['warning']['#markup'] = t('You should enable some messaging method plug-ins for this to work.');
   }
   $form = system_settings_form($form);
   // Refresh strings after update if translation enabled
@@ -114,7 +115,7 @@ function messaging_admin_test_post_form() {
   $form['method'] = array(
     '#title' => t('Send method'),
     '#type' => 'select',
-    '#options' => messaging_method_list(),
+    '#options' => messaging_method_info(NULL, 'title'),
     '#default_value' => messaging_method_default(),
   );
   $form['to'] = array(
@@ -128,15 +129,29 @@ function messaging_admin_test_post_form() {
   $form['subject'] = array(
     '#type' => 'textfield',
     '#title' => t('Subject'),
-    '#size' => 20,
+    '#size' => 40,
     '#default_value' => t('Test message'),
   );
   $form['body'] = array(
-    '#type' => 'textarea',
+    '#type' => 'fieldset',
     '#title' => t('Body'),
-    '#default_value' => t("Hello.\n\nThis is a test message from !site_name", array('!site_name' => variable_get('site_name', 'Drupal'))),
+    '#tree' => TRUE,    
   );
-    
+  $form['body']['header'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Header'),
+    '#default_value' => t('Hello @name,', array('@name' => $user->name)),
+  );
+  $form['body']['content'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Content'),
+    '#default_value' => t("Sample message content.\nOne line\nTwo lines."),
+  );
+  $form['body']['footer'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Footer'),
+    '#default_value' => t("This is a test message from !site_name.", array('!site_name' => variable_get('site_name', 'Drupal'))),
+  );  
   $form['submit'] = array('#type' => 'submit', '#value' => t('Send'));
   
   return $form;
@@ -148,38 +163,39 @@ function messaging_admin_test_post_form() {
 function messaging_admin_test_post_form_submit($form, $form_state) {
   global $user;
 
-  messaging_log_start();
-  
   // Convert body in array of lines
-  $body = split("\n", $form_state['values']['body']);
-  $body = array_map('trim', $body);
+  $body = array_map('trim', $form_state['values']['body']);
   $method = $form_state['values']['method'];
 
   $message = messaging_message_build(array(
     'type' => 'test',
     'subject' => $form_state['values']['subject'],
-    'body' => $body,
+    'header' => $body['header'],
+    'content' => $body['content'],
+    'footer' => $body['footer'],
     'method' => $method,
     'priority' => 1, // So it won't be queued
   ));
   
   // Destination may be account or plain parameter/s
-  $destination = $form_state['values']['to'];
+  $address = $form_state['values']['to'];
   $send_method = messaging_send_method($method);
   
-  if ($account = user_load(array('name' => $destination))) {
-    $vars['!name'] = theme('username', $account);
-    if ($address = $send_method->get_user_address($account)) {
-      drupal_set_message(t('Found address @address for user !name', array('@address' => $address) + $vars));
-      $result = messaging_message_send_user($account, $message, $method);
+  if ($account = user_load_by_name($address)) {
+    $vars['!name'] = theme('username', array('account' => $account));
+    $message->set_user($account);
+    if ($dest = $message->get_destinations()) {
+      $destination = reset($dest);
+      drupal_set_message(t('Found address @address for user !name', array('@address' => $destination->format('long')) + $vars));
+      $result = $message->send();
     }
     else {
       drupal_set_message(t('Cannot find a valid address for user !name', $vars), 'error');
     }
     
-  } elseif ($send_method->address_validate($destination)) {
-    drupal_set_message(t('Sending message to address: @address', array('@address' => $destination)));
-    $result = messaging_message_send(array($destination), $message, $method);
+  } elseif ($destination = $send_method->address_destination($address, TRUE)) {
+    drupal_set_message(t('Sending message to address: @address', array('@address' => $address)));
+    $result = $message->add_destination($destination)->send();
   }
   else {
     drupal_set_message(t('The destination is not a user name nor a valid address.'), 'error');
@@ -205,7 +221,6 @@ function messaging_admin_test_post_form_submit($form, $form_state) {
  */
 function messaging_admin_method_filters() {
   // Add information about input formats
-  messaging_include('text.inc');
   // List of Input formats
   $format_options = $filter_options = array();
   foreach (filter_formats() as $format) {
@@ -224,7 +239,7 @@ function messaging_admin_method_filters() {
   $form['filter_info'] = array(
     '#title' => t('Available filters'),
     '#type' => 'item',
-    '#value' => theme('table', array(), $filter_info),
+    '#value' => theme('table', array('rows' => $filter_info)),
   );
   // Sending methods settings
   if ($info = messaging_method_info()) {
@@ -253,7 +268,7 @@ function messaging_admin_method_filters() {
       );
     }
   } else {
-    $form['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
+    $form['warning'] = array('#markup' => t('You should enable some messaging method plug-ins for this to work.'));
   }
   
   $form = system_settings_form($form);
@@ -264,9 +279,10 @@ function messaging_admin_method_filters() {
 /**
  * Format main methods settings form
  */
-function theme_messaging_admin_methods_table($elements) {
+function theme_messaging_admin_methods_table($variables) {
+  $elements = $variables['elements'];
   $output = '';
-  $header = array(t('Enabled'), t('Default'), t('Name'), t('Description'));
+  $header = array(t('Enabled'), t('Default'), t('Method'), t('Description'));
   $rows = array();
   foreach (element_children($elements['name']) as $key) {
     $rows[] = array(
@@ -276,15 +292,16 @@ function theme_messaging_admin_methods_table($elements) {
       drupal_render($elements['description'][$key]),   
     );
   }
-  $output .= theme('table', $header, $rows);
-  $output .= drupal_render($elements);
+  $output .= theme('table', array('header' => $header, 'rows' =>$rows));
+  $output .= drupal_render_children($elements);
   return $output;
 }
 
 /**
  * Theme settings as table
  */
-function theme_messaging_admin_settings_table($elements) {
+function theme_messaging_admin_settings_table($variables) {
+  $elements = $variables['elements'];
   if (isset($elements['#table_header'])) {
     $header = $elements['#table_header'];
     $extract_headers = FALSE;
@@ -297,7 +314,7 @@ function theme_messaging_admin_settings_table($elements) {
   foreach (element_children($elements) as $index) {
     $row = array();
     foreach (element_children($elements[$index]) as $key) {
-      if ($elements[$index][$key]['#type'] == 'value') continue;
+      if (isset($elements[$index][$key]['#type']) && $elements[$index][$key]['#type'] == 'value') continue;
       if (isset($elements[$index][$key]['#title'])) {
         if ($extract_headers) {
           // Extract the titles from elements
@@ -311,11 +328,11 @@ function theme_messaging_admin_settings_table($elements) {
     $extract_headers = FALSE;
   }
   if ($rows) {
-    $output = theme('table', $header, $rows);
+    $output = theme('table', array('header' => $header, 'rows' =>$rows));
   }
   else {
     $output = t('No data available');
   }
-  $output .= drupal_render($elements);
+  $output .= drupal_render_children($elements);
   return $output;  
 }
