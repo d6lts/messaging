@@ -41,7 +41,7 @@ function messaging_template_schema() {
         'description' => 'The input format used by this text.',
       ),
       'data' => array(
-        'type' => 'text', 'not null' => TRUE, 'size' => 'big', 'default' => '', 'serialize' => TRUE,
+        'type' => 'text', 'not null' => TRUE, 'size' => 'big', 'serialize' => TRUE,   
         'description' => 'Additional serialized parameters.',  
       ),
     ),

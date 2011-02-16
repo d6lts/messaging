@@ -1,5 +1,12 @@
 // $Id$
 
+6.x-4.x-beta7 to 6.x-4.x-beta8
+------------------------------
+- #912322, by roderik, messaging_template_build() missing return statement
+- #461226, by w3wfr, Messaging XMPP not sending.
+- #1008898, by thePanz, Install issue (database field error).
+- Tightened administration permissions, now needs 'administer site configuration'
+
 6.x-4.x-beta6 to 6.x-4.x-beta7
 ------------------------------
 - Added API function: messaging_template_build() to build message from template

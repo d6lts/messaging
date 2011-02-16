@@ -166,8 +166,8 @@ function messaging_xmpp_user_check($message) {
  */
 function messaging_xmpp_render($message, $info) {
   // rendering the message to get any additional pieces being put on
-  $message = messaging_message_render($message, $info);
-  // We apply a final filterting, stripping out all html tags
+  $message = Messaging_Send_Method::default_render($message, $info);
+  // We apply a final filtering, stripping out all html tags
   $message->body = messaging_text_clean($message->body);
   $message->subject = messaging_text_clean($message->subject);
   return $message;

@@ -128,7 +128,7 @@ function messaging_template_build($template, $send_method, $language, $objects =
   else {
     $subject = '';
   }
-  $message = new Messaging_Message(array('subject' => $subject, 'body' => $text, 'language' => $language));
+  return new Messaging_Message(array('subject' => $subject, 'body' => $text, 'language' => $language));
 }
 
 /**

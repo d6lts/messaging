@@ -75,7 +75,7 @@ function messaging_help($path, $arg) {
 function messaging_menu() {
   $items['admin/messaging'] = array(
     'title' => 'Messaging',
-    'access arguments' => array('administer messaging'),
+    'access arguments' => array('administer site configuration'),
     'description' => 'Administer and configure messaging',
     'page callback' => 'system_admin_menu_block_page',
     'file' => 'system.admin.inc',
@@ -86,7 +86,7 @@ function messaging_menu() {
     'description' => 'Configuration of messaging framework',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('messaging_admin_settings'),
-    'access arguments' => array('administer messaging'),
+    'access arguments' => array('administer site configuration'),
     'file' => 'messaging.admin.inc',
   );
   $items['admin/messaging/settings/overview'] = array(
@@ -100,7 +100,7 @@ function messaging_menu() {
     'description' => 'Configuration of sending methods',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('messaging_admin_method_settings'),
-    'access arguments' => array('administer messaging'),
+    'access arguments' => array('administer site configuration'),
     'weight' => -10,
     'file' => 'messaging.admin.inc',
     'type' => MENU_LOCAL_TASK,
@@ -127,7 +127,7 @@ function messaging_menu() {
     'description' => 'Test message sending',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('messaging_admin_test_post_form'),
-    'access arguments' => array('administer messaging'),
+    'access arguments' => array('administer site configuration'),
     'file' => 'messaging.admin.inc',
     'weight' => -10,
     'type' => MENU_LOCAL_TASK,
