@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-2.3 to 6.x-2.4
+------------------------
+- Added proper filtering for messaging method names.
+
 6.x-2.2 to 6.x-2.3
 ------------------------
 - Added PHPMailer support for secure sending port (Gmail support), by foxtrotcharlie, #549382

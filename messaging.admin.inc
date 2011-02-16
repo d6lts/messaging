@@ -81,7 +81,7 @@ function messaging_admin_template() {
   messaging_method_list();
   foreach (messaging_method_info() as $method => $info) {
     $rows[] = array(
-      '<strong>'. $info['name'] .'</strong>',
+      '<strong>'. $info['title'] .'</strong>',
       !empty($info['description']) ? $info['description'] : ''
     );
   }
