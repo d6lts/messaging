@@ -46,8 +46,8 @@ function messaging_template_admin_template() {
   messaging_method_list();
   foreach (messaging_method_info() as $method => $info) {
     $rows[] = array(
-      '<strong>'. $info['name'] .'</strong>',
-      !empty($info['description']) ? $info['description'] : ''
+      '<strong>'. $info['title'] .'</strong>',
+      !empty($info['description']) ? check_plain($info['description']) : ''
     );
   }
   $output .= theme('box', t('Sending methods'), theme('table', NULL, $rows));

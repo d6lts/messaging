@@ -419,7 +419,7 @@ function messaging_method_list($account = NULL) {
       }
     }
   }
-  return $info;
+  return array_map('check_plain', $info);
 }
 
 /**
