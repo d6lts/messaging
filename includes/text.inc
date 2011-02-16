@@ -174,10 +174,10 @@ function messaging_text_render($text, $glue = '', $format = NULL, $filter = NULL
   }
   
   // The format and the final filter are applied now only once
-  if (isset($format)) {
+  if (!empty($format)) {
     $output = messaging_text_check_markup($output, $format);
   }
-  if (isset($filter)) {
+  if (!empty($filter)) {
     $output = messaging_text_filter($output, $filter);
   }
   return $output;

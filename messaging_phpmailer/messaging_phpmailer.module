@@ -257,15 +257,16 @@ function messaging_phpmailer_drupal_mail($message) {
   // If enabled debug option, log everything...
   if (variable_get('messaging_phpmailer_debug', 0)) {
     $mail->SMTPDebug = TRUE;
-    watchdog('messaging', 'PHPMailer debug message: '. $mail->Send() . ' - ' . $mail->ErrorInfo);    
+    $result = $mail->Send();
+    watchdog('messaging', 'PHPMailer debug message: ' . $result . ' - ' . $mail->ErrorInfo);
   }
   else {
     $result = $mail->Send();
     if (!$result) {
       watchdog('messaging', 'PHPMailer exception: !details', array('!details' => $mail->ErrorInfo), WATCHDOG_ERROR);
     }
-    return $result;
   }
+  return $result;
 }
 
 /**
