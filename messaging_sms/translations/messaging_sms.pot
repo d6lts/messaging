@@ -1,4 +1,3 @@
-# $Id$
 #
 # LANGUAGE translation of Drupal (messaging_sms)
 # Copyright YEAR NAME <EMAIL@ADDRESS>

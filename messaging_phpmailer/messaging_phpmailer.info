@@ -1,4 +1,3 @@
-; $Id$
 name = Messaging PHPMailer
 description = Mail Sending Method: Integration with PHPMailer for HTML Mail
 package = "Messaging"

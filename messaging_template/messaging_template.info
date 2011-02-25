@@ -1,4 +1,3 @@
-; $Id$
 name = Text templates
 description = Configurable text templates for modules using messaging.
 package = "Messaging"

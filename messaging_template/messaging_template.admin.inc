@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Messaging Framework - Admin UI

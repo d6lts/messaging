@@ -1,4 +1,3 @@
-; $Id$
 name = Messaging
 description = Messaging system. This is the base module for the Messaging Framework
 package = "Messaging"

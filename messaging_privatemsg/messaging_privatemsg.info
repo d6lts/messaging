@@ -1,4 +1,3 @@
-; $Id$
 name = Messaging Privatemsg
 description = Sending Method: Integration with Privatemsg (Beta)
 package = "Messaging"

@@ -1,5 +1,4 @@
 <?php
-// $Id$ 
 /*
  * Base class for Messaging testing
  *  * Created on Mar 18, 2008

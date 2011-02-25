@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * XMPP Messsaging. Messaging method plug-in
