@@ -1,4 +1,3 @@
-; $Id$
 name = Messaging devel
 description = Debugging and development utilities for messaging package.
 package = "Development"

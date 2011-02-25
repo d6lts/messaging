@@ -1,4 +1,3 @@
-; $Id$
 name = Messaging template
 description = Advanced templating system for messages. Do not enable this module unless other module requires it.
 package = Messaging

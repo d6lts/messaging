@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * HTML Mail using Mime-Mail. Messaging method plug-in

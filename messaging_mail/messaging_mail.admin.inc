@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Drupal Messaging Framework - Mail admin page

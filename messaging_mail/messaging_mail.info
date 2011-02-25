@@ -1,4 +1,3 @@
-; $Id$
 name = Simple Mail
 description = Mail Sending Method: Integration with Drupal mail API
 package = "Messaging"

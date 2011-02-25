@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Simple messaging using html page. Messaging method plug-in
