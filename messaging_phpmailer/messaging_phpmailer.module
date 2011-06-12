@@ -282,3 +282,14 @@ function theme_messaging_phpmailer($mail) {
 function messaging_phpmailer_disable() {
   messaging_method_disable('phpmailer');
 }
+
+/**
+ * Implementation of hook_help().
+ */
+function messaging_phpmailer_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/settings/method/phpmailer':
+      $output = '<p>' . t('You can configure global Messaging email settings (such as sender address format) on the <a href="@mail_settings">mail settings page</a>.', array('@mail_settings' => url('admin/messaging/settings/method/mail'))) . '</p>';
+      return $output;
+  }
+}

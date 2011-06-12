@@ -142,3 +142,14 @@ function messaging_mail_send_msg($address, $message, $params = array()) {
 function messaging_mail_disable() {
   messaging_method_disable('mail');
 }
+
+/**
+ * Implementation of hook_help().
+ */
+function messaging_mail_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/settings/method/mail':
+      $output = '<p>' . t('These settings will apply to all email-based sending methods.') . '</p>';
+      return $output;
+  }
+}
