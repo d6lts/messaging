@@ -23,7 +23,7 @@ function messaging_htmlmail_messaging($op, $type = NULL) {
       $info['htmlmail'] = array(
         'title' => t('HTML mail'),
         'class' => 'Messaging_HTML_Mail_Method',
-        'name' => t('Mail'),
+        'name' => t('HTML mail'),
         'description' => t('Get messages as HTML e-mail.'),
       );
       return $info;
