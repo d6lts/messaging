@@ -490,7 +490,7 @@ function messaging_requirements($phase) {
     if (!$methods) {
       $requirements['messaging']  = array(
          'title' => $t('Messaging sending methods'),
-         'value' => $t('No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page.', array('!admin-modules' => l($t('Modules administration'), 'admin/build/modules'))),
+         'value' => $t('No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page.', array('!admin-modules' => l($t('Modules administration'), 'admin/modules'))),
          'severity' => REQUIREMENT_ERROR,
       );
     }
