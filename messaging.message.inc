@@ -370,6 +370,7 @@ class Messaging_Message {
    * Check parameters and go for alter hook
    */
   protected function do_build() {
+    $this->template[$this->method] = clone $this->default_template();
     // Save the method in case it changes
     $this->set_status(self::STATUS_BUILD);
     // Provides a hook for other modules to modify the message before sending
@@ -416,7 +417,6 @@ class Messaging_Message {
    * Render through sending method
    */
   protected function do_render() {
-    $this->template[$this->method] = clone $this->default_template();
     $this->send_method()->message_render($this);
     return TRUE;
   }
