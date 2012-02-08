@@ -147,7 +147,7 @@ class Messaging_Message {
    */
   function add_user_list($users) {
     foreach ($users as $index => $user) {
-      $this->add_user();
+      $this->add_user($user);
     }
     return $this;
   }
