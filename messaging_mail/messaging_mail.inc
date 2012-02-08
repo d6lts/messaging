@@ -68,11 +68,11 @@ class Messaging_Mail_Method extends Messaging_Send_Method {
     return $system->mail($mail);    
   }
   /**
-   * Get message parameters for this method
+   * Get message parameters for this method.
    */
   function message_params($message) {
-    return $message->get_params('mail') + $this->default_params();    
-  }  
+    return $message->get_params($message->method) + $this->default_params();
+  }
   /**
    * Get default method parameters, not depending on message
    */
