@@ -427,7 +427,7 @@ class Messaging_Message_Template extends Messaging_Template implements Messaging
    * Get Message_Object with this template linked
    */
   public function build_message($options = array()) {
-    $message = new Messaging_Message();
+    $message = new Messaging_Message($options);
     $message->set_template($this);
     return $message;
   }
