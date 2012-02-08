@@ -464,13 +464,13 @@ class Messaging_User_Destination extends Messaging_Destination {
   /**
    * Check address is valid
    */
-  public static function validate_address($address) {
+  public static function validate_address($address, $type = NULL) {
     return is_object($address) ? !empty($address->uid) : FALSE;
   }
   /**
    * Format address
    */
-  public static function format_address($user, $format = MESSAGING_FORMAT_PLAIN) {
+  public static function format_address($user, $format = MESSAGING_FORMAT_PLAIN, $type = NULL) {
     return ($format & MESSAGING_FORMAT_HTML) ? theme('username', array('account' => $user)) : check_plain($user->name);
   }
 }

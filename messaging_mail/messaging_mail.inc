@@ -227,7 +227,7 @@ class Messaging_Mail_Address extends Messaging_Destination {
     }
   }
 
-  public static function validate_address($address) {
+  public static function validate_address($address, $type = NULL) {
     return valid_email_address($address);
   }
 }
