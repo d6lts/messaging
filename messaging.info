@@ -3,3 +3,8 @@ description = Messaging system. This is the base module for the Messaging Framew
 package = "Messaging"
 dependencies[] = autoload
 core = 6.x
+; Information added by Drupal 6 LTS vendors on 2019-01-11
+version = "6.x-4.0-beta9"
+core = "6.x"
+project = "messaging"
+datestamp = "1547222066"
