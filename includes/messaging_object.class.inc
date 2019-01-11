@@ -1,4 +1,5 @@
 <?php
+// $Id: messaging_object.class.inc,v 1.1.2.12 2010/06/01 12:12:35 jareyero Exp $
 
 /**
  * @file
@@ -278,7 +279,7 @@ abstract class Messaging_Cached_Object extends Messaging_Object {
   /**
    * Load object by unique key, may have static caching 
    */
-  public static function object_load($table, $key, $value, $class) {
+  public static function object_load($table, $key, $value, $class = NULL) {
     $cached = self::object_cache_get($class, $value);
     if (isset($cached)) {
       return $cached;
